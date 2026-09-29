@@ -1,0 +1,75 @@
+{
+  "build": { "dockerfile": "Dockerfile" },
+  "mounts": [
+    "source=claude-data,target=/home/vscode/.claude,type=volume",
+    "source=liza-${devcontainerId},target=/home/vscode/.liza,type=volume",
+    "source=gh-config,target=/home/vscode/.config/gh,type=volume"
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "lts",
+      "pnpmVersion": "12"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.27.1"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/desktop-lite:1": {
+      "password": "changeme",
+      "webPort": "6080"
+    }
+  },
+  "containerEnv": {
+    "HOST_PROJECT_PATH": "${localWorkspaceFolder}",
+    "CONTAINER_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
+    "ACTIVATE_LIZA": "${localEnv:ACTIVATE_LIZA:true}",
+    "INSTALL_LIZA_TOOLS": "${localEnv:INSTALL_LIZA_TOOLS:true}",
+    "UV_SYSTEM_PYTHON": "1"
+  },
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "Desktop"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "charliermarsh.ruff",
+        "GitHub.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "DavidAnson.vscode-markdownlint",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "python.analysis.typeCheckingMode": "strict",
+        "python.analysis.autoFormatStrings": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "always",
+            "source.fixAll.ruff": "always"
+          }
+        }
+      }
+    }
+  },
+  "waitFor": "postCreateCommand",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
+  "postAttachCommand": "bash .devcontainer/post-attach.sh"
+}
