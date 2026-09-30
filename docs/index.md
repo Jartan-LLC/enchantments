@@ -1,16 +1,12 @@
-# Project Docs
+# enchantments
 
-<!-- TODO(/onboard): your landing page (often mirrors README.md). -->
+Dev container Features that set up an AI-assisted development environment.
 
 Built with [Sphinx](https://www.sphinx-doc.org/) and written in Markdown via
-[MyST](https://myst-parser.readthedocs.io/). The API reference is generated from
-source docstrings.
+[MyST](https://myst-parser.readthedocs.io/).
 
 ```{toctree}
 :maxdepth: 2
 
-getting-started
-reference
 scaffold
-onboard
 ```

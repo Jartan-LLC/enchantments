@@ -1,6 +1,6 @@
-# Project Name
+# enchantments
 
-<!-- ONE LINE: what this project is, primary language/framework, deployment target -->
+Dev container Features that set up an AI-assisted development environment. Written in POSIX sh and bash; each Feature is published to GHCR on its own.
 
 ## Rules
 
@@ -21,14 +21,15 @@ loads them into every session:
 
 ## Verify
 
-Run `make check` before declaring work done — it runs every CI check (lint,
-typecheck, test, build, audit, docs):
+Run `make check` before declaring work done — it runs lint and the strict docs build:
 
 ```bash
 make check
 ```
 
-Individual targets (`make lint`, `make test`, `make docs`, …) speed up the inner
-loop; `make help` lists them.
+A change under `src/`, `lib/` or `test/` is done only when the PR's `check` passes in CI,
+which also runs the Feature tests. Don't run `devcontainer features test` locally: it
+mounts and writes to your real `claude-data` and `gh-config` volumes.
 
-<!-- Not a Python project? Point the Makefile targets at your stack's lint/format/typecheck/test equivalents. -->
+Individual targets (`make lint`, `make docs`) speed up the inner loop; `make help` lists
+them.

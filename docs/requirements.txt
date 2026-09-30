@@ -1,0 +1,5 @@
+# The docs toolchain, exact-pinned; Dependabot's "/docs" entry bumps them.
+
+sphinx==9.1.0       # site generator
+myst-parser==5.1.0  # author docs in Markdown, not reStructuredText
+furo==2025.12.19    # theme
