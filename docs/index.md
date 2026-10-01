@@ -1,9 +1,19 @@
 # enchantments
 
-Dev container Features that set up an AI-assisted development environment.
+Dev container Features for Jartan LLC's projects, each one installable on its own.
 
-Built with [Sphinx](https://www.sphinx-doc.org/) and written in Markdown via
-[MyST](https://myst-parser.readthedocs.io/).
+None is published yet. Once they are, declare one in a project's `devcontainer.json`, or
+for every container in VS Code's `dev.containers.defaultFeatures`:
+
+```json
+{
+  "features": {
+    "ghcr.io/jartan-llc/enchantments/claude-code:1": {}
+  }
+}
+```
+
+Use that exact key, `:1` included, in both places, so a Feature declared twice runs once.
 
 ```{toctree}
 :maxdepth: 1

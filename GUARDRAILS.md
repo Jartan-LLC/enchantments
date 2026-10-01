@@ -25,11 +25,19 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
 
 - Read README.md and relevant docs before modifying unfamiliar code.
 - Update docs and skills alongside code changes.
-- Keep shell scripts shellcheck-clean.
+- Shell follows the [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html):
+  2-space indent, 80 columns, and a header comment on any function that isn't both obvious
+  and short. The dev container spec wins where they differ: `install.sh` is POSIX `sh`, and
+  Feature scripts keep their `.sh` names. This covers `src/`, `lib/`, `test/` and
+  `.github/scripts/`, except `pins.sh`'s digest lines; `.devcontainer/` scripts keep the
+  template's style, so template syncs stay clean. Scripts are shellcheck-clean.
 - Every Feature lifecycle hook exits 0: it records a failure for `postStart` to report
   instead of failing the container.
-- Bump a Feature's version with every change under `src/<id>/`, except `README.md` and
-  `NOTES.md`.
+- Once a Feature is published, any change in its `src/<id>/` raises the `version` in its
+  `devcontainer-feature.json` and adds that version's entry to its `CHANGELOG.md`. Before
+  its first release, amend its `## 1.0.0` entry instead. A change to only its `README.md`,
+  `NOTES.md` or `CHANGELOG.md` needs no bump: put a docs change under `## Unreleased`, and
+  bump only when it matters enough to publish on its own.
 - Write plans to `.claude/workspace/` in the project root for non-trivial changes.
 - Don't wrap things the underlying library already expresses clearly.
 - Don't speculate about fixes — investigate first, then propose.
