@@ -19,7 +19,7 @@ Installs plugins from the grimoire Claude Code marketplace at local scope.
 
 ## How it works
 
-Once the container is created, the grimoire marketplace is added and the plugins in the `plugins` option are installed for this clone. If the repo's `.claude/settings.json` pins the marketplace to a `ref`, that ref is used. `.claude/settings.local.json` is added to the clone's `.git/info/exclude`, so `git status` stays clean.
+Once the container is created, the grimoire marketplace is added and the plugins in the `plugins` option are installed for this clone. If the repo's `.claude/settings.json` pins the `Jartan-LLC/grimoire` marketplace to a `ref`, that ref is used. `.claude/settings.local.json` is added to the clone's `.git/info/exclude`, so `git status` stays clean.
 
 Installing plugins needs the `claude-code` Feature. With an empty `plugins` list, nothing is installed.
 

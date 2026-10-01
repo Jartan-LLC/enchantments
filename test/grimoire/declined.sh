@@ -60,6 +60,13 @@ jq -n '{extraKnownMarketplaces: {grimoire: {source:
 check "a fork's ref isn't applied to grimoire" \
   grep -qx 'plugins marketplace add Jartan-LLC/grimoire --scope local' \
   "$fake/calls"
+jq -n '{extraKnownMarketplaces: {grimoire: {source:
+  {source: "github", repo: "jartan-llc/Grimoire", ref: "v1"}}}}' \
+  >"$repo/.claude/settings.json"
+(cd "$repo/sub" && HOME=$fake bash "$hook") 2>/dev/null
+check "grimoire's ref is applied however the repo is cased" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire#v1 --scope local' \
+  "$fake/calls"
 check "from a subfolder, the plugin the repo root declines is skipped" \
   bash -c "! grep -q 'install claudivis@grimoire' '$fake/calls'"
 check "from a subfolder, the others install" \

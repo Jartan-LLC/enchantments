@@ -65,7 +65,8 @@ declined() { # plugin
 # without one would follow the default branch instead. A ref for a fork or
 # another source names a commit this repo may not have.
 ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
-  | select(.repo == "Jartan-LLC/grimoire") | .ref // empty' \
+  | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
+  | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
 if ! timeout 300 "$claude_bin" plugins marketplace add \
   "Jartan-LLC/grimoire${ref:+#$ref}" --scope local >/dev/null; then
