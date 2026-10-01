@@ -14,6 +14,22 @@ repos:
     hooks:
       - id: shellcheck
         args: [--external-sources] # follow `# shellcheck source=` into sourced helpers
+  # Google Shell Style, where scripts this repo owns live: .devcontainer/ keeps
+  # the template's style, so template syncs stay clean.
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: 479be5958357ba5ab65ce47172117348516860e9 # frozen: v3.14.1-1
+    hooks:
+      - id: shfmt
+        args: [--write, -i, "2", -ci, -bn]
+        files: ^(src|lib|test|\.github/scripts)/
+  - repo: local
+    hooks:
+      - id: shell-line-length
+        name: shell lines fit in 80 columns
+        language: pygrep
+        entry: ^.{81,}$
+        files: ^(src|lib|test|\.github/scripts)/.*\.sh$
+        exclude: /pins\.sh$ # its digests are unsplittable literals
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
     hooks:

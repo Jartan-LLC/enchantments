@@ -11,6 +11,9 @@ insert_final_newline = true
 [*.{js,ts,jsx,tsx,json,yml,yaml,css,html,astro,vue,svelte}]
 indent_size = 2
 
+[{src,lib,test,.github/scripts}/**.sh]
+indent_size = 2
+
 [*.md]
 trim_trailing_whitespace = false
 
