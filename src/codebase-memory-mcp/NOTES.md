@@ -16,4 +16,4 @@ The local registration outlives the Feature. Run `claude mcp remove --scope loca
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/codebase-memory-mcp.failures`, prints them when the container next starts, then renames the file to `codebase-memory-mcp.failures.reported`. Re-run a hook as yourself with `bash /usr/local/share/enchantments/codebase-memory-mcp/<hook>.sh`.
+Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/codebase-memory-mcp.failures`, prints them when the container next starts, then renames the file to `codebase-memory-mcp.failures.reported`. Re-run a hook as yourself, from the workspace folder, with `bash /usr/local/share/enchantments/codebase-memory-mcp/<hook>.sh`.

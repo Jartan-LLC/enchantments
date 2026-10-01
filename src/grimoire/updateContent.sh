@@ -16,6 +16,8 @@ claude=$HOME/.local/bin/claude
 if [ -n "$plugins_invalid" ]; then
     record_failure "$id" "the plugins option must be comma-separated plugin names; nothing installed"
     exit 0
+elif [ -z "$plugins" ]; then
+    exit 0
 elif [ ! -d /usr/local/share/enchantments/claude-code ]; then
     record_failure "$id" "claude-code absent: no plugins installed"
     exit 0
@@ -33,7 +35,6 @@ elif ! command -v jq >/dev/null; then
     record_failure "$id" "jq isn't installed, so declined plugins can't be read: no plugins installed"
     exit 0
 fi
-[ -n "$plugins" ] || exit 0
 
 # The local settings file is per clone, so git status stays clean. Liza records its own
 # slashed line, and removes only that, so the two never collide.

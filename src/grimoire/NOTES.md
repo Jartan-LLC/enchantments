@@ -22,4 +22,4 @@ Local-scope plugins, and their hooks, outlive the Feature. Whether you remove th
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/grimoire.failures`, prints them when the container next starts, then renames the file to `grimoire.failures.reported`. Re-run a hook as yourself with `bash /usr/local/share/enchantments/grimoire/<hook>.sh`.
+Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/grimoire.failures`, prints them when the container next starts, then renames the file to `grimoire.failures.reported`. Re-run a hook as yourself, from the workspace folder, with `bash /usr/local/share/enchantments/grimoire/<hook>.sh`.

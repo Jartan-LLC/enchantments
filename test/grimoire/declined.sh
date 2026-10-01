@@ -37,9 +37,12 @@ ln -s /dev/null "$fake/.claude.json"
 repo=$(mktemp -d)
 git -C "$repo" init -q && mkdir -p "$repo/sub" "$repo/.claude"
 echo '{"enabledPlugins":{"claudivis@grimoire":false}}' >"$repo/.claude/settings.local.json"
+printf 'last-line' >"$repo/.git/info/exclude"
 (cd "$repo/sub" && HOME=$fake bash /usr/local/share/enchantments/grimoire/updateContent.sh) 2>/dev/null
 check "from a subfolder, the plugin the repo root declines is skipped" bash -c "! grep -q 'install claudivis@grimoire' '$fake/calls'"
 check "from a subfolder, the others install" grep -q 'install praxis@grimoire' "$fake/calls"
+check "an exclude line without a newline stays whole" grep -qx last-line "$repo/.git/info/exclude"
+check "the settings line is added on its own" grep -qxF .claude/settings.local.json "$repo/.git/info/exclude"
 
 # Without jq, declined plugins can't be read, so nothing may install.
 nojq=$(mktemp -d)
@@ -48,5 +51,13 @@ for tool in readlink dirname git grep mkdir tail timeout; do ln -s "$(command -v
 (cd "$repo/sub" && HOME=$fake PATH=$nojq /bin/bash /usr/local/share/enchantments/grimoire/updateContent.sh) 2>/dev/null
 check "without jq, nothing installs" test ! -s "$fake/calls"
 check "without jq, the failure is recorded" grep -q "jq isn't installed" "$fake/.cache/enchantments/grimoire.failures"
+
+# An empty plugins list: no claude calls and nothing reported, though this image has no node.
+empty=$(mktemp -d)
+cp /usr/local/share/enchantments/grimoire/*.sh "$empty"/ && echo "plugins=''" >"$empty/options.sh"
+: >"$fake/calls" && rm -rf "$fake/.cache"
+(cd "$repo/sub" && HOME=$fake bash "$empty/updateContent.sh" && HOME=$fake bash "$empty/postStart.sh") 2>/dev/null
+check "an empty list makes no claude call" test ! -s "$fake/calls"
+check "an empty list reports nothing" test -z "$(ls -A "$fake/.cache/enchantments" 2>/dev/null)"
 
 reportResults

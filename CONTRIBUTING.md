@@ -18,9 +18,10 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
 ## Changing a Feature
 
 - The shell helpers live in `lib/`, and each Feature carries copies of the ones it uses: edit
-  `lib/`, then run `make vendor`.
+  `lib/`, then run `make vendor`. A Feature that starts using a helper gets its copy once,
+  with `cp lib/<helper>.sh src/<id>/`.
 - Each Feature's `README.md` is generated from its `devcontainer-feature.json` and `NOTES.md`:
-  run `make readmes`, and commit the result.
+  edit those, never `README.md`, then run `make readmes` and commit the result.
 
 ## Verify before opening a PR
 

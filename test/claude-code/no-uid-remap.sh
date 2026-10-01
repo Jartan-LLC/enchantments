@@ -2,7 +2,9 @@
 set -e
 source dev-container-features-test-lib
 
-# Without the uid remap's chown -R of the home, any build-time path left root-owned shows.
+# Without the uid remap's chown -R of the home, a build-time path left root-owned shows.
+# ~/.claude and ~/.config/gh are re-owned at runtime too, so ~/.config and ~/.local/bin are
+# the checks that catch it.
 for dir in ~/.claude ~/.config ~/.config/gh ~/.local/bin; do
     check "$dir belongs to the user" test "$(stat -c %U "$dir")" = vscode
 done

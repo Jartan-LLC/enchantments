@@ -8,4 +8,4 @@ Log in once with `gh auth login`. The login then lives in the `gh-config` volume
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/gh-config.failures`, prints them when the container next starts, then renames the file to `gh-config.failures.reported`. Re-run a hook as yourself with `bash /usr/local/share/enchantments/gh-config/<hook>.sh`.
+Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/gh-config.failures`, prints them when the container next starts, then renames the file to `gh-config.failures.reported`. Re-run a hook as yourself, from the workspace folder, with `bash /usr/local/share/enchantments/gh-config/<hook>.sh`.
