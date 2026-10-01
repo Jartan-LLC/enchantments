@@ -1,0 +1,21 @@
+{
+  "alpine": {
+    "image": "alpine",
+    "postCreateCommand": "touch /tmp/project-post-create-ran",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {},
+      "gh-config": {},
+      "grimoire": {}
+    }
+  },
+  "javascript-node": {
+    "image": "mcr.microsoft.com/devcontainers/javascript-node",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {},
+      "gh-config": {},
+      "grimoire": {}
+    }
+  }
+}
