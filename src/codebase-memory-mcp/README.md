@@ -28,7 +28,6 @@ The local registration outlives the Feature. Run `claude mcp remove --scope loca
 
 - **Remote user `vscode`, with home `/home/vscode`.** Feature mounts take only literal paths. On images with another user (`javascript-node`, `typescript-node`, `universal`), the binary is installed but not registered: `claude-data` is mounted at `/home/vscode/.claude`, not in `$HOME`.
 - **Debian-based, with `bash`, `curl`, `jq` and `git`.** On any other image this Feature installs nothing, and the image still builds.
-- **`sudo` is optional.** It's used only to take ownership of a shared volume another container left with a different owner; without it, the Feature warns.
 
 ## When something fails
 

@@ -19,10 +19,10 @@ if ! { mkdir -p "$dest" && cp "$here"/*.sh "$dest"/ && rm "$dest/install.sh"; };
     exit 0
 fi
 
-# options.sh is sourced by a hook, so only a validated list is written into it.
-if printf '%s' "${PLUGINS-}" | grep -qxE '([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)?'; then
-    printf "plugins='%s'\n" "${PLUGINS-}" >"$dest/options.sh"
-else
-    echo "plugins_invalid=1" >"$dest/options.sh"
-fi
+# options.sh is sourced by a hook, so only a validated list is written into it. Empty
+# means no plugins.
+case ${PLUGINS-} in
+    *[!A-Za-z0-9._,-]* | ,* | *, | *,,*) echo "plugins_invalid=1" >"$dest/options.sh" ;;
+    *) printf "plugins='%s'\n" "${PLUGINS-}" >"$dest/options.sh" ;;
+esac
 exit 0

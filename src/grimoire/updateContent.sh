@@ -25,6 +25,9 @@ elif [ ! -L "$HOME/.claude.json" ]; then
 elif [ ! -x "$claude" ]; then
     record_failure "$id" "claude isn't installed (see claude-code's report): no plugins installed"
     exit 0
+elif ! command -v jq >/dev/null; then
+    record_failure "$id" "jq isn't installed, so declined plugins can't be read: no plugins installed"
+    exit 0
 fi
 
 # The local settings file is per clone, so git status stays clean. Liza records its own

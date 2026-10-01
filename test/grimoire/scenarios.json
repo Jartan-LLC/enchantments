@@ -16,5 +16,14 @@
         "plugins": "gitwise"
       }
     }
+  },
+  "invalid-plugins": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "claude-code": {},
+      "grimoire": {
+        "plugins": "praxis gitwise"
+      }
+    }
   }
 }
