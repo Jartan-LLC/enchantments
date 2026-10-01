@@ -29,12 +29,15 @@ esac
 # The release's own install subcommand places the binary. --skip-config stops
 # it writing a skill, agents and hooks into the shared claude-data. Upstream's
 # install.sh is skipped: it re-downloads checksums.txt after any check of ours.
+# The install subcommand only stages a file the current user owns, and root's
+# tar would keep the archive's owner.
 tmp=$(mktemp -d) || {
   record_failure "$id" "no temporary directory; nothing installed"
   exit 0
 }
 fetch_verified "$releases/$CBM_TAG/$asset" "$sha256" "$tmp/release.tar.gz" \
-  && tar -xzf "$tmp/release.tar.gz" -C "$tmp" codebase-memory-mcp \
+  && tar -xzf "$tmp/release.tar.gz" -C "$tmp" --no-same-owner \
+    codebase-memory-mcp \
   && "$tmp/codebase-memory-mcp" install -y --force --dir="$HOME/.local/bin" \
     --skip-config </dev/null
 rm -rf "$tmp"
