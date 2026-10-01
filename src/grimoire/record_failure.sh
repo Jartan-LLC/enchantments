@@ -18,6 +18,7 @@ report_failures() {  # id
         echo "enchantments: $1 reported problems:"
         sed 's/^/  - /' "$file"
         echo "  Each hook can be re-run as you: bash /usr/local/share/enchantments/$1/<hook>.sh"
+        echo "  (updateContent.sh from the workspace folder)"
         echo "  Troubleshooting: https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md"
     } >&2
     mv -f "$file" "$file.reported"

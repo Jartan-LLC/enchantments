@@ -49,13 +49,13 @@ declined() {  # plugin
     return 1
 }
 
-if ! "$claude" plugins marketplace add Jartan-LLC/grimoire --scope local >/dev/null; then
-    record_failure "$id" "adding the grimoire marketplace failed; retry: bash $here/updateContent.sh"
+if ! timeout 300 "$claude" plugins marketplace add Jartan-LLC/grimoire --scope local >/dev/null; then
+    record_failure "$id" "adding the grimoire marketplace failed; retry from the workspace folder: bash $here/updateContent.sh"
     exit 0
 fi
 IFS=, read -ra wanted <<<"$plugins"
 for plugin in "${wanted[@]}"; do
     declined "$plugin" && continue
-    "$claude" plugins install "$plugin@$id" --scope local >/dev/null \
-        || record_failure "$id" "installing $plugin failed; retry: bash $here/updateContent.sh"
+    timeout 300 "$claude" plugins install "$plugin@$id" --scope local >/dev/null \
+        || record_failure "$id" "installing $plugin failed; retry from the workspace folder: bash $here/updateContent.sh"
 done

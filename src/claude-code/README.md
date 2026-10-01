@@ -33,7 +33,7 @@ Claude Code, installed as the remote user with Anthropic's native installer so i
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/claude-code.failures`, and prints them when the container next starts. Re-run a hook as yourself with `bash /usr/local/share/enchantments/claude-code/<hook>.sh`.
+Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/claude-code.failures`, prints them when the container next starts, then renames the file to `claude-code.failures.reported`. Re-run a hook as yourself with `bash /usr/local/share/enchantments/claude-code/<hook>.sh`.
 
 
 ---

@@ -7,15 +7,15 @@ project=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
 # claude-data holds every project's installs; update only user-scope plugins and this
 # project's. One "id scope" line per plugin.
-plugins=$(claude plugins list --json 2>/dev/null | jq -r --arg p "$project" '
+plugins=$(timeout 60 claude plugins list --json 2>/dev/null | jq -r --arg p "$project" '
     if type == "array" then .[] else empty end | objects
     | select(.id and (.scope == "user" or .projectPath == $p)) | "\(.id) \(.scope)"' 2>/dev/null)
 
 for marketplace in $(printf '%s\n' "$plugins" | sed -n 's/^[^@ ]*@\([^ ]*\) .*/\1/p' | sort -u); do
-    claude plugins marketplace update "$marketplace" >/dev/null 2>&1 || true
+    timeout 60 claude plugins marketplace update "$marketplace" >/dev/null 2>&1 || true
 done
 while read -r plugin_id scope; do
     [ -n "$plugin_id" ] || continue
-    claude plugins update "$plugin_id" --scope "$scope" >/dev/null 2>&1 || true
+    timeout 60 claude plugins update "$plugin_id" --scope "$scope" >/dev/null 2>&1 || true
 done <<<"$plugins"
 exit 0

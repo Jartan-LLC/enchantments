@@ -18,7 +18,7 @@ if [ -n "$overlap" ]; then
 fi
 # A new Feature mustn't skip the unsupported-image tests.
 if [ "$id" = _global ]; then
-    all=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | sort | jq -Rsc 'split("\n") | map(select(. != ""))')
+    all=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | LC_ALL=C sort | jq -Rsc 'split("\n") | map(select(. != ""))')
     for name in alpine javascript-node; do
         declared=$(jq -c --arg s "$name" '.[$s].features // {} | keys | sort' "$scenarios")
         if [ "$declared" != "$all" ]; then

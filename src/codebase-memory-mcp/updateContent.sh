@@ -29,5 +29,5 @@ else
     # user-scope one.
     "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
     "$claude" mcp add --scope local "$id" -- "$bin" >/dev/null \
-        || record_failure "$id" "registering the MCP server failed; retry: bash $here/updateContent.sh"
+        || record_failure "$id" "registering the MCP server failed; retry from the workspace folder: bash $here/updateContent.sh"
 fi

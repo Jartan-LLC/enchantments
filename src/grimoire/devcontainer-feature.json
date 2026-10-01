@@ -9,7 +9,7 @@
     "plugins": {
       "type": "string",
       "default": "praxis,gitwise,claudivis,recursio,pythonica",
-      "description": "Comma-separated grimoire plugins to install. A plugin the repo's or the clone's Claude settings set to false is skipped."
+      "description": "Grimoire plugins to install, comma-separated with no spaces. A plugin the repo's or the clone's Claude settings set to false is skipped."
     }
   },
   "updateContentCommand": "f=/usr/local/share/enchantments/grimoire/updateContent.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",

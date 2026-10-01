@@ -15,7 +15,7 @@ Installs plugins from the grimoire Claude Code marketplace at local scope, for t
 
 | Options Id | Description | Type | Default Value |
 |-----|-----|-----|-----|
-| plugins | Comma-separated grimoire plugins to install. A plugin the repo's or the clone's Claude settings set to false is skipped. | string | praxis,gitwise,claudivis,recursio,pythonica |
+| plugins | Grimoire plugins to install, comma-separated with no spaces. A plugin the repo's or the clone's Claude settings set to false is skipped. | string | praxis,gitwise,claudivis,recursio,pythonica |
 
 ## How it works
 
@@ -32,7 +32,7 @@ Either way, decline a plugin's dependents with it: praxis requires gitwise.
 
 ## Removal
 
-Local-scope plugins, and their hooks, outlive the Feature. Whether you remove the Feature or narrow `plugins` (the option only adds), run `claude plugins uninstall <id>@grimoire --scope local` in each clone for each plugin dropped. To remove the Feature, then run `claude plugins marketplace remove grimoire --scope local` in each clone, and remove its entry. Without `--scope`, that command also edits a committed `.claude/settings.json`.
+Local-scope plugins, and their hooks, outlive the Feature. Whether you remove the Feature or narrow `plugins` (the option only adds), run `claude plugins uninstall <id>@grimoire --scope local` in each clone for each plugin dropped. To remove the Feature entirely, also run `claude plugins marketplace remove grimoire --scope local` in each clone, then remove its entry. Keep `--scope local`: without it, that command also edits a committed `.claude/settings.json`.
 
 ## Image requirements
 
@@ -41,7 +41,7 @@ Local-scope plugins, and their hooks, outlive the Feature. Whether you remove th
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/grimoire.failures`, and prints them when the container next starts. Re-run a hook as yourself with `bash /usr/local/share/enchantments/grimoire/<hook>.sh`.
+Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/grimoire.failures`, prints them when the container next starts, then renames the file to `grimoire.failures.reported`. Re-run a hook as yourself with `bash /usr/local/share/enchantments/grimoire/<hook>.sh`.
 
 
 ---

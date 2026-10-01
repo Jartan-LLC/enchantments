@@ -3,7 +3,7 @@ set -e
 source dev-container-features-test-lib
 
 # The CLI copies the test files into the workspace after create.
-printf '%s\n' /*.sh /scenarios.json /dev-container-features-test-lib >>.git/info/exclude
+printf '%s\n' '/*.sh' /scenarios.json /dev-container-features-test-lib >>.git/info/exclude
 
 local_plugins() {
     claude plugins list --json | jq -c --arg p "$PWD" \

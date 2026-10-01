@@ -17,12 +17,15 @@ if [ "$HOME" != /home/vscode ]; then
 else
     fix_volume_owner "$volume" \
         || record_failure "$id" "can't take ownership of $volume without passwordless sudo; run: sudo chown -R $(id -un) $volume"
-    if [ ! -e "$volume/claude.json" ]; then
+    # Another container may seed the shared volume at the same time: write aside, then move
+    # into place only if nothing is there yet.
+    if [ ! -e "$volume/claude.json" ] && seed=$(mktemp "$volume/.claude.json.XXXXXX"); then
         if [ -f "$HOME/.claude.json" ] && [ ! -L "$HOME/.claude.json" ]; then
-            cp "$HOME/.claude.json" "$volume/claude.json"
+            cp "$HOME/.claude.json" "$seed"
         else
-            echo '{}' >"$volume/claude.json"
-        fi
+            echo '{}' >"$seed"
+        fi && mv -n "$seed" "$volume/claude.json"
+        rm -f "$seed"
     fi
     if ! { [ -f "$volume/claude.json" ] && ln -sfn "$volume/claude.json" "$HOME/.claude.json"; }; then
         record_failure "$id" "can't link ~/.claude.json into claude-data, so Claude's settings won't persist"
@@ -32,12 +35,13 @@ fi
 install_claude() {
     local script rc
     script=$(mktemp) || return 1
-    curl -fsSL https://claude.ai/install.sh -o "$script" && bash "$script" </dev/null
+    curl -fsSL --connect-timeout 15 --max-time 60 https://claude.ai/install.sh -o "$script" \
+        && timeout 900 bash "$script" </dev/null
     rc=$?
     rm -f "$script"
     return "$rc"
 }
-# Retried once: a network blip during create otherwise costs a rebuild.
+# A network blip during create would otherwise cost a rebuild.
 if ! { install_claude || install_claude; } || [ ! -x "$HOME/.local/bin/claude" ]; then
     record_failure "$id" "Claude Code install failed; retry: curl -fsSL https://claude.ai/install.sh | bash"
 fi
