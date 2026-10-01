@@ -97,7 +97,7 @@ jobs:
           ids=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | sort)
           if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
               || git diff --name-only "$base" HEAD | grep -qE '^(src/|lib/|test/|package\.json$|package-lock\.json$|\.github/workflows/ci\.yml$|Makefile$)'; then
-            matrix=$(printf '%s\n' $ids _global | jq -Rnc '[inputs | select(. != "")] as $ids
+            matrix=$({ printf '%s\n' "$ids"; echo _global; } | jq -Rnc '[inputs | select(. != "")] as $ids
               | [$ids[] as $id | ("ubuntu-24.04", "ubuntu-24.04-arm") as $runner | {id: $id, runner: $runner}]')
           else
             matrix='[]'
