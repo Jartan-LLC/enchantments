@@ -27,6 +27,7 @@ While both Features are still declared, run `liza-deactivate --tools` and then `
 
 - Debian-based, with `bash`, `curl`, `jq`, `git` and `unzip`.
 - On aarch64, glibc 2.39 or later (Debian trixie or later) for rtk.
+- `pip` on `PATH` for Python's code index, as a Python project's image has: scip-python reads the installed packages through it, and indexes nothing without it.
 
 ## When something fails
 

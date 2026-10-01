@@ -38,7 +38,7 @@
     }
   },
   "u1-rebuild": {
-    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "image": "mcr.microsoft.com/devcontainers/python:3.12",
     "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
     "mounts": [
       {
