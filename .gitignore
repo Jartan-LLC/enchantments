@@ -1,10 +1,9 @@
 # Dependencies
 node_modules/
-.pnpm-store/
 __pycache__/
 *.py[cod]
 *.egg-info/
-# Leading / matches the root only, so same-named source dirs (src/app/data/) are tracked and packaged
+# Leading / matches the root only, so same-named directories deeper in the tree stay tracked
 /.eggs/
 /dist/
 /build/
@@ -12,7 +11,6 @@ __pycache__/
 # Environment
 .env
 .env.*
-!.env.example
 .venv/
 venv/
 

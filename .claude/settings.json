@@ -3,8 +3,8 @@
     "claudivis@grimoire": true,
     "gitwise@grimoire": true,
     "praxis@grimoire": true,
-    "pythonica@grimoire": true,
-    "recursio@grimoire": true
+    "pythonica@grimoire": false,
+    "recursio@grimoire": false
   },
   "extraKnownMarketplaces": {
     "grimoire": {

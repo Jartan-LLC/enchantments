@@ -7,11 +7,11 @@ uv venv        # skip in the devcontainer or with an environment already active
 make install
 ```
 
-`make install` installs the project's dependencies and wires the pre-commit hook; rerun it
-after dependencies change. Make targets find the environment themselves; activate `.venv`
-only if you want `pytest` directly on your shell's PATH.
+`make install` installs the lint and docs tools and the pinned devcontainer CLI, and wires
+the pre-commit hook; rerun it after dependencies change.
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/getting-started/installation/) and
+Node.js: `make install` installs the pinned devcontainer CLI, and `make docs` runs it.
 `make lint` runs the [pre-commit](https://pre-commit.com/) hooks; some need
 Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has both.
 
@@ -21,14 +21,12 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
 make check
 ```
 
-Runs the same checks CI does (CI also runs the tests on each supported Python); all must
-pass before merge.
+Runs lint and the docs build. A change under `src/`, `lib/` or `test/` is done only when
+the PR's `check` passes in CI. Don't run `devcontainer features test` locally: it mounts
+and writes to your real `claude-data` and `gh-config` volumes.
 
 ## Conventions
 
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
-- User-facing changes go in `CHANGELOG.md` under `## [Unreleased]`.
-- `>>>` examples in docstrings run as tests, so keep them executable and their
-  expected output exact — the suite fails when one drifts from the code.
 - Report security issues privately via [SECURITY.md](.github/SECURITY.md), not a public issue.

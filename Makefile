@@ -1,5 +1,5 @@
 # Task runner for the local dev loop. Run `make` or `make help` to list targets.
-.PHONY: help install lint fix typecheck test test-integration docs check all
+.PHONY: help install lint docs check all
 
 # Every target uses one Python environment, chosen here: this
 # checkout's .venv, else the active one, else, in the main checkout only, the system
@@ -27,53 +27,33 @@ UV_INSTALL = uv pip install $(or $(UV_TARGET),$(error $(NO_ENV)))
 
 # Manifests: git-tracked only, so task worktrees and scratch copies never leak in.
 # .devcontainer's are Liza's tools, which liza/tools.sh installs, only when enabled.
-MANIFEST_EXCLUDES := $(foreach d,.worktrees .adversarial .liza .devcontainer node_modules .venv venv .tox,':(exclude,glob)**/$(d)/**')
+# src's are Feature payloads, which the Features install, never `make install`.
+MANIFEST_EXCLUDES := $(foreach d,.worktrees .adversarial .liza .devcontainer src node_modules .venv venv .tox,':(exclude,glob)**/$(d)/**')
 manifests = $(if $(CHECKOUT_GIT_DIR),$(shell git ls-files -- ':(glob)**/$(1)' $(MANIFEST_EXCLUDES)),$(wildcard $(1)))
-PY_PROJECTS = $(patsubst %/pyproject.toml,./%,$(patsubst pyproject.toml,.,$(call manifests,pyproject.toml)))
 NODE_DIRS = $(patsubst %/,%,$(dir $(call manifests,package.json)))
-# Only the root project has a docs extra.
-comma := ,
-extras = $(if $(filter .,$(1)),dev$(comma)docs,dev)
+DEVCONTAINER := node_modules/.bin/devcontainer
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-12s %s\n", $$1, $$2}'
 
 # pre-commit install refuses a checkout without git or with core.hooksPath set, which Liza
 # sets in task worktrees.
-install:  ## Install every tracked Python and Node manifest, then wire the pre-commit hook
-	$(UV_INSTALL) $(foreach p,$(PY_PROJECTS),-e '$(p)[$(call extras,$(p))]') $(foreach r,$(call manifests,requirements.txt),-r $(r))
-	$(if $(NODE_DIRS),@command -v pnpm >/dev/null || { echo "pnpm not found; it installs: $(NODE_DIRS)" >&2; exit 1; })
-	$(if $(NODE_DIRS),$(foreach d,$(NODE_DIRS),CI=true pnpm --dir $(d) install &&) true)
+install:  ## Install every tracked requirements file and Node manifest, then wire the pre-commit hook
+	$(UV_INSTALL) $(foreach r,$(call manifests,requirements.txt),-r $(r))
+	$(if $(NODE_DIRS),@command -v npm >/dev/null || { echo "npm not found; it installs: $(NODE_DIRS)" >&2; exit 1; })
+	$(if $(NODE_DIRS),$(foreach d,$(NODE_DIRS),npm ci --ignore-scripts --prefix $(d) &&) true)
 	@if ! git rev-parse --git-dir >/dev/null 2>&1; then :; \
 	elif [ -n "$$(git config core.hooksPath)" ]; then echo "core.hooksPath is set; skipping pre-commit install"; \
 	else pre-commit install; fi
 
-lint:  ## Lint all files via pre-commit (ruff, codespell, shellcheck, markdownlint, lychee, actionlint, zizmor, hygiene)
+lint:  ## Lint all files via pre-commit (codespell, shellcheck, markdownlint, lychee, actionlint, zizmor, check-jsonschema, hygiene)
 	pre-commit run --all-files
 
-# A hook run that rewrites files exits 1; the rerun passes unless a finding or error remains.
-fix:  ## Apply ruff's safe fixes and formatting via its pre-commit hooks (git-tracked files: `git add` new ones first)
-	pre-commit run ruff-check --all-files || pre-commit run ruff-check --all-files
-	pre-commit run ruff-format --all-files || pre-commit run ruff-format --all-files
-
-typecheck:  ## Static type check (pyright, strict)
-	pyright
-
-test:  ## Run the unit suite (matches CI: excludes integration-marked tests)
-	pytest -m "not integration"
-
-test-integration:  ## Run only integration-marked tests
-	pytest -m integration
-
-docs:  ## Build the docs site, warnings-as-errors
+docs:  ## Regenerate the Feature READMEs, then build the docs site, warnings-as-errors
+	$(if $(wildcard src/*/devcontainer-feature.json),$(DEVCONTAINER) features generate-docs -p src -n jartan-llc/enchantments --github-owner Jartan-LLC --github-repo enchantments)
 	sphinx-build -W -b html docs docs/_build/html
 
-check:  ## Run every CI check (lint, typecheck, test, build, audit, docs)
-	$(MAKE) lint typecheck test
-	uv build
-	python -m twine check dist/*
-# Advisory, as in CI: known vulnerabilities are reported without failing the gate.
-	-pip-audit
-	$(MAKE) docs
+check:  ## Run every local check (lint, docs)
+	$(MAKE) lint docs
 
 all: check  ## Alias for `check`
