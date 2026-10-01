@@ -15,7 +15,7 @@ Installs plugins from the grimoire Claude Code marketplace at local scope, for t
 
 | Options Id | Description | Type | Default Value |
 |-----|-----|-----|-----|
-| plugins | Grimoire plugins to install, comma-separated with no spaces. A plugin the repo's or the clone's Claude settings set to false is skipped. | string | praxis,gitwise,claudivis,recursio,pythonica |
+| plugins | Grimoire plugins to install, comma-separated with no spaces; empty installs none. A plugin the repo's or the clone's Claude settings set to false is skipped. | string | praxis,gitwise,claudivis,recursio,pythonica |
 
 ## How it works
 

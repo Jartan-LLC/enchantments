@@ -15,7 +15,7 @@ The codebase-memory-mcp code graph, installed from a pinned, digest-checked rele
 
 ## How it works
 
-- **At create:** it installs the pinned release into `~/.local/bin` after checking its sha256, and runs the binary's own installer with `--skip-config`, so nothing is written into the shared `claude-data`.
+- **At create:** it installs the pinned release into `~/.local/bin` after checking its sha256, and runs the binary's own installer with `--skip-config`, so nothing is written into the shared `claude-data`. That installer also adds `~/.local/bin` to `PATH` in `~/.bashrc` (or `~/.bash_profile` if there's no `~/.bashrc`); both are on the container filesystem, so a rebuild resets them.
 - **Then, in the workspace:** it turns on auto-indexing and registers the MCP server at local scope, for this workspace only. Declared with `liza` and `liza-toolchain`, it removes that registration instead, since the toolchain's graph tools replace it; auto-indexing stays on.
 
 Registration needs the `claude-code` Feature; without it, the binary is installed and the Feature says why it isn't registered.

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Vendored into each Feature that uses it; edit it here, then run `make vendor`.
+# make vendor copies this into each Feature that uses it: edit lib/record_failure.sh, not a copy.
 
 # Hooks must exit 0, or every later lifecycle stage is skipped, so each Feature records its
 # failures here and its postStart hook reports them after the project's own output.
@@ -17,8 +17,7 @@ report_failures() {  # id
     {
         echo "enchantments: $1 reported problems:"
         sed 's/^/  - /' "$file"
-        echo "  Each hook can be re-run as you: bash /usr/local/share/enchantments/$1/<hook>.sh"
-        echo "  (updateContent.sh from the workspace folder)"
+        echo "  Re-run a hook as you, from the workspace folder: bash /usr/local/share/enchantments/$1/<hook>.sh"
         echo "  Troubleshooting: https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md"
     } >&2
     mv -f "$file" "$file.reported"

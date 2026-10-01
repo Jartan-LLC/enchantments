@@ -20,8 +20,10 @@ if [ -d "$markers/liza" ] && [ -d "$markers/liza-toolchain" ]; then
     "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
 elif [ ! -d "$markers/claude-code" ]; then
     record_failure "$id" "claude-code absent: the MCP server isn't registered"
-elif [ ! -L "$HOME/.claude.json" ]; then
+elif [ ! -L "$HOME/.claude.json" ] && [ "$HOME" != /home/vscode ]; then
     record_failure "$id" "claude-data is mounted at /home/vscode/.claude, not in \$HOME ($HOME): the MCP server isn't registered"
+elif [ ! -L "$HOME/.claude.json" ]; then
+    record_failure "$id" "$HOME/.claude.json isn't linked into claude-data (see claude-code's report): the MCP server isn't registered"
 elif [ ! -x "$claude" ]; then
     record_failure "$id" "claude isn't installed (see claude-code's report): the MCP server isn't registered"
 else

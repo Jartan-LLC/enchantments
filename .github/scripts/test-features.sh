@@ -3,6 +3,10 @@
 # claude-data and gh-config volumes: the CLI removes containers but never volumes, and the
 # volume names are fixed.
 set -euo pipefail
+if [ "${CI:-}" != true ]; then
+    echo "test-features.sh deletes the claude-data and gh-config volumes; it runs only in CI" >&2
+    exit 1
+fi
 id=$1
 scenarios=test/$id/scenarios.json
 

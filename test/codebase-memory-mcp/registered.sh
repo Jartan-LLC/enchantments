@@ -18,4 +18,17 @@ check "no skill, agent or hook in claude-data" \
 check "no cbm hook in the user settings" bash -c '! grep -qs cbm- ~/.claude/settings.json'
 check "no failures recorded" test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
+# shellcheck source=../../src/codebase-memory-mcp/fetch_verified.sh
+. /usr/local/share/enchantments/codebase-memory-mcp/fetch_verified.sh
+payload=$(mktemp) && echo payload >"$payload"
+dest=$(mktemp -u)
+refuses_wrong_digest() {
+    ! fetch_verified "file://$payload" "$(printf '0%.0s' {1..64})" "$dest" && [ ! -e "$dest" ] && [ ! -e "$dest.part" ]
+}
+accepts_right_digest() {
+    fetch_verified "file://$payload" "$(sha256sum "$payload" | cut -c1-64)" "$dest" && cmp -s "$payload" "$dest"
+}
+check "fetch_verified refuses a wrong digest and leaves nothing" refuses_wrong_digest
+check "fetch_verified accepts the right digest" accepts_right_digest
+
 reportResults

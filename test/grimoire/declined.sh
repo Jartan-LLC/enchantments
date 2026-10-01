@@ -24,4 +24,29 @@ check "nothing grimoire at user scope" no_user_scope_grimoire
 check "the missing node is reported" grep -q "need node on PATH" ~/.cache/enchantments/grimoire.failures.reported
 check "nothing left unreported" test -z "$(ls "$HOME"/.cache/enchantments/*.failures 2>/dev/null)"
 
+# The hook again, from a subfolder of another repo, in a scratch HOME whose claude stub logs
+# its calls.
+fake=$(mktemp -d)
+mkdir -p "$fake/.local/bin"
+cat >"$fake/.local/bin/claude" <<STUB
+#!/bin/bash
+echo "\$*" >>"$fake/calls"
+STUB
+chmod +x "$fake/.local/bin/claude"
+ln -s /dev/null "$fake/.claude.json"
+repo=$(mktemp -d)
+git -C "$repo" init -q && mkdir -p "$repo/sub" "$repo/.claude"
+echo '{"enabledPlugins":{"claudivis@grimoire":false}}' >"$repo/.claude/settings.local.json"
+(cd "$repo/sub" && HOME=$fake bash /usr/local/share/enchantments/grimoire/updateContent.sh) 2>/dev/null
+check "from a subfolder, the plugin the repo root declines is skipped" bash -c "! grep -q 'install claudivis@grimoire' '$fake/calls'"
+check "from a subfolder, the others install" grep -q 'install praxis@grimoire' "$fake/calls"
+
+# Without jq, declined plugins can't be read, so nothing may install.
+nojq=$(mktemp -d)
+for tool in readlink dirname git grep mkdir tail timeout; do ln -s "$(command -v "$tool")" "$nojq/$tool"; done
+: >"$fake/calls"
+(cd "$repo/sub" && HOME=$fake PATH=$nojq /bin/bash /usr/local/share/enchantments/grimoire/updateContent.sh) 2>/dev/null
+check "without jq, nothing installs" test ! -s "$fake/calls"
+check "without jq, the failure is recorded" grep -q "jq isn't installed" "$fake/.cache/enchantments/grimoire.failures"
+
 reportResults

@@ -17,6 +17,6 @@ if [ "$HOME" != /home/vscode ]; then
 fi
 fix_volume_owner "$volume" \
     || record_failure "$id" "can't take ownership of $volume without passwordless sudo; run: sudo chown -R $(id -un) $volume"
-if command -v gh >/dev/null && ! gh auth status >/dev/null 2>&1; then
+if command -v gh >/dev/null && ! gh auth token >/dev/null 2>&1; then
     record_failure "$id" "gh isn't logged in: run 'gh auth login'; the login then survives rebuilds"
 fi

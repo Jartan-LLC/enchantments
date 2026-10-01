@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Vendored into each Feature that uses it; edit it here, then run `make vendor`.
+# make vendor copies this into each Feature that uses it: edit lib/fetch_verified.sh, not a copy.
 
 # Fetch into a destination only if the bytes match the expected digest.
 fetch_verified() {  # url  expected-sha256  destination
