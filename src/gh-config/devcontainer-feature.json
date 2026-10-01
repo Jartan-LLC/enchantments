@@ -1,0 +1,17 @@
+{
+  "id": "gh-config",
+  "version": "1.0.0",
+  "name": "GitHub CLI login persistence",
+  "description": "Keeps the GitHub CLI's login in the gh-config volume, so it survives rebuilds and is shared by every container that mounts it.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/gh-config",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "mounts": [
+    {
+      "source": "gh-config",
+      "target": "/mnt/enchantments/gh-config",
+      "type": "volume"
+    }
+  ],
+  "onCreateCommand": "f=/usr/local/share/enchantments/gh-config/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/gh-config/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

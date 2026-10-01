@@ -1,6 +1,7 @@
 # enchantments
 
-Dev container Features that set up an AI-assisted development environment. Written in POSIX sh and bash; each Feature is published to GHCR on its own.
+Dev container Features for Jartan LLC's projects, each one installable on its own.
+Written in POSIX `sh` and bash.
 
 ## Rules
 

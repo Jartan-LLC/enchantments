@@ -1,12 +1,25 @@
 # enchantments
 
-Dev container Features that set up an AI-assisted development environment.
+Dev container Features for Jartan LLC's projects, each one installable on its own.
 
-Built with [Sphinx](https://www.sphinx-doc.org/) and written in Markdown via
-[MyST](https://myst-parser.readthedocs.io/).
+```{include} ../README.md
+:start-after: <!-- declare:start -->
+:end-before: <!-- declare:end -->
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Features
+
+features/claude-code
+features/codebase-memory-mcp
+features/gh-config
+features/grimoire
+```
 
 ```{toctree}
 :maxdepth: 2
+:caption: Maintenance
 
 scaffold
 ```

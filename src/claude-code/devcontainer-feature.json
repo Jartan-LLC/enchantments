@@ -1,0 +1,25 @@
+{
+  "id": "claude-code",
+  "version": "1.0.0",
+  "name": "Claude Code",
+  "description": "Claude Code, installed as the remote user with Anthropic's native installer so it updates itself, with its login and settings kept in the claude-data volume.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/claude-code",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "mounts": [
+    {
+      "source": "claude-data",
+      "target": "/mnt/enchantments/claude-data",
+      "type": "volume"
+    }
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code"
+      ]
+    }
+  },
+  "onCreateCommand": "f=/usr/local/share/enchantments/claude-code/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/claude-code/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postAttachCommand": "f=/usr/local/share/enchantments/claude-code/postAttach.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

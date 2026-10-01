@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "10 7 * * 1" # weekly, Monday 07:10 UTC (offset from scorecard/link-check)
+    - cron: "10 7 * * *" # daily, 07:10 UTC (offset from scorecard/link-check)
   workflow_dispatch:
 
 permissions:
@@ -70,6 +70,105 @@ jobs:
 
       - run: uv pip install -r docs/requirements.txt
       - run: sphinx-build -W -b html docs docs/_build/html
+
+  # All or nothing: consumer scenarios build their sibling Features from source, so a change
+  # to one Feature re-runs every Feature that composes it.
+  features:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.emit.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      # With no base (a manual run, a failed fetch) everything runs, rather than risk
+      # skipping a change.
+      - id: emit
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) base=HEAD^1 ;;
+            push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
+          esac
+          ids=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | sort)
+          if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
+              || git diff --name-only "$base" HEAD | grep -qE '^(src/|lib/|test/|\.github/scripts/|package\.json$|package-lock\.json$|\.github/workflows/ci\.yml$|Makefile$)'; then
+            matrix=$({ printf '%s\n' "$ids"; echo _global; } | jq -Rnc '[inputs | select(. != "")] as $ids
+              | [$ids[] as $id | ("ubuntu-24.04", "ubuntu-24.04-arm") as $runner | {id: $id, runner: $runner}]')
+          else
+            matrix='[]'
+          fi
+          if [ "$EVENT" = schedule ] && [ -z "$ids" ]; then
+            echo "::error::no Features found under src"
+            exit 1
+          fi
+          echo "matrix=$matrix" >>"$GITHUB_OUTPUT"
+
+  test:
+    name: test (${{ matrix.id }}, ${{ matrix.runner }})
+    needs: features
+    if: needs.features.outputs.matrix != '[]'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.features.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - env:
+          ID: ${{ matrix.id }}
+        run: .github/scripts/test-features.sh "$ID"
+
+  vendor-drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Vendored helpers match lib/
+        run: |
+          make vendor
+          drift=$(git status --porcelain -- src)
+          if [ -n "$drift" ]; then
+            echo "::error::a vendored helper differs from lib/; edit lib/, then run make vendor:"
+            echo "$drift"
+            exit 1
+          fi
+
+  readme-drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - name: Generated READMEs are committed and current
+        run: |
+          make readmes
+          drift=$(git status --porcelain -- src)
+          if [ -n "$drift" ]; then
+            echo "::error::a generated README is missing or stale; run make readmes and commit:"
+            echo "$drift"
+            exit 1
+          fi
 
   changes:
     if: github.event_name != 'schedule'
@@ -149,12 +248,12 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, docs, changes, liza-smoke, devcontainer]
+    needs: [lint, docs, features, test, vendor-drift, readme-drift, changes, liza-smoke, devcontainer]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - run: |
-          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
           for r in "${results[@]}"; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "Check failed: $r"

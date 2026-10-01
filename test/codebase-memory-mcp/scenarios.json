@@ -1,0 +1,15 @@
+{
+  "registered": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {}
+    }
+  },
+  "no-claude": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "codebase-memory-mcp": {}
+    }
+  }
+}

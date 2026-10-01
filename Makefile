@@ -1,5 +1,5 @@
 # Task runner for the local dev loop. Run `make` or `make help` to list targets.
-.PHONY: help install lint docs check all
+.PHONY: help install lint vendor readmes docs check all
 
 # Every target uses one Python environment, chosen here: this
 # checkout's .venv, else the active one, else, in the main checkout only, the system
@@ -49,8 +49,17 @@ install:  ## Install every tracked requirements file and Node manifest, then wir
 lint:  ## Lint all files via pre-commit (codespell, shellcheck, markdownlint, lychee, actionlint, zizmor, check-jsonschema, hygiene)
 	pre-commit run --all-files
 
-docs:  ## Regenerate the Feature READMEs, then build the docs site, warnings-as-errors
+# Only the copies a Feature already has: a helper change then bumps only the Features that
+# ship it. Adding a helper to a Feature is a one-time cp.
+vendor:  ## Refresh each Feature's copies of the lib/ helpers
+	@for copy in src/*/*.sh; do \
+		helper=lib/$${copy##*/}; [ ! -f "$$helper" ] || cp "$$helper" "$$copy"; \
+	done
+
+readmes:  ## Regenerate each Feature's README from its devcontainer-feature.json and NOTES.md
 	$(if $(wildcard src/*/devcontainer-feature.json),$(DEVCONTAINER) features generate-docs -p src -n jartan-llc/enchantments --github-owner Jartan-LLC --github-repo enchantments)
+
+docs: readmes  ## Regenerate the Feature READMEs, then build the docs site, warnings-as-errors
 	sphinx-build -W -b html docs docs/_build/html
 
 check:  ## Run every local check (lint, docs)

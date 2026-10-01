@@ -1,0 +1,32 @@
+{
+  "alpine": {
+    "image": "alpine",
+    "postCreateCommand": "touch /tmp/project-post-create-ran",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {},
+      "gh-config": {},
+      "grimoire": {}
+    }
+  },
+  "javascript-node": {
+    "image": "mcr.microsoft.com/devcontainers/javascript-node",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {},
+      "gh-config": {},
+      "grimoire": {}
+    }
+  },
+  "root-user": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "remoteUser": "root",
+    "initializeCommand": "docker run --rm -v claude-data:/c -v gh-config:/g alpine sh -c \"touch /c/.seed /g/.seed && chown -R $(id -u):$(id -g) /c /g\"",
+    "features": {
+      "claude-code": {},
+      "codebase-memory-mcp": {},
+      "gh-config": {},
+      "grimoire": {}
+    }
+  }
+}

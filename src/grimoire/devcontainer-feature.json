@@ -1,0 +1,17 @@
+{
+  "id": "grimoire",
+  "version": "1.0.0",
+  "name": "grimoire plugins",
+  "description": "Installs plugins from the grimoire Claude Code marketplace at local scope.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/grimoire",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "options": {
+    "plugins": {
+      "type": "string",
+      "default": "praxis,gitwise,claudivis,recursio,pythonica",
+      "description": "Grimoire plugins to install, comma-separated with no spaces; empty installs none. A plugin the repo's or the clone's Claude settings set to false is skipped."
+    }
+  },
+  "updateContentCommand": "f=/usr/local/share/enchantments/grimoire/updateContent.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/grimoire/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

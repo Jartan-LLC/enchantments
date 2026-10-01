@@ -15,6 +15,16 @@ Node.js: `make install` installs the pinned devcontainer CLI, and `make docs` ru
 `make lint` runs the [pre-commit](https://pre-commit.com/) hooks; some need
 Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has both.
 
+## Changing a Feature
+
+- The shell helpers live in `lib/`, and each Feature carries copies of the ones it uses: edit
+  `lib/`, then run `make vendor`. A Feature that starts using a helper gets its copy once,
+  with `cp lib/<helper>.sh src/<id>/`.
+- Each Feature's `README.md` is generated from its `devcontainer-feature.json` and `NOTES.md`:
+  edit those, never `README.md`, then run `make readmes` and commit the result.
+- A change under `src/<id>/` may need a version bump and a `CHANGELOG.md` entry: follow
+  the version rule in `GUARDRAILS.md`.
+
 ## Verify before opening a PR
 
 ```bash
