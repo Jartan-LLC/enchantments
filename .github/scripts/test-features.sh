@@ -31,8 +31,12 @@ fi
 failed=()
 for name in $(jq -r 'keys[]' "$scenarios"); do
     echo "::group::$id: $name"
-    # The CLI's cleanup can return before its container lets go of the volumes.
-    docker ps -aq --filter label=devcontainer.is_test_run=true | xargs -r docker rm -f >/dev/null
+    # The CLI returns while Docker is still removing its test container, which holds the
+    # volumes; the last try reports the error.
+    for _ in $(seq 30); do
+        docker volume rm -f claude-data gh-config >/dev/null 2>&1 && break
+        sleep 2
+    done
     docker volume rm -f claude-data gh-config >/dev/null
     if [ "$id" = _global ]; then
         args=(--global-scenarios-only)
