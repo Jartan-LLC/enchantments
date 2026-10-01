@@ -9,7 +9,9 @@ permissions: {}
 jobs:
   automerge:
     runs-on: ubuntu-24.04
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # A GITHUB_TOKEN auto-merge starts no push run, so the version check's race
+    # guard and pin-bumps' push trigger would never see a merge under src/.
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && !contains(github.head_ref, '/src/')
     permissions:
       contents: write
       pull-requests: write

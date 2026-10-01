@@ -1,0 +1,9 @@
+--profile
+full
+--exclude
+scip-go
+--install-dir
+/mnt/enchantments/liza/bin
+--agent-tools
+skip
+--write-shell-profile

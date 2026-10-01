@@ -1,0 +1,25 @@
+{
+  "bookworm": {
+    "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture && claude mcp add --scope local context7 -- true",
+    "features": {
+      "claude-code": {},
+      "liza": {},
+      "liza-toolchain": {}
+    }
+  },
+  "without-liza": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "claude-code": {},
+      "liza-toolchain": {}
+    }
+  },
+  "python": {
+    "image": "mcr.microsoft.com/devcontainers/python:3.12",
+    "features": {
+      "liza": {},
+      "liza-toolchain": {}
+    }
+  }
+}

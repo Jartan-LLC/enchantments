@@ -6,27 +6,67 @@
       "claude-code": {},
       "codebase-memory-mcp": {},
       "gh-config": {},
-      "grimoire": {}
+      "grimoire": {},
+      "liza": {},
+      "liza-toolchain": {}
     }
   },
   "javascript-node": {
     "image": "mcr.microsoft.com/devcontainers/javascript-node",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
     "features": {
       "claude-code": {},
       "codebase-memory-mcp": {},
       "gh-config": {},
-      "grimoire": {}
+      "grimoire": {},
+      "liza": {},
+      "liza-toolchain": {}
     }
   },
   "root-user": {
     "image": "mcr.microsoft.com/devcontainers/base:trixie",
     "remoteUser": "root",
     "initializeCommand": "docker run --rm -v claude-data:/c -v gh-config:/g alpine sh -c \"touch /c/.seed /g/.seed && chown -R $(id -u):$(id -g) /c /g\"",
+    "onCreateCommand": "git config --global --add safe.directory \"$PWD\" && git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
     "features": {
       "claude-code": {},
       "codebase-memory-mcp": {},
       "gh-config": {},
-      "grimoire": {}
+      "grimoire": {},
+      "liza": {},
+      "liza-toolchain": {}
+    }
+  },
+  "u1-rebuild": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
+    "mounts": [
+      {
+        "source": "liza-rebuild",
+        "target": "/mnt/enchantments/liza",
+        "type": "volume"
+      }
+    ],
+    "features": {
+      "ghcr.io/devcontainers/features/node:2": {},
+      "claude-code": {},
+      "grimoire": {},
+      "liza": {},
+      "liza-toolchain": {},
+      "gh-config": {}
+    }
+  },
+  "u1-cbm": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
+    "features": {
+      "ghcr.io/devcontainers/features/node:2": {},
+      "claude-code": {},
+      "grimoire": {},
+      "liza": {},
+      "liza-toolchain": {},
+      "gh-config": {},
+      "codebase-memory-mcp": {}
     }
   }
 }

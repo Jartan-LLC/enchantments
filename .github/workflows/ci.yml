@@ -113,7 +113,8 @@ jobs:
     needs: features
     if: needs.features.outputs.matrix != '[]'
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    # The liza and _global entries each install the toolchain several times.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
