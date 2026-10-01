@@ -74,12 +74,24 @@ HOME=$probe PATH="$probe/bin:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
 check "a second claude on PATH is reported" grep -q 'more than one claude' \
   "$probe/.cache/enchantments/claude-code.failures.reported"
 
+# The /usr/local/bin link and the install it points to are one claude.
+single=$(mktemp -d)
+user_bin=$HOME/.local/bin
+PATH="$user_bin:/usr/local/bin:$PATH" HOME=$single \
+  bash "$hooks/postStart.sh" 2>/dev/null
+check "claude is linked from /usr/local/bin" \
+  test "$(readlink -f /usr/local/bin/claude)" \
+  = "$(readlink -f "$HOME/.local/bin/claude")"
+check "the link and the install count as one claude" \
+  test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.
 # shellcheck source=../../src/claude-code/link_home.sh
 . "$hooks/link_home.sh"
 scratch=$(mktemp -d)
 mkdir "$scratch/empty" "$scratch/full" && touch "$scratch/full/kept"
+echo '{}' >"$scratch/file"
 ln -s "$scratch" "$scratch/other"
 check "an empty directory is replaced by the link" \
   link_home "$scratch/empty" "$mount"
@@ -89,6 +101,9 @@ refuses() { ! link_home "$1" "$mount"; }
 check "a non-empty directory is refused" refuses "$scratch/full"
 check "its contents are kept" test -f "$scratch/full/kept"
 check "another link is refused" refuses "$scratch/other"
+check "a regular file is refused" refuses "$scratch/file"
+is_file() { [ ! -L "$1" ] && [ -f "$1" ]; }
+check "the file is kept" is_file "$scratch/file"
 check "the target itself is accepted" link_home "$mount" "$mount"
 
 reportResults

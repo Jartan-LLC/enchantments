@@ -8,13 +8,12 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
+# shellcheck source=claude_ready.sh
+. "$here/claude_ready.sh"
 plugins='' plugins_invalid=''
 # shellcheck source=/dev/null # written by install.sh
 . "$here/options.sh"
 id=grimoire
-claude=$HOME/.local/bin/claude
-claude_json=/mnt/enchantments/claude-data/claude.json
-none="no plugins installed"
 retry="retry from the workspace folder: bash $here/updateContent.sh"
 
 if [ -n "$plugins_invalid" ]; then
@@ -23,20 +22,11 @@ if [ -n "$plugins_invalid" ]; then
   exit 0
 elif [ -z "$plugins" ]; then
   exit 0
-elif [ ! -d /usr/local/share/enchantments/claude-code ]; then
-  record_failure "$id" "claude-code absent: $none"
-  exit 0
-elif [ ! "$HOME/.claude.json" -ef "$claude_json" ]; then
-  record_failure "$id" "$HOME/.claude.json isn't linked into claude-data" \
-    "(see claude-code's report): $none"
-  exit 0
-elif [ ! -x "$claude" ]; then
-  record_failure "$id" "claude isn't installed (see claude-code's report):" \
-    "$none"
+elif ! claude_ready "$id" "no plugins installed"; then
   exit 0
 elif ! command -v jq >/dev/null; then
   record_failure "$id" "jq isn't installed, so declined plugins can't be" \
-    "read: $none"
+    "read: no plugins installed"
   exit 0
 fi
 
@@ -71,11 +61,13 @@ declined() { # plugin
   return 1
 }
 
-# A repo that pins the marketplace to a ref keeps it: a local declaration
-# without one would follow the default branch instead.
-ref=$(jq -r '.extraKnownMarketplaces.grimoire.source.ref // empty' \
+# A repo that pins this marketplace to a ref keeps it: a local declaration
+# without one would follow the default branch instead. A ref for a fork or
+# another source names a commit this repo may not have.
+ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
+  | select(.repo == "Jartan-LLC/grimoire") | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
-if ! timeout 300 "$claude" plugins marketplace add \
+if ! timeout 300 "$claude_bin" plugins marketplace add \
   "Jartan-LLC/grimoire${ref:+#$ref}" --scope local >/dev/null; then
   record_failure "$id" "adding the grimoire marketplace failed; $retry"
   exit 0
@@ -83,6 +75,7 @@ fi
 IFS=, read -ra wanted <<<"$plugins"
 for plugin in "${wanted[@]}"; do
   declined "$plugin" && continue
-  timeout 300 "$claude" plugins install "$plugin@$id" --scope local >/dev/null \
+  timeout 300 "$claude_bin" plugins install "$plugin@$id" --scope local \
+    >/dev/null \
     || record_failure "$id" "installing $plugin failed; $retry"
 done

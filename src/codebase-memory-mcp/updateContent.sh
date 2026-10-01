@@ -6,30 +6,21 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
+# shellcheck source=claude_ready.sh
+. "$here/claude_ready.sh"
 id=codebase-memory-mcp
 bin=$HOME/.local/bin/codebase-memory-mcp
-claude=$HOME/.local/bin/claude
-claude_json=/mnt/enchantments/claude-data/claude.json
-unregistered="the MCP server isn't registered"
 
 [ -x "$bin" ] || exit 0 # onCreate recorded why
 # The setting lives in ~/.cache, which a rebuild resets.
 "$bin" config set auto_index true >/dev/null \
   || record_failure "$id" "couldn't turn on auto_index"
 
-if [ ! -d /usr/local/share/enchantments/claude-code ]; then
-  record_failure "$id" "claude-code absent: $unregistered"
-elif [ ! "$HOME/.claude.json" -ef "$claude_json" ]; then
-  record_failure "$id" "$HOME/.claude.json isn't linked into claude-data" \
-    "(see claude-code's report): $unregistered"
-elif [ ! -x "$claude" ]; then
-  record_failure "$id" "claude isn't installed (see claude-code's report):" \
-    "$unregistered"
-else
+if claude_ready "$id" "the MCP server isn't registered"; then
   # Replace our own local entry: a second add fails, and `mcp get` can't tell
   # it from a user-scope one.
-  "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
-  "$claude" mcp add --scope local "$id" -- "$bin" >/dev/null \
+  "$claude_bin" mcp remove --scope local "$id" >/dev/null 2>&1
+  "$claude_bin" mcp add --scope local "$id" -- "$bin" >/dev/null \
     || record_failure "$id" "registering the MCP server failed; retry from" \
       "the workspace folder: bash $here/updateContent.sh"
 fi

@@ -53,7 +53,13 @@ git -C "$repo" init -q && mkdir -p "$repo/sub" "$repo/.claude"
 echo '{"enabledPlugins":{"claudivis@grimoire":false}}' \
   >"$repo/.claude/settings.local.json"
 printf 'last-line' >"$repo/.git/info/exclude"
+jq -n '{extraKnownMarketplaces: {grimoire: {source:
+  {source: "github", repo: "someone/grimoire", ref: "fork-only"}}}}' \
+  >"$repo/.claude/settings.json"
 (cd "$repo/sub" && HOME=$fake bash "$hook") 2>/dev/null
+check "a fork's ref isn't applied to grimoire" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire --scope local' \
+  "$fake/calls"
 check "from a subfolder, the plugin the repo root declines is skipped" \
   bash -c "! grep -q 'install claudivis@grimoire' '$fake/calls'"
 check "from a subfolder, the others install" \
@@ -62,6 +68,17 @@ check "an exclude line without a newline stays whole" \
   grep -qx last-line "$repo/.git/info/exclude"
 check "the settings line is added on its own" \
   grep -qxF .claude/settings.local.json "$repo/.git/info/exclude"
+
+# A .claude.json that isn't claude-data's: claude would write elsewhere, so
+# nothing may install.
+unlinked=$(mktemp -d)
+cp -r "$fake/.local" "$unlinked"/ && echo '{}' >"$unlinked/.claude.json"
+: >"$fake/calls"
+(cd "$repo/sub" && HOME=$unlinked bash "$hook") 2>/dev/null
+check "with .claude.json unlinked, nothing installs" test ! -s "$fake/calls"
+check "with .claude.json unlinked, the failure is recorded" \
+  grep -q "isn't linked into claude-data" \
+  "$unlinked/.cache/enchantments/grimoire.failures"
 
 # Without jq, declined plugins can't be read, so nothing may install.
 nojq=$(mktemp -d)
