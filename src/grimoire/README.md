@@ -21,7 +21,7 @@ Installs plugins from the grimoire Claude Code marketplace at local scope, for t
 
 In the workspace, after every Feature's install, it adds the grimoire marketplace and installs the `plugins` option's list at local scope, for this clone only. User scope would reach every container sharing `claude-data`, and project scope would change a tracked file. It adds `.claude/settings.local.json` to the clone's `.git/info/exclude`, so `git status` stays clean.
 
-It needs the `claude-code` Feature. The plugins' hooks run `node`, so `node` must be on `PATH` when the container starts, from a Feature or a system install; otherwise the Feature says so at each start. A Node that only your shell's startup files add, such as a hand-installed nvm, isn't seen there, so ignore that warning in that case.
+When `plugins` lists any plugin, it needs the `claude-code` Feature, and `node` must be on `PATH` when the container starts, from a Feature or a system install, since the plugins' hooks run it; otherwise the Feature says so at each start. With an empty list, it does nothing. A Node that only your shell's startup files add, such as a hand-installed nvm, isn't seen there, so ignore that warning in that case.
 
 ## Declining a plugin
 

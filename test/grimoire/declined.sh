@@ -53,10 +53,12 @@ check "without jq, nothing installs" test ! -s "$fake/calls"
 check "without jq, the failure is recorded" grep -q "jq isn't installed" "$fake/.cache/enchantments/grimoire.failures"
 
 # An empty plugins list: no claude calls and nothing reported, though this image has no node.
+# jq is off PATH too, so the empty-list exit must come before the readiness checks.
 empty=$(mktemp -d)
 cp /usr/local/share/enchantments/grimoire/*.sh "$empty"/ && echo "plugins=''" >"$empty/options.sh"
 : >"$fake/calls" && rm -rf "$fake/.cache"
-(cd "$repo/sub" && HOME=$fake bash "$empty/updateContent.sh" && HOME=$fake bash "$empty/postStart.sh") 2>/dev/null
+(cd "$repo/sub" && HOME=$fake PATH=$nojq /bin/bash "$empty/updateContent.sh" \
+    && HOME=$fake PATH=$nojq /bin/bash "$empty/postStart.sh") 2>/dev/null
 check "an empty list makes no claude call" test ! -s "$fake/calls"
 check "an empty list reports nothing" test -z "$(ls -A "$fake/.cache/enchantments" 2>/dev/null)"
 
