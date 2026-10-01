@@ -1,6 +1,6 @@
 #!/bin/bash
-# onCreateCommand, as the remote user: take ownership of the gh-config volume, and say so
-# when gh isn't logged in.
+# onCreateCommand, as the remote user: link ~/.config/gh to the gh-config
+# volume, and say so when gh isn't logged in.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")
@@ -8,15 +8,18 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 # shellcheck source=fix_volume_owner.sh
 . "$here/fix_volume_owner.sh"
+# shellcheck source=link_home.sh
+. "$here/link_home.sh"
 id=gh-config
-volume=/home/vscode/.config/gh
+mount=/mnt/enchantments/gh-config
 
-if [ "$HOME" != /home/vscode ]; then
-    record_failure "$id" "gh-config is mounted at $volume, not in \$HOME ($HOME): gh's login won't persist"
-    exit 0
-fi
-fix_volume_owner "$volume" \
-    || record_failure "$id" "can't take ownership of $volume without passwordless sudo; run: sudo chown -R $(id -un) $volume"
-if command -v gh >/dev/null && ! gh auth token >/dev/null 2>&1; then
-    record_failure "$id" "gh isn't logged in: run 'gh auth login'; the login then survives rebuilds"
+fix_volume_owner "$mount" \
+  || record_failure "$id" "can't take ownership of $mount without" \
+    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+if ! link_home "$HOME/.config/gh" "$mount"; then
+  record_failure "$id" "$HOME/.config/gh is in the way of gh-config, so gh's" \
+    "login won't persist; move it aside, then run: bash $here/onCreate.sh"
+elif command -v gh >/dev/null && ! gh auth token >/dev/null 2>&1; then
+  record_failure "$id" "gh isn't logged in: run 'gh auth login'; the login" \
+    "then survives rebuilds"
 fi

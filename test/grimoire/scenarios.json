@@ -25,5 +25,14 @@
         "plugins": "praxis gitwise"
       }
     }
+  },
+  "pinned-ref": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "onCreateCommand": "git init -q && mkdir -p .claude && echo '{\"extraKnownMarketplaces\":{\"grimoire\":{\"source\":{\"source\":\"github\",\"repo\":\"Jartan-LLC/grimoire\",\"ref\":\"marketplace-v1.0.0\"}}}}' > .claude/settings.json && git add .claude && git -c user.name=t -c user.email=t@t commit -qm fixture",
+    "features": {
+      "ghcr.io/devcontainers/features/node:2": {},
+      "claude-code": {},
+      "grimoire": {}
+    }
   }
 }

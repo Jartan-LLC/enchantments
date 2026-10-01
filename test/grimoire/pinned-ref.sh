@@ -10,8 +10,13 @@ local_plugins() {
     | .id] | sort'
 }
 
-check "exactly the plugins option's list is installed" \
-  test "$(local_plugins)" = '["gitwise@grimoire"]'
+# The fixture commits a marketplace pinned to a ref, as grimoire and sonde do.
+check "the local declaration keeps the committed ref" \
+  jq -e '.extraKnownMarketplaces.grimoire.source.ref == "marketplace-v1.0.0"' \
+  .claude/settings.local.json
+check "the default plugins install at local scope" \
+  test "$(local_plugins)" = "$(printf '"%s@grimoire"\n' \
+    praxis gitwise claudivis recursio pythonica | jq -sc sort)"
 check "no failures recorded" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 

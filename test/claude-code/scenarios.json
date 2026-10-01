@@ -13,7 +13,7 @@
   },
   "seeded-volume": {
     "image": "mcr.microsoft.com/devcontainers/base:trixie",
-    "initializeCommand": "docker run --rm -v claude-data:/v alpine sh -c 'touch /v/.seed && echo {\\\"seeded\\\":true} >/v/claude.json'",
+    "initializeCommand": "docker run --rm -v claude-data:/v alpine sh -c \"touch /v/.seed && echo '{\\\"seeded\\\":true}' >/v/claude.json && chown $(id -u):$(id -g) /v\"",
     "features": {
       "claude-code": {}
     }

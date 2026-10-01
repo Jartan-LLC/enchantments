@@ -2,7 +2,7 @@
   "id": "codebase-memory-mcp",
   "version": "1.0.0",
   "name": "codebase-memory-mcp",
-  "description": "The codebase-memory-mcp code graph, installed from a pinned, digest-checked release and registered as an MCP server for this workspace only.",
+  "description": "The codebase-memory-mcp code graph, installed from a pinned, digest-checked release and registered as an MCP server.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/codebase-memory-mcp",
   "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
   "onCreateCommand": "f=/usr/local/share/enchantments/codebase-memory-mcp/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",

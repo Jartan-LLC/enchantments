@@ -1,19 +1,16 @@
 ## How it works
 
-- **At create:** it installs the pinned release into `~/.local/bin` after checking its sha256, and runs the binary's own installer with `--skip-config`, so nothing is written into the shared `claude-data`. That installer also adds `~/.local/bin` to `PATH` in `~/.bashrc` (or `~/.bash_profile` if there's no `~/.bashrc`); both are on the container filesystem, so a rebuild resets them.
-- **Then, in the workspace:** it turns on auto-indexing and registers the MCP server at local scope, for this workspace only. Declared with `liza` and `liza-toolchain`, it removes that registration instead, since the toolchain's graph tools replace it; auto-indexing stays on.
-
-Registration needs the `claude-code` Feature; without it, the binary is installed and the Feature says why it isn't registered.
+- **When the container is created,** the pinned release is checked against its sha256 and installed in `~/.local/bin`. Its own installer also adds `~/.local/bin` to `PATH` in `~/.bashrc`.
+- **Then, in the workspace,** auto-indexing is turned on, and the MCP server is registered with Claude Code for this workspace. Registering needs the `claude-code` Feature; without it, the binary is still installed.
 
 ## Removal
 
-The local registration outlives the Feature. Run `claude mcp remove --scope local codebase-memory-mcp` in each clone, then remove the Feature's entry.
+The registration outlives the Feature. In each clone, run `claude mcp remove --scope local codebase-memory-mcp`, then remove the Feature.
 
 ## Image requirements
 
-- **Remote user `vscode`, with home `/home/vscode`.** Feature mounts take only literal paths. On images with another user (`javascript-node`, `typescript-node`, `universal`), the binary is installed but not registered: `claude-data` is mounted at `/home/vscode/.claude`, not in `$HOME`.
-- **Debian-based, with `bash`, `curl`, `jq` and `git`.** On any other image this Feature installs nothing, and the image still builds.
+- Debian-based, with `curl`.
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/codebase-memory-mcp.failures`, prints them when the container next starts, then renames the file to `codebase-memory-mcp.failures.reported`. Re-run a hook as yourself, from the workspace folder, with `bash /usr/local/share/enchantments/codebase-memory-mcp/<hook>.sh`.
+The container still starts, and what went wrong is printed the next time it starts. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/codebase-memory-mcp/<hook>.sh`.

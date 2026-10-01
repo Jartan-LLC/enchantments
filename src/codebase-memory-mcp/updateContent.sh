@@ -1,7 +1,6 @@
 #!/bin/bash
-# updateContentCommand, as the remote user, in the workspace: turn on auto-indexing, then
-# register the MCP server at local scope for this workspace, unless Liza's toolchain, whose
-# graph tools replace it, is here too.
+# updateContentCommand, as the remote user, in the workspace: turn on
+# auto-indexing, then register the MCP server at local scope for this workspace.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")
@@ -10,26 +9,27 @@ here=$(dirname "$(readlink -f "$0")")
 id=codebase-memory-mcp
 bin=$HOME/.local/bin/codebase-memory-mcp
 claude=$HOME/.local/bin/claude
-markers=/usr/local/share/enchantments
+claude_json=/mnt/enchantments/claude-data/claude.json
+unregistered="the MCP server isn't registered"
 
-[ -x "$bin" ] || exit 0  # onCreate recorded why
+[ -x "$bin" ] || exit 0 # onCreate recorded why
 # The setting lives in ~/.cache, which a rebuild resets.
-"$bin" config set auto_index true >/dev/null || record_failure "$id" "couldn't turn on auto_index"
+"$bin" config set auto_index true >/dev/null \
+  || record_failure "$id" "couldn't turn on auto_index"
 
-if [ -d "$markers/liza" ] && [ -d "$markers/liza-toolchain" ]; then
-    "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
-elif [ ! -d "$markers/claude-code" ]; then
-    record_failure "$id" "claude-code absent: the MCP server isn't registered"
-elif [ ! -L "$HOME/.claude.json" ] && [ "$HOME" != /home/vscode ]; then
-    record_failure "$id" "claude-data is mounted at /home/vscode/.claude, not in \$HOME ($HOME): the MCP server isn't registered"
-elif [ ! -L "$HOME/.claude.json" ]; then
-    record_failure "$id" "$HOME/.claude.json isn't linked into claude-data (see claude-code's report): the MCP server isn't registered"
+if [ ! -d /usr/local/share/enchantments/claude-code ]; then
+  record_failure "$id" "claude-code absent: $unregistered"
+elif [ ! "$HOME/.claude.json" -ef "$claude_json" ]; then
+  record_failure "$id" "$HOME/.claude.json isn't linked into claude-data" \
+    "(see claude-code's report): $unregistered"
 elif [ ! -x "$claude" ]; then
-    record_failure "$id" "claude isn't installed (see claude-code's report): the MCP server isn't registered"
+  record_failure "$id" "claude isn't installed (see claude-code's report):" \
+    "$unregistered"
 else
-    # Replace our own local entry: a second add fails, and `mcp get` can't tell it from a
-    # user-scope one.
-    "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
-    "$claude" mcp add --scope local "$id" -- "$bin" >/dev/null \
-        || record_failure "$id" "registering the MCP server failed; retry from the workspace folder: bash $here/updateContent.sh"
+  # Replace our own local entry: a second add fails, and `mcp get` can't tell
+  # it from a user-scope one.
+  "$claude" mcp remove --scope local "$id" >/dev/null 2>&1
+  "$claude" mcp add --scope local "$id" -- "$bin" >/dev/null \
+    || record_failure "$id" "registering the MCP server failed; retry from" \
+      "the workspace folder: bash $here/updateContent.sh"
 fi

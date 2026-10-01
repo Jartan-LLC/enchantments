@@ -1,15 +1,13 @@
 ## How it works
 
-- **At create:** it links `~/.claude.json` into the `claude-data` volume, so your login and settings survive rebuilds, then runs Anthropic's native installer as you. Claude lands in `~/.local/bin` and updates itself.
-- **At each start:** it warns when more than one `claude` is on `PATH`, such as an npm install or another Feature's. The one that runs first may not be this one.
-- **At each attach:** it refreshes your user-scope plugins and this project's, with their marketplaces.
+- **When the container is created,** Claude Code is installed in your home folder with Anthropic's native installer, and keeps itself up to date. Your login and settings live in the `claude-data` volume, mounted at `/mnt/enchantments/claude-data` and linked from `~/.claude` and `~/.claude.json`, so they survive rebuilds and are shared by every container that uses this Feature.
+- **Each time the container starts,** you're warned if more than one `claude` is on `PATH`, such as one installed with npm. Only one of them runs, and it may not be this one.
+- **Each time VS Code attaches,** your user plugins and this project's plugins are updated, along with their marketplaces.
 
 ## Image requirements
 
-- **Remote user `vscode`, with home `/home/vscode`.** Feature mounts take only literal paths. On images with another user (`javascript-node`, `typescript-node`, `universal`), Claude is installed in that user's home, off `PATH`, and its login doesn't persist: the volume is mounted at `/home/vscode/.claude`, not in `$HOME`.
-- **Debian-based, with `bash`, `curl`, `jq` and `git`.** On any other image this Feature installs nothing, and the image still builds.
-- **`sudo` is optional.** It's used only to take ownership of a shared volume another container left with a different owner; without it, the Feature warns.
+- Debian-based, with `curl` and `jq`.
 
 ## When something fails
 
-Every hook exits 0, so a failure never stops the container's later setup. This Feature records each one in `~/.cache/enchantments/claude-code.failures`, prints them when the container next starts, then renames the file to `claude-code.failures.reported`. Re-run a hook as yourself, from the workspace folder, with `bash /usr/local/share/enchantments/claude-code/<hook>.sh`.
+The container still starts, and what went wrong is printed the next time it starts. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/claude-code/<hook>.sh`.

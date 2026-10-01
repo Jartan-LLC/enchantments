@@ -1,2 +1,0 @@
-# Scenario scripts source the CLI test library, which exists only at test time.
-disable=SC1091

@@ -1,5 +1,6 @@
 #!/bin/bash
-# postStartCommand, as the remote user: report what the create-time hooks recorded.
+# postStartCommand, as the remote user: report what the create-time hooks
+# recorded.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")

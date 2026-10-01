@@ -1,6 +1,7 @@
 # shellcheck shell=bash disable=SC2034
 # This Feature's pins: one single-quoted NAME='value' per line under its
-# "# pin <kind> <tool>" header, so tooling can parse the file without running it.
+# "# pin <kind> <tool>" header, so tooling can parse the file without running
+# it.
 
 # pin asset codebase-memory-mcp repo=DeusData/codebase-memory-mcp
 CBM_TAG='v0.11.0'

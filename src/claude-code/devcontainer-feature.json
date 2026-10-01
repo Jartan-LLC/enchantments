@@ -5,13 +5,10 @@
   "description": "Claude Code, installed as the remote user with Anthropic's native installer so it updates itself, with its login and settings kept in the claude-data volume.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/claude-code",
   "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
-  "containerEnv": {
-    "PATH": "/home/vscode/.local/bin:${PATH}"
-  },
   "mounts": [
     {
       "source": "claude-data",
-      "target": "/home/vscode/.claude",
+      "target": "/mnt/enchantments/claude-data",
       "type": "volume"
     }
   ],
