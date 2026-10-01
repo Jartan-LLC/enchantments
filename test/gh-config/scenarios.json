@@ -6,7 +6,7 @@
       "gh-config": {}
     }
   },
-  "bare": {
+  "authless-bare": {
     "image": "mcr.microsoft.com/devcontainers/base:trixie",
     "features": {
       "gh-config": {}

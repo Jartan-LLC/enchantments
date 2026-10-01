@@ -13,5 +13,12 @@
     }
   ],
   "onCreateCommand": "f=/usr/local/share/enchantments/gh-config/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
-  "postStartCommand": "f=/usr/local/share/enchantments/gh-config/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+  "postStartCommand": "f=/usr/local/share/enchantments/gh-config/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "options": {
+    "probe": {
+      "type": "bool",
+      "default": true,
+      "description": "Throwaway"
+    }
+  }
 }

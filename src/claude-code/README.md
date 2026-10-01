@@ -39,3 +39,4 @@ Every hook exits 0, so a failure never stops the container's later setup. This F
 ---
 
 _Note: This file was auto-generated from the [devcontainer-feature.json](https://github.com/Jartan-LLC/enchantments/blob/main/src/claude-code/devcontainer-feature.json).  Add additional notes to a `NOTES.md`._
+throwaway

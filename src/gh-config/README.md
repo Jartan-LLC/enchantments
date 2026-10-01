@@ -11,7 +11,11 @@ Keeps the GitHub CLI's login in the gh-config volume, so it survives rebuilds an
 }
 ```
 
+## Options
 
+| Options Id | Description | Type | Default Value |
+|-----|-----|-----|-----|
+| probe | Throwaway | bool | true |
 
 Log in once with `gh auth login`. The login then lives in the `gh-config` volume, which survives rebuilds and is shared by every container that mounts it. When `gh` is installed but not logged in, the Feature says so at the next start.
 
