@@ -21,7 +21,9 @@
 
 ## Undoing activation
 
-`liza-deactivate` removes exactly what activation recorded in `.git/liza/activation.json`. A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A failed run keeps everything, and running it again finishes the job.
+`liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A failed run keeps everything, and running it again finishes the job.
+
+Linked worktrees of a repo share Liza's git hooks and exclude lines. While another worktree is activated, `liza-deactivate` leaves those and names them, so deactivate the worktree you activated first last. Run `liza-deactivate` before `git worktree remove`.
 
 ## Removal
 

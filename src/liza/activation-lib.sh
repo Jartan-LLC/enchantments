@@ -35,10 +35,15 @@ git_path() { # top  git-path
 
 lib_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 
-# Prints what a jq filter, given activation-record.jq's definitions, reads from
-# a record. The schema lives in that file only.
+# Runs a jq filter with activation-record.jq's definitions, where the record's
+# schema lives. Further arguments go to jq.
+record_jq() { # filter jq-args...
+  jq -L "$lib_dir" "include \"activation-record\"; $1" "${@:2}"
+}
+
+# Prints, one per line, what a filter reads from a record.
 record_query() { # filter record
-  jq -L "$lib_dir" -r "include \"activation-record\"; $1" "$2"
+  record_jq "$1" -r "$2"
 }
 
 # Reads NUL-separated paths, relative to the clone's top, from stdin into the

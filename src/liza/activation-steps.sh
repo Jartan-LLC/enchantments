@@ -1,6 +1,6 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
 # The activation sequence. updateContent.sh runs every step; liza-activate runs
-# only the two that act on a clone, so the two can't drift apart.
+# only the steps that act on a clone, so the two callers can't drift apart.
 
 steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 # shellcheck source=record_failure.sh

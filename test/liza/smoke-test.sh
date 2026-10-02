@@ -466,36 +466,65 @@ check "deactivate saves originals left without a record" \
   test "$(cat "$interrupted_clone/.claude/keep/f.sh.pre-liza" 2>/dev/null)" \
   = "user file"
 
-# Linked worktrees share the git hooks and the exclude file: deactivating one
-# leaves what another activation still uses, and the last one removes it.
-main_clone=$(stub_clone wt-main)
-linked="$stub_home/wt-linked"
-git -C "$main_clone" worktree add -q "$linked" 2>/dev/null
-echo '{}' >"$linked/.claude/settings.local.json"
+# Linked worktrees share the git hooks and the exclude file. While one stays
+# activated, deactivating another keeps those, and names them; the worktree
+# that activated first removes them when it deactivates last. Names with
+# spaces and glob characters get one escaped exclude line each.
 stub_liza <<'EOF'
 echo hook >"$(git rev-parse --git-path hooks)/liza-test-hook"
 echo created >.claudeignore
+echo created >'odd [1]*.txt'
 settings "$hook"
 EOF
-stub_init "$main_clone" 2>/dev/null
-stub_init "$linked" 2>/dev/null
-shared_hook="$main_clone/.git/hooks/liza-test-hook"
-main_exclude="$main_clone/.git/info/exclude"
+worktree_pair() { # name: prints the main clone's path, after activating both
+  local main
+  main=$(stub_clone "$1")
+  git -C "$main" worktree add -q "$main-linked" 2>/dev/null
+  echo '{}' >"$main-linked/.claude/settings.local.json"
+  stub_init "$main" 2>/dev/null
+  stub_init "$main-linked" 2>/dev/null
+  echo "$main"
+}
+# shellcheck disable=SC2329 # run through check
+excluded() { # main-clone line
+  grep -qxF -- "$2" "$1/.git/info/exclude"
+}
+
+main=$(worktree_pair wt-first)
 check "both worktrees activate" \
-  test -f "$shared_hook" -a -L "$main_clone/CLAUDE.local.md" \
-  -a -L "$linked/CLAUDE.local.md"
-stub_deactivate "$main_clone" 2>/dev/null
-check "deactivating one worktree keeps the hook the other uses" \
-  test -f "$shared_hook"
-check "and its exclude line" grep -qx /.claudeignore "$main_exclude"
-check "and leaves the other worktree's status clean" \
-  test -z "$(git -C "$linked" status --porcelain)"
-check "and removes its own created file" test ! -e "$main_clone/.claudeignore"
-stub_deactivate "$linked" 2>/dev/null
-check "deactivating the last worktree removes the hook" \
-  test ! -e "$shared_hook"
-check "and the exclude line" \
-  bash -c "! grep -qx /.claudeignore '$main_exclude'"
+  test -L "$main/CLAUDE.local.md" -a -L "$main-linked/CLAUDE.local.md"
+check "an odd name gets an escaped exclude line" \
+  excluded "$main" '/odd \[1]\*.txt'
+check "and git shows neither worktree untracked files" \
+  test -z "$(git -C "$main" status --porcelain)$(git -C "$main-linked" \
+    status --porcelain)"
+stub_deactivate "$main-linked" 2>/dev/null
+check "deactivating the second worktree keeps the shared hook" \
+  test -f "$main/.git/hooks/liza-test-hook"
+check "and the shared exclude lines" excluded "$main" /.claudeignore
+check "and removes its own files, even ones the exclude file hid" \
+  test ! -e "$main-linked/.claudeignore" -a ! -e "$main-linked/odd [1]*.txt"
+check "and leaves the first worktree's status clean" \
+  test -z "$(git -C "$main" status --porcelain)"
+stub_deactivate "$main" 2>/dev/null
+check "deactivating the first worktree last removes the hook" \
+  test ! -e "$main/.git/hooks/liza-test-hook"
+check "and the exclude lines" \
+  bash -c "! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
+check "and its own files" \
+  test ! -e "$main/.claudeignore" -a ! -e "$main/odd [1]*.txt"
+
+main=$(worktree_pair wt-second)
+stub_deactivate "$main" 2>"$stub_home/wt-second.err"
+check "deactivating the first worktree first keeps the shared hook" \
+  test -f "$main/.git/hooks/liza-test-hook"
+check "and names it" grep -q "shared with $main-linked" \
+  "$stub_home/wt-second.err"
+check "and leaves the second worktree's status clean" \
+  test -z "$(git -C "$main-linked" status --porcelain)"
+stub_deactivate "$main-linked" 2>/dev/null
+check "the second worktree then removes its own files" \
+  test ! -e "$main-linked/.claudeignore"
 
 # --tools undoes the toolchain's registration, and only with --tools. The home
 # is laid out as claude-code leaves it: a stub claude logs its calls, and

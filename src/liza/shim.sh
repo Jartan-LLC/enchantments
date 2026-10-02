@@ -67,9 +67,20 @@ fi
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
+# What git shows untracked, and what an exclude line hides at the top level and
+# in .claude/, where init writes: either way, a file init creates there is its.
+# Activation manages the two settings files itself.
+shown_untracked() {
+  git -C "$top" ls-files -z --others --exclude-standard
+}
+hidden_untracked() {
+  git -C "$top" ls-files -z --others --ignored --exclude-standard \
+    -- .claude ':(glob)*' \
+    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+}
 untracked_before=()
 read_top_paths untracked_before "$top" \
-  < <(git -C "$top" ls-files -z --others --exclude-standard)
+  < <(shown_untracked && hidden_untracked)
 git_dir=$(git -C "$top" rev-parse --absolute-git-dir)
 hooks_dir=$(git_path "$top" hooks)
 exclude_file=$(git_path "$top" info/exclude)
@@ -268,17 +279,21 @@ done
 
 # Whatever init just created that git would show (hooks, .claudeignore, skill
 # links) is this clone's activation, not project content: exclude it locally.
-declare -A was_untracked=()
+declare -A was_untracked=() shown=()
 for path in "${untracked_before[@]}"; do was_untracked[$path]=1; done
-untracked_after=()
-read_top_paths untracked_after "$top" \
-  < <(git -C "$top" ls-files -z --others --exclude-standard)
+shown_after=() hidden_after=()
+read_top_paths shown_after "$top" < <(shown_untracked)
+read_top_paths hidden_after "$top" < <(hidden_untracked)
+for path in "${shown_after[@]}"; do shown[$path]=1; done
 created=()
-for path in "${untracked_after[@]}"; do
+for path in "${shown_after[@]}" "${hidden_after[@]}"; do
   [ -n "${was_untracked[$path]+set}" ] || created+=("$path")
 done
+# A line appended to a file without a final newline would join its last line.
+[ -s "$exclude_file" ] && [ -n "$(tail -c 1 "$exclude_file")" ] \
+  && echo >>"$exclude_file"
 for path in "${created[@]}"; do
-  exclude_line "${path#"$top"/}"
+  [ -n "${shown[$path]+set}" ] && exclude_line "${path#"$top"/}"
 done >>"$exclude_file"
 
 # --- Record what this activation changed, so deactivate.sh undoes exactly
@@ -319,8 +334,12 @@ done <<<"$exclude_added"
 # them into the record.
 mkdir -p "$record_dir"
 [ -f "$record" ] \
-  || jq -n -L "$here" 'include "activation-record"; empty_record' >"$record"
-if ! { jq -L "$here" --slurpfile pre <(printf '%s' "$pre_settings") \
+  || record_jq empty_record -n >"$record"
+# shellcheck disable=SC2016 # a jq program
+if ! { record_jq 'record_activation($pre[0]; $post[0]; $created;
+  $recorded_before; $recorded_after; $git_before; $git_after; $overwritten;
+  $exclude_added; $preexisting)' \
+  --slurpfile pre <(printf '%s' "$pre_settings") \
   --slurpfile post "$local_settings" \
   --arg created "$(fingerprint "${created[@]}")" \
   --arg recorded_before "$recorded_before" \
@@ -329,12 +348,8 @@ if ! { jq -L "$here" --slurpfile pre <(printf '%s' "$pre_settings") \
   --arg git_after "$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)" \
   --arg overwritten "$(printf '%s\n' "${overwritten[@]}")" \
   --arg exclude_added "$exclude_added" \
-  --arg preexisting "$(printf '%s\n' "${preexisting[@]}")" '
-        include "activation-record";
-        record_activation($pre[0]; $post[0]; $created; $recorded_before;
-          $recorded_after; $git_before; $git_after; $overwritten;
-          $exclude_added; $preexisting)
-    ' "$record" >"$record.tmp" && mv "$record.tmp" "$record"; }; then
+  --arg preexisting "$(printf '%s\n' "${preexisting[@]}")" \
+  "$record" >"$record.tmp" && mv "$record.tmp" "$record"; }; then
   rm -f "$record.tmp"
   echo "liza shim: could not record this activation; liza-deactivate will" \
     "only partly undo it. Originals of files init overwrote are in" \

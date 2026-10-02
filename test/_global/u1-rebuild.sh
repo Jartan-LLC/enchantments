@@ -49,10 +49,10 @@ no_failures() {
 }
 clean() { test -z "$(git status --porcelain)"; }
 
-# U1: the Features meant for VS Code's defaultFeatures.
+# U1: the Features meant for VS Code's defaultFeatures, in ls order.
+u1=(claude-code gh-config grimoire liza liza-toolchain)
 check "exactly the U1 Features are applied" \
-  test "$(cd /usr/local/share/enchantments && echo *)" \
-  = "claude-code gh-config grimoire liza liza-toolchain"
+  test "$(cd /usr/local/share/enchantments && echo *)" = "${u1[*]}"
 plugins='["claudivis@grimoire","gitwise@grimoire","praxis@grimoire",'
 plugins+='"pythonica@grimoire","recursio@grimoire"]'
 check "the grimoire plugins install at local scope" \
@@ -70,6 +70,9 @@ check "no failures recorded" no_failures
 
 if [ "$pass" = 2 ]; then
   # A fresh container on the populated volumes, whose pins all held.
+  check "the toolchain is installed" \
+    test -x /mnt/enchantments/liza/libexec/liza \
+    -a -x /mnt/enchantments/liza/bin/stacklit
   check "nothing was reinstalled" \
     test -z "$(find /mnt/enchantments/liza/bin /mnt/enchantments/liza/libexec \
       -newer "$marker" ! -type d 2>/dev/null)"

@@ -1,21 +1,21 @@
 #!/bin/bash
 # liza-deactivate: undoes activation in this clone, from the record the shim
 # keeps: the settings entries and files activation added (a file edited since is
-# kept and named), its exclude lines and the contract link. While another linked
-# worktree of the repo stays activated, the hooks and exclude lines they share
-# pass to its record instead. --tools instead removes the context7 registration
+# kept and named), its exclude lines and the contract link. Linked worktrees of
+# a repo share its git hooks and exclude file: while another is activated, those
+# stay, and are named. --tools instead removes the context7 registration
 # activation made with the toolchain. ~/.liza stays: it's this project's volume.
 # shellcheck source-path=SCRIPTDIR
 
 set -uo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
+top=$(git rev-parse --show-toplevel) || exit 1
+cd "$top" || exit 1
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
 # shellcheck source=activation-steps.sh
 source "$here/activation-steps.sh"
-top=$(git rev-parse --show-toplevel) || exit 1
-cd "$top" || exit 1
 failed=()
 
 finish() {
@@ -63,38 +63,26 @@ if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
 fi
 trap 'rmdir "$lock"' EXIT
 
-# Hands the shared hooks and exclude lines to the first other activated
-# worktree, under its lock, and sets receiver to it. Fails when none is
-# activated.
+# Linked worktrees of a repo share the git dir's hooks and its exclude file.
+# Sets holder to another worktree with an activation record, which still uses
+# them; fails when there's none.
 common=$(git rev-parse --path-format=absolute --git-common-dir)
-hand_over() {
-  local other wt
-  for other in "$common/liza/activation.json" \
-    "$common"/worktrees/*/liza/activation.json; do
-    [ "$other" -ef "$record" ] || [ ! -f "$other" ] && continue
-    if [ "$other" = "$common/liza/activation.json" ]; then
-      wt=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
-    else
-      wt=$(dirname "$(cat "${other%/liza/activation.json}/gitdir")")
-    fi
-    [ -d "$wt/.claude" ] || continue # a worktree deleted but not pruned
-    mkdir "$wt/.claude/.liza-shim.lock" 2>/dev/null || {
-      failed+=("handing over to $wt, whose liza init holds its lock")
-      receiver=$wt
-      return 0
-    }
-    jq -L "$here" --slurpfile from "$record" --arg common "$common" \
-      'include "activation-record"; hand_over($from[0]; $common)' "$other" \
-      >"$other.tmp" && mv "$other.tmp" "$other" \
-      || failed+=("handing over to $wt")
-    rm -f "$other.tmp"
-    rmdir "$wt/.claude/.liza-shim.lock"
-    receiver=$wt
+hooks_dir=$(git_path "$top" hooks)
+other_activation() {
+  local wt
+  while IFS= read -r wt; do
+    [ "$wt" -ef "$top" ] && continue
+    [ -e "$(git -C "$wt" rev-parse --path-format=absolute \
+      --git-path liza/activation.json 2>/dev/null)" ] || continue
+    holder=$wt
     return 0
-  done
+  done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
   return 1
 }
-is_shared() { [[ "$1" == "$common"/* && "$1" != "$common"/worktrees/* ]]; }
+is_shared() { # path
+  [[ "$1" == "$hooks_dir"/* ]] \
+    || [[ "$1" == "$common"/* && "$1" != "$common"/worktrees/* ]]
+}
 
 drop_lines=() # exclude lines to remove
 kept=()       # files left for the user to check, with where their original is
@@ -109,8 +97,8 @@ if ! jq -e . "$record" >/dev/null 2>&1; then
 else
   # Liza's settings entries go; entries the user added or changed since stay.
   if [ -f "$local_settings" ]; then
-    if ! { jq -L "$here" --slurpfile rec "$record" \
-      'include "activation-record"; revert($rec[0].settings)' \
+    # shellcheck disable=SC2016 # a jq program
+    if ! { record_jq 'revert($rec[0].settings)' --slurpfile rec "$record" \
       "$local_settings" >"$local_settings.tmp" \
       && mv "$local_settings.tmp" "$local_settings"; }; then
       rm -f "$local_settings.tmp"
@@ -141,16 +129,15 @@ else
       fi
     fi
   done
-  if hand_over; then
-    shared=true
-    echo "deactivate: $receiver stays activated, so the git hooks and" \
-      "exclude lines it shares with this worktree stay too." >&2
-  fi
+  other_activation && shared=true
   # A file activation created goes, unless it was edited since.
   mapfile -t recorded < <(record_query file_entries "$record")
   for entry in "${recorded[@]}"; do
     path=${entry% *}
-    $shared && is_shared "$path" && continue
+    if $shared && is_shared "$path"; then
+      kept+=("$path (shared with $holder)")
+      continue
+    fi
     now=$(fingerprint "$path")
     [ -n "$now" ] || continue
     if [ "$now" = "$entry" ]; then
@@ -171,10 +158,10 @@ else
     # The shim only saw the top level and .claude/ before init: elsewhere, the
     # file may be the user's.
     if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
-      [ -f "$path" ] && kept+=("$path")
+      { [ -f "$path" ] || [ -L "$path" ]; } && kept+=("$path")
       continue
     fi
-    [ -f "$path" ] && remove_created "$path"
+    { [ -f "$path" ] || [ -L "$path" ]; } && remove_created "$path"
   done
 fi
 
@@ -197,6 +184,8 @@ fi
 
 # --- Clean up: what is left for the user, the contract link, emptied
 # settings and dirs ---
+$shared && [ ${#drop_lines[@]} -gt 0 ] \
+  && kept+=("its lines in $exclude_file (shared with $holder)")
 [ ${#kept[@]} -eq 0 ] \
   || echo "deactivate: left these for you to check: ${kept[*]}" >&2
 if [ -f "$local_settings" ] \

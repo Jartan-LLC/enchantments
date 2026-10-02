@@ -52,10 +52,14 @@ pinned() { # name
   echo "${!name}"
 }
 
-# Succeeds when the tool's recorded pin matches. The architecture is part of
-# the record, since the volume outlives the image.
+# Prints a tool's pin as bin/.pins records it. The architecture is part of the
+# record, since the volume outlives the image.
+pin_record() { # pin
+  echo "$1 $arch"
+}
+
 pin_current() { # tool pin
-  [ "$(cat "$pins/$1" 2>/dev/null)" = "$2 $arch" ]
+  [ "$(cat "$pins/$1" 2>/dev/null)" = "$(pin_record "$2")" ]
 }
 
 # Runs an installer unless the tool's pin is current. A failure is recorded and
@@ -65,7 +69,7 @@ install_pinned() { # tool pin installer...
   pin_current "$tool" "$pin" && return 0
   echo "Installing $tool ($pin)..."
   if "${@:3}"; then
-    echo "$pin $arch" >"$pins/$tool"
+    pin_record "$pin" >"$pins/$tool"
   else
     record_failure "$id" "$tool install failed (download, digest mismatch" \
       "or build error); $retry"

@@ -56,6 +56,7 @@ check "no failures recorded" no_failures
 
 if [ -n "$pass1_workspace" ]; then
   # A fresh container on the populated volumes, whose pins all held.
+  check "Liza is installed" test -x /mnt/enchantments/liza/libexec/liza
   check "nothing was reinstalled" \
     test -z "$(find /mnt/enchantments/liza/bin /mnt/enchantments/liza/libexec \
       -newer "$marker" ! -type d 2>/dev/null)"
