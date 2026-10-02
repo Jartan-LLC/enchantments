@@ -10,9 +10,9 @@ A rebuild replaces the container. These volumes outlive it:
 
 ## The Liza volumes
 
-Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled on its
-first create. It stays behind when the clone moves or is deleted. To prune the ones no
-container uses:
+Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled when
+its container is first created. It stays behind when the clone moves or is deleted. To
+prune the ones no container uses:
 
 ```bash
 docker volume ls -q --filter dangling=true --filter name='(^|_)liza-' | xargs -r docker volume rm

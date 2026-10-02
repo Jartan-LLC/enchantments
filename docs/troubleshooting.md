@@ -1,31 +1,30 @@
 # Troubleshooting
 
-## Where failures are reported
+## Finding what failed
 
-No Feature fails the container: a failing lifecycle step records what went wrong in
-`~/.cache/enchantments/<id>.failures`, and the next `postStart` prints it, then renames the
-file `<id>.failures.reported`. `ls ~/.cache/enchantments/*.failures` shows what's still
-unreported.
+A Feature's failure never stops the container. What went wrong is printed when the container
+next starts. To see failures not printed yet:
 
-- **The project's own `postCreateCommand` failed:** the spec then skips `postStart`, so the
-  report prints at the next container start.
-- **The project's own `onCreateCommand` failed:** no Feature's configuration runs (grimoire,
-  codebase-memory-mcp and context7 registration, Liza activation), and nothing is reported.
-  Fix it and rebuild the container. A restart never re-runs `onCreateCommand`, since its
-  marker is written before the command runs. Without a rebuild, run the fixed command by
-  hand in the workspace, then restart, which runs `updateContentCommand`, or run each
-  Feature's staged `updateContent.sh`.
+```bash
+ls ~/.cache/enchantments/*.failures
+```
 
-## Retrying
+Two failures of the project's own commands change that:
 
-Each Feature stages its hooks as `/usr/local/share/enchantments/<id>/<hook>.sh`. Each is
-idempotent and runs as you, from the workspace folder:
+- **Its `postCreateCommand` failed:** the report prints at the following start instead.
+- **Its `onCreateCommand` failed:** no Feature finishes setting up (grimoire's plugins,
+  codebase-memory-mcp's and context7's registration, Liza's activation), and nothing is
+  reported. Fix the command and rebuild the container. To avoid a rebuild, run the fixed
+  command in the workspace, then restart the container.
+
+## Retrying a step
+
+Run the failed Feature's hooks as yourself, from the workspace folder, `onCreate.sh` first
+where it has one:
 
 ```bash
 bash /usr/local/share/enchantments/<id>/<hook>.sh
 ```
 
-Run the failed Feature's hooks, `onCreate.sh` first where it has one, then the
-`updateContent.sh` of the Features that depend on it. Each Feature's page says which
-steps it has and what its retries need. The Claude Code installer retries once on its
-own.
+Then run `updateContent.sh` for each Feature that depends on it. Each Feature's page lists
+what its hooks need.

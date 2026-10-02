@@ -33,7 +33,7 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
   template's style, so template syncs stay clean. Scripts are shellcheck-clean.
 - Every Feature lifecycle hook exits 0: it records a failure for `postStart` to report
   instead of failing the container.
-- Once a Feature's `devcontainer-feature.json` is on main, any change in its `src/<id>/`
+- For a Feature whose `devcontainer-feature.json` is on main, any change in its `src/<id>/`
   raises its `version` and adds that version's entry to its `CHANGELOG.md`; only the PR
   that adds a Feature writes its `## 1.0.0`. A change to only its `README.md`, `NOTES.md`
   or `CHANGELOG.md` needs no bump: put a docs change under `## Unreleased`, and bump only

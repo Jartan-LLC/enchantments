@@ -1,52 +1,37 @@
 # A bad release
 
-`defaultFeatures` consumers take whatever `:1` points at on their next build, so a bad
-release spreads until it's contained.
+Every `defaultFeatures` container takes whatever `:1` points at on its next build, so act
+fast.
 
-## Contain
+## If it's a bug
 
-Clear `dev.containers.defaultFeatures`. For a compromised plugin marketplace, that isn't
-enough: see [below](#a-marketplace-compromise).
-
-## Recover
-
-1. Revert the change, and bump to a version higher than the highest published `1.x.y`, not
-   merely a patch above the reverted source. List them with
-   `devcontainer features info tags ghcr.io/jartan-llc/enchantments/<id>:1`. The CLI moves
-   `:1` only for a version higher than every published one.
-2. Publish through the gated job, then confirm that
+1. **Contain it:** clear `dev.containers.defaultFeatures`.
+2. **Fix it:** revert the change and give it a version higher than every published `1.x.y`
+   (`devcontainer features info tags ghcr.io/jartan-llc/enchantments/<id>:1` lists them):
+   `:1` moves only to a higher version. Release it, then check that
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:1 --output-format json | jq -r .canonicalId`
    matches the same query for the new version.
+3. **Fix the projects that declare it:** in each repo whose
+   `.devcontainer/devcontainer-lock.json` holds the bad digest, close any open Dependabot PR
+   to it, run `devcontainer upgrade --workspace-folder .`, and merge the result yourself.
 
-**Never delete the bad version on GHCR before the fixed one is live and `:1` resolves to
-it.** Until then, deleting it takes `:1`, `1.x` and `latest` with it, and breaks every
-build that uses `defaultFeatures`.
+Don't delete the bad version from GHCR before `:1` points at the fix: deleting it takes
+`:1`, `1.x` and `latest` with it, and breaks every build that uses `defaultFeatures`.
 
-## Declared consumers
+## If a plugin marketplace is compromised
 
-Scaffold, enchantments, and every repo that declares these Features in its config: where
-the committed `.devcontainer/devcontainer-lock.json` holds a bad digest, close any open
-Dependabot PR to it. Once the fix is live, run `devcontainer upgrade --workspace-folder .`
-and merge the change by hand, without waiting for the cooldown.
-
-## A marketplace compromise
-
-A bad commit on the default branch of a plugin marketplace you use isn't contained by
-clearing `defaultFeatures`: a plugin hook runs as you and holds the gh token. Follow
-[If it may have been malicious](#if-it-may-have-been-malicious) in full, step 1 first.
-Then, from the clean host, revert grimoire's `main`, or for a marketplace you don't
-control, commit and push the removal of its `extraKnownMarketplaces` entry and its
-`@<name>` `enabledPlugins` keys from each affected repo's committed `.claude/settings.json`
-before step 5; step 5's volume deletion and re-clone discard the user- and local-scope
-declarations. Don't rely on the attach refresh. Then run step 2 (including the per-id GHCR
-comparison), step 4 if any unapproved version exists, and step 5. Only step 3 depends on a
-bad Feature version.
+Clearing `defaultFeatures` doesn't stop a bad commit on a marketplace's default branch: its
+plugins' hooks run as you, with your gh token. Do step 1 of
+[If it may have been malicious](#if-it-may-have-been-malicious). Then, from the clean host,
+revert grimoire's `main`, or, for a marketplace you don't control, remove its
+`extraKnownMarketplaces` entry and its `@<name>` `enabledPlugins` keys from each affected
+repo's `.claude/settings.json`, and push. Then do steps 2, 4 (if step 2 finds a version you
+didn't approve) and 5.
 
 ## If it may have been malicious
 
-Any route other than a plain bug. A Feature's metadata can grant privileged mode and host
-mounts, and these containers hold the host Docker socket, so treat the Docker host as
-compromised throughout.
+Unless it's a plain bug, assume it was. A Feature can get root on the Docker host
+([the trust boundary](trust-boundary.md)), so treat the host as compromised throughout.
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
    `claude-data`, `gh-config` or a `liza-*` volume (`docker ps -a --filter
@@ -83,9 +68,8 @@ compromised throughout.
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
      approved `publish` runs.
-3. **Remediate:** do the [recovery](#recover) and the
-   [declared-consumer step](#declared-consumers), then confirm that each consumer's
-   lockfile on its remote no longer names any unapproved digest from step 2
+3. **Remediate:** do steps 2 and 3 of [If it's a bug](#if-its-a-bug), then confirm that
+   each consumer's lockfile on its remote names no unapproved digest from step 2
    (`git grep <bad-digest> origin/main -- .devcontainer/devcontainer-lock.json` prints
    nothing for each). Key on digests, not version strings: a token holder can push a
    manifest to `:1` alone, or reuse an approved version string in its metadata.
