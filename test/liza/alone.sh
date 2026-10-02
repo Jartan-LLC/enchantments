@@ -21,14 +21,8 @@ check "git status is clean" test -z "$(git status --porcelain)"
 check "AGENT_TOOLS.md is the minimal one" \
   grep -q "liza-toolchain is absent" ~/.liza/AGENT_TOOLS.md
 check "no rtk or bash-policy hook" no_rtk_or_bash_policy_hook
-# Without a code graph, Liza's contract falls back to rg: that's the one
-# warning.
-graph_rows="liza without liza-toolchain or codebase-memory-mcp: the"
-graph_rows+=" contract's graph rows fall back to rg"
-check "only the graph-rows warning is reported" \
-  test "$(cat "$reports/liza.failures.reported")" = "$graph_rows"
-check "nothing else recorded" \
-  test "$(cd "$reports" && ls)" = liza.failures.reported
+check "no failures recorded" \
+  test -z "$(ls "$reports"/*.failures* 2>/dev/null)"
 # The onCreateCommand registered context7 before activation: step 1 removes
 # only the registration step 5 writes.
 check "a context7 Liza didn't register survives" \

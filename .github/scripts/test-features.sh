@@ -68,7 +68,11 @@ for name in $(jq -r 'keys[]' "$scenarios"); do
     failed+=("$name")
   elif [[ "$name" == *-rebuild ]]; then
     echo "$id: $name, pass 2 on the same volumes"
-    run "$name" || failed+=("$name (pass 2)")
+    # Without a persisting volume, pass 2 would pass as another pass 1.
+    if ! run "$name" || ! docker run --rm -v liza-rebuild:/v alpine \
+      test -e /v/.rebuild-pass2; then
+      failed+=("$name (pass 2)")
+    fi
   fi
   echo "::endgroup::"
 done

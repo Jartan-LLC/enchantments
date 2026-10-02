@@ -2,7 +2,7 @@
   "id": "liza",
   "version": "1.0.0",
   "name": "Liza",
-  "description": "Liza, pinned and digest-checked, with ripgrep, activated locally for each clone: its hooks, contract and skills stay out of committed files and out of other projects.",
+  "description": "Liza, pinned and digest-checked, with ripgrep, activated locally for each clone.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza",
   "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
   "mounts": [

@@ -4,11 +4,12 @@ set -e
 source dev-container-features-test-lib
 
 # test-features.sh runs this scenario twice on the same volumes. The marker,
-# set before any assertion, tells pass 2 from pass 1, and holds pass 1's
-# workspace.
+# set before any assertion, tells pass 2 from pass 1 and holds pass 1's
+# workspace; pass 2 leaves its own, which test-features.sh checks.
 marker=/mnt/enchantments/liza/.rebuild-pass1
 if [ -e "$marker" ]; then
   pass1_workspace=$(cat "$marker")
+  touch /mnt/enchantments/liza/.rebuild-pass2
 else
   pass1_workspace=
   echo "$PWD" >"$marker"

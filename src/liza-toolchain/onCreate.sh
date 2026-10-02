@@ -13,6 +13,8 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/fix_volume_owner.sh"
 # shellcheck source=fetch_verified.sh
 . "$here/fetch_verified.sh"
+# shellcheck source=install_asset.sh
+. "$here/install_asset.sh"
 # shellcheck source=pins.sh
 . "$here/pins.sh"
 id=liza-toolchain
@@ -51,9 +53,10 @@ pinned() { # name
 }
 
 # Runs an installer unless the tool's recorded pin already matches. A failure
-# is recorded and leaves the pin unrecorded.
+# is recorded and leaves the pin unrecorded. The architecture is part of the
+# record, since the volume outlives the image.
 install_pinned() { # tool pin installer...
-  local tool=$1 pin=$2
+  local tool=$1 pin="$2 $arch"
   [ "$(cat "$pins/$tool" 2>/dev/null)" = "$pin" ] && return 0
   echo "Installing $tool ($pin)..."
   if "${@:3}"; then
@@ -65,28 +68,12 @@ install_pinned() { # tool pin installer...
   fi
 }
 
-# Downloads a release asset, checks its digest, and installs one executable
-# from it.
-# shellcheck disable=SC2329 # run through install_pinned
-release_binary() { # destination url sha256 member (empty for a bare binary)
-  local tmp rc
-  tmp=$(mktemp -d) || return 1
-  fetch_verified "$2" "$3" "$tmp/asset" && case "$2" in
-    *.zip) unzip -p "$tmp/asset" "$4" >"$tmp/binary" ;;
-    *.tar.gz) tar -xzf "$tmp/asset" -O "$4" >"$tmp/binary" ;;
-    *) mv "$tmp/asset" "$tmp/binary" ;;
-  esac && mkdir -p "$(dirname "$1")" && install -m 755 "$tmp/binary" "$1"
-  rc=$?
-  rm -rf "$tmp"
-  return "$rc"
-}
-
 # Installs a pinned release binary into bin.
 release_tool() { # tool repo tag-var prefix member
   local tag=${!3}
-  install_pinned "$1" "$tag" release_binary "$bin/$1" \
+  install_pinned "$1" "$tag" install_asset \
     "https://github.com/$2/releases/download/$tag/$(pinned "${4}_ASSET")" \
-    "$(pinned "${4}_SHA256")" "$5"
+    "$(pinned "${4}_SHA256")" "$5" "$bin/$1"
 }
 
 if command -v unzip >/dev/null; then
@@ -119,7 +106,8 @@ go_tools=(
 stale=()
 for entry in "${go_tools[@]}"; do
   read -r tool repo commit <<<"$entry"
-  [ "$(cat "$pins/$tool" 2>/dev/null)" = "$commit" ] || stale+=("$entry")
+  [ "$(cat "$pins/$tool" 2>/dev/null)" = "$commit $arch" ] \
+    || stale+=("$entry")
 done
 
 # shellcheck disable=SC2329 # run through install_pinned
@@ -145,8 +133,8 @@ if [ "${#stale[@]}" -gt 0 ]; then
       install_pinned "$tool" "$commit" go_build "$tool" "$repo" "$commit"
     done
   else
-    record_failure "$id" "Go $GO_VERSION download failed, so the Go tools" \
-      "weren't built; $retry"
+    record_failure "$id" "Go $GO_VERSION couldn't be fetched or unpacked," \
+      "so the Go tools weren't built; $retry"
   fi
   # The module cache is read-only.
   if [ -n "${gotmp:-}" ]; then
@@ -189,9 +177,9 @@ install_pinned npm-tools "$NODE_VERSION $lock_sum" node_tools
 # A private uv builds semble's venv, whose interpreter it downloads into the
 # volume, so the venv never depends on the image's Python.
 uv_asset=$(pinned UV_ASSET)
-install_pinned uv "$UV_TAG" release_binary "$lib/uv/uv" \
+install_pinned uv "$UV_TAG" install_asset \
   "https://github.com/astral-sh/uv/releases/download/$UV_TAG/$uv_asset" \
-  "$(pinned UV_SHA256)" "${uv_asset%.tar.gz}/uv"
+  "$(pinned UV_SHA256)" "${uv_asset%.tar.gz}/uv" "$lib/uv/uv"
 
 # The model is fetched at a pinned revision, so semble never downloads at
 # runtime: env.append points SEMBLE_MODEL_NAME at it.

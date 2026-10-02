@@ -1,13 +1,16 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
 # The activation sequence. updateContent.sh runs every step; liza-activate runs
-# only the per-clone steps 1 and 5, so the two can't drift apart.
+# only the two that act on a clone, so the two can't drift apart.
 
 steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 # shellcheck source=record_failure.sh
 . "$steps_dir/record_failure.sh"
 # shellcheck source=claude_ready.sh
 . "$steps_dir/claude_ready.sh"
+# liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md here for
+# these steps: renaming one means releasing both Features together.
 toolchain=/usr/local/share/enchantments/liza-toolchain
+claude_code=/usr/local/share/enchantments/claude-code
 liza_bin=$HOME/.liza/libexec/liza
 
 # Succeeds when ~/.liza is this project's volume, which onCreate links.
@@ -40,12 +43,14 @@ find_clone() {
   return 1
 }
 
-# Step 1: without the toolchain, remove the context7 registration it made.
+# Without the toolchain, removes the context7 registration it made. Without
+# claude-code, none was made here.
 remove_toolchain_registration() {
-  [ -d "$toolchain" ] || bash "$steps_dir/deactivate.sh" --tools
+  [ -d "$toolchain" ] || [ ! -d "$claude_code" ] \
+    || bash "$steps_dir/deactivate.sh" --tools
 }
 
-# Step 2: write the toolchain's env.sh and profile hook. configure picks the
+# With the toolchain, writes its env.sh and profile hook. configure picks the
 # profile files from $SHELL, which isn't the user's shell during create.
 configure_toolchain() {
   local env=$HOME/.liza/toolchain/env.sh args line
@@ -63,7 +68,7 @@ configure_toolchain() {
   done <"$toolchain/env.append"
 }
 
-# Step 3: refresh Liza's contracts and skills to match the binary, with the
+# Refreshes Liza's contracts and skills to match the binary, with the
 # AGENT_TOOLS.md that lists only the tools this container has.
 set_up_liza() {
   local agent_tools=$steps_dir/AGENT_TOOLS.minimal.md
@@ -72,15 +77,10 @@ set_up_liza() {
     >/dev/null \
     || record_failure liza "liza setup failed, so its contracts and skills" \
       "may not match its binary"
-  if [ ! -d "$toolchain" ] \
-    && [ ! -d /usr/local/share/enchantments/codebase-memory-mcp ]; then
-    record_failure liza "liza without liza-toolchain or" \
-      "codebase-memory-mcp: the contract's graph rows fall back to rg"
-  fi
 }
 
-# Step 4: setup links every skill into ~/.claude/skills, which would load them
-# in every container sharing claude-data. Step 5 links them into the clone.
+# setup links every skill into ~/.claude/skills, which would load them in every
+# container sharing claude-data; activate_clone links them into the clone.
 unlink_global_skills() {
   local link
   for link in "$HOME"/.claude/skills/*; do
@@ -93,7 +93,7 @@ unlink_global_skills() {
   done
 }
 
-# Step 5: activate the clone at $top through the shim, which keeps every write
+# Activates the clone at $top through the shim, which keeps every write
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
   if ! bash "$steps_dir/shim.sh" init --claude --yes "$@" </dev/null; then
@@ -102,7 +102,8 @@ activate_clone() { # liza-init-args...
     return
   fi
   # Never replaced: a context7 you registered yourself stays.
-  if [ -d "$toolchain" ] && claude_ready liza "context7 isn't registered"; then
+  if [ -d "$toolchain" ] && [ -d "$claude_code" ] \
+    && claude_ready liza "context7 isn't registered"; then
     "$claude_bin" mcp get context7 >/dev/null 2>&1 \
       || "$claude_bin" mcp add --scope local context7 \
         -- "$HOME/.liza/bin/context7-mcp" >/dev/null \

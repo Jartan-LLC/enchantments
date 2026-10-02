@@ -487,7 +487,7 @@ tools() { HOME="$tools_home" bash "$tools_dir/deactivate.sh" --tools; }
 jq -n --arg p "$clone" --arg h "$tools_home" \
   '{projects: {($p): {
     mcpServers: {context7: {command: ($h + "/.liza/bin/context7-mcp")}},
-    disabledMcpServers: ["other", "codebase-memory-mcp"]}}}' \
+    disabledMcpServers: ["one", "another"]}}}' \
   >"$tools_home/.claude/claude.json"
 cp "$tools_home/.claude/claude.json" "$clone/.git/before-tools-claude.json"
 cp .claude/settings.local.json "$clone/.git/before-tools.json"
@@ -496,7 +496,7 @@ check "--tools removes context7" \
   grep -qx "mcp remove --scope local context7" "$tools_home/claude-calls"
 check "--tools leaves disabledMcpServers alone" \
   test "$(jq -c --arg p "$clone" '.projects[$p].disabledMcpServers' \
-    "$tools_home/.claude/claude.json")" = '["other","codebase-memory-mcp"]'
+    "$tools_home/.claude/claude.json")" = '["one","another"]'
 check "--tools leaves the settings alone" \
   cmp -s .claude/settings.local.json "$clone/.git/before-tools.json"
 rm -f "$tools_home/claude-calls"

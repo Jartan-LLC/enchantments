@@ -1,6 +1,6 @@
-<!-- The liza Feature's AGENT_TOOLS.md, used when liza-toolchain is absent; assumes
-codebase-memory-mcp. Adapted from Liza's contracts/AGENT_TOOLS.md
-(Apache-2.0; see LICENSE.Apache-2.0). Lists only tools this container provides. -->
+<!-- The liza Feature's AGENT_TOOLS.md, used when liza-toolchain is absent.
+Adapted from Liza's contracts/AGENT_TOOLS.md (Apache-2.0; see
+LICENSE.Apache-2.0). Lists only tools every container with liza has. -->
 
 # Agent Tools
 
@@ -11,17 +11,17 @@ When a default tool is unavailable in the current session, fall through to the n
 
 ### Search and Navigation
 
-Choose the highest-signal routing source before exploratory search: explicit user paths, changed-file lists, and section/symbol routers. `rg`/`git grep` are appropriate first moves for literals, filenames, commands, or config keys already known from the request; in Pairing mode, prefer the codebase-memory graph for structural questions (callers, call chains, architecture) over guessed broad keywords.
+Choose the highest-signal routing source before exploratory search: explicit user paths, changed-file lists, and section/symbol routers. `rg`/`git grep` are appropriate first moves for literals, filenames, commands, or config keys already known from the request.
 
 Phased repository search:
 
-1. Orient: in Pairing mode, use the codebase-memory graph for architecture, symbols, and call paths; in any mode, native manifests and `rg --files` for layout.
+1. Orient with native manifests and `rg --files` for layout.
 2. Trace with `rg` for literals and references; for long docs/specs, use `rg -c "pattern" <paths>` to find candidates, then `rg -n '^#{1,6} ' <file>` and section-scoped reads.
 3. Verify against source files before editing or claiming behavior.
 
 Use bounded `rg` for exact text search and path discovery; use `git grep` for tracked/index/HEAD/history searches. Use direct, line-numbered reads (`nl -ba ... | sed -n ...`) for source-of-truth verification and edit discussion.
 
-Before editing shared/exported symbols or unfamiliar control paths, establish impact with the codebase-memory graph (Pairing) or `rg` + direct reads (MAS). If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`, and behavior tests; the graph index may lag uncommitted changes.
+Before editing shared/exported symbols or unfamiliar control paths, establish impact with `rg` + direct reads. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`, and behavior tests.
 
 ### Execution and Validation
 
@@ -42,7 +42,7 @@ Any non destructive tool by default.
 ## Mode Boundary
 
 All modes: use source-of-truth tools for verification.
-MAS worktree rule: Do not use workspace-level or IDE/LSP-backed tools in Liza multi-agent worktrees, even if the user has configured them for personal use. The codebase-memory graph is one: it indexes the root checkout, not your worktree. Use filesystem-truth tools tied to the current worktree instead: `rg`, `rg --files`, `find`, direct reads, native manifests, `git`, language-native commands, and `apply_patch`.
+MAS worktree rule: Do not use workspace-level or IDE/LSP-backed tools in Liza multi-agent worktrees, even if the user has configured them for personal use. Use filesystem-truth tools tied to the current worktree instead: `rg`, `rg --files`, `find`, direct reads, native manifests, `git`, language-native commands, and `apply_patch`.
 Pairing mode: user-personal workspace tools may exist, but they do not replace source-of-truth verification.
 
 ## Tool Routing
@@ -61,10 +61,10 @@ Fallback tools are permitted ONLY when the fallback condition is met OR the defa
 | Single-file read (targeted) | `nl -ba <file> \| sed -n '<start>,<end>p'` | Read | Native read is lower-noise, already available, or line numbers are not needed |
 | Directory exploration | `rg --files`, `find`, or `ls` | native tree/list capability | Need a structured tree and native shell output is insufficient |
 | File discovery | `rg --files` | native filename search / `find` | `rg` unavailable |
-| Project structure / modules | Pairing: codebase-memory architecture/graph search; MAS: native manifest reads + `rg --files` | native manifest reads + `rg --files` / `find` | Graph unavailable, not indexed, or in a MAS worktree |
+| Project structure / modules | native manifest reads + `rg --files` | `find` | `rg` unavailable |
 | Dependency inspection | Native manifest reads + lockfiles | language-native dependency commands | Manifest/lockfile inspection is insufficient |
 | Literal/regex code search | `rg` | — | — |
-| Symbol discovery / lookup | Pairing: codebase-memory graph search + direct reads; MAS: `rg` + direct reads | `rg` + direct reads | Graph unavailable, insufficient, or in a MAS worktree |
+| Symbol discovery / lookup | `rg` + direct reads | — | — |
 | File edit | apply_patch | native edit tool, then a scripted exact-match edit | apply_patch is unavailable in this session |
 | Web content | WebFetch | `curl` | Need raw HTML, pagination, or WebFetch is blocked |
 | Current info / library docs | WebSearch, then WebFetch on the primary docs page | — | — |
@@ -76,10 +76,10 @@ Fallback tools are permitted ONLY when the fallback condition is met OR the defa
 |-------------------------------------------|--------------|----------|-------------------|
 | Exact keyword ("TODO") | `rg` | — | — |
 | Find files by name | Glob | `rg --files` / native filename search | Glob unavailable |
-| Repo orientation and module impact | Pairing: codebase-memory architecture | `rg` + manifest reads + exact source reads | Graph unavailable/insufficient, or in a MAS worktree |
-| Semantic repository search ("how does X work?") | Pairing: codebase-memory graph search | `rg` + exact reads | Graph unavailable/insufficient, or in a MAS worktree |
-| Find references / callers | Pairing: codebase-memory call-path tracing | `rg` + direct reads | Graph unavailable/insufficient, or in a MAS worktree |
-| Cross-file definitions | Pairing: codebase-memory code snippet lookup | `rg` + direct reads | Graph unavailable/insufficient, or in a MAS worktree |
+| Repo orientation and module impact | `rg` + manifest reads + exact source reads | — | — |
+| Semantic repository search ("how does X work?") | `rg` + exact reads | — | — |
+| Find references / callers | `rg` + direct reads | — | — |
+| Cross-file definitions | `rg` + direct reads | — | — |
 
 ### Precedence
 

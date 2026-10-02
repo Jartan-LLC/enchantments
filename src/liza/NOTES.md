@@ -1,9 +1,7 @@
 ## How it works
 
 - **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`.
-- **Then, in the workspace,** Liza's global files are refreshed to match its binary, and Liza is activated for this clone. Activation writes only local files, so collaborators and CI are unaffected. Outside a git repository, only the clone's activation is skipped.
-- **Declare it with `liza-toolchain` or `codebase-memory-mcp`.** Alone, the contract's code-graph rows fall back to `rg`, and the start-time report says so.
-- **If the project sets `waitFor`** to a stage before `updateContentCommand`, VS Code connects before activation finishes: wait for the creation log to show it finished before starting Claude.
+- **Then, in the workspace,** Liza's global files are refreshed to match its binary, and Liza is activated for this clone. Outside a git repository, only the clone's activation is skipped.
 
 ## Activation
 
@@ -16,11 +14,10 @@
 | skills | links in `.claude/skills/` |
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
-`liza-activate` activates the clone you're in, and passes its arguments to `liza init`. `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`, which every container sharing `claude-data` loads.
-
-The shim works around liza-mas/liza issues [163](https://github.com/liza-mas/liza/issues/163) and [164](https://github.com/liza-mas/liza/issues/164).
-
-A multi-agent `liza init` writes `.liza/` and `.worktrees/` at the repo root, and its provider overrides (`claude.env`, `pi.env`) sit there too. Add those to the project's `.gitignore`, with any adversarial-pairing directory such as `.adversarial/`; scaffold's `.gitignore` has a Liza section to copy.
+- `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
+- `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
+- If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.
+- Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`.
 
 ## Undoing activation
 
@@ -28,7 +25,9 @@ A multi-agent `liza init` writes `.liza/` and `.worktrees/` at the repo root, an
 
 ## Removal
 
-While the Feature is still declared, run `liza-deactivate` in each clone, and also `liza-deactivate --tools` if `liza-toolchain` is declared. Then remove both entries, then the volume. Otherwise `CLAUDE.local.md` and the local settings keep pointing into an unmounted `~/.liza`.
+1. While the Feature is still declared, in each clone, run `liza-deactivate --tools` if `liza-toolchain` is declared, then `liza-deactivate`.
+2. Remove the `liza` entry, and `liza-toolchain`'s if declared.
+3. Remove the volume: `docker volume rm liza-<devcontainerId>`.
 
 ## Image requirements
 

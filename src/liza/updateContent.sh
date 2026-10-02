@@ -1,6 +1,7 @@
 #!/bin/bash
 # updateContentCommand, as the remote user, in the workspace: the activation
-# sequence. Steps 2-4 set up the volume; steps 1 and 5 need a clone.
+# sequence. Setting up the volume always runs; the steps that act on a clone
+# need one.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")

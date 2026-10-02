@@ -2,7 +2,7 @@
   "id": "liza-toolchain",
   "version": "1.0.0",
   "name": "Liza toolchain",
-  "description": "Liza's agent toolchain, every tool pinned and verified, installed into the liza Feature's volume with private Go, Node and uv that stay off PATH.",
+  "description": "Liza's agent toolchain, every tool pinned and verified, installed into the liza Feature's volume.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza-toolchain",
   "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
   "containerEnv": {

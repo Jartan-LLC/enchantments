@@ -14,6 +14,8 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/link_home.sh"
 # shellcheck source=fetch_verified.sh
 . "$here/fetch_verified.sh"
+# shellcheck source=install_asset.sh
+. "$here/install_asset.sh"
 # shellcheck source=pins.sh
 . "$here/pins.sh"
 id=liza
@@ -48,26 +50,12 @@ asset_name() { # pin-prefix
   echo "${template//\{version\}/${tag#v}}"
 }
 
-# Downloads a pinned release archive, checks its digest, and installs one
-# member of it as an executable.
-install_member() { # url sha256 member destination
-  local tmp rc
-  tmp=$(mktemp -d) || return 1
-  fetch_verified "$1" "$2" "$tmp/asset.tar.gz" \
-    && tar -xzf "$tmp/asset.tar.gz" -C "$tmp" --no-same-owner "$3" \
-    && mkdir -p "$(dirname "$4")" \
-    && install -m 755 "$tmp/$3" "$4"
-  rc=$?
-  rm -rf "$tmp"
-  return "$rc"
-}
-
 # Through the mount, not ~/.liza, so a failed link never redirects them.
 liza=$mount/libexec/liza
 if ! "$liza" version 2>/dev/null | grep -qx "liza version ${LIZA_TAG#v}"; then
   sha256=LIZA_SHA256_$arch
   asset=$(asset_name LIZA)
-  install_member \
+  install_asset \
     "https://github.com/liza-mas/liza/releases/download/$LIZA_TAG/$asset" \
     "${!sha256}" liza "$liza" \
     || record_failure "$id" "install of Liza $LIZA_TAG failed (download or" \
@@ -77,7 +65,7 @@ rg=$mount/bin/rg
 if ! "$rg" --version 2>/dev/null | grep -q "^ripgrep $RG_TAG "; then
   sha256=RG_SHA256_$arch
   asset=$(asset_name RG)
-  install_member \
+  install_asset \
     "https://github.com/BurntSushi/ripgrep/releases/download/$RG_TAG/$asset" \
     "${!sha256}" "${asset%.tar.gz}/rg" "$rg" \
     || record_failure "$id" "install of ripgrep $RG_TAG failed (download" \

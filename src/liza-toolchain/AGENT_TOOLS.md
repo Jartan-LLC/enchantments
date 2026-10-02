@@ -1,6 +1,6 @@
 <!-- The AGENT_TOOLS.md staged by liza-toolchain. Adapted from Liza's
-contracts/AGENT_TOOLS.md (Apache-2.0; see LICENSE.Apache-2.0). Lists only tools
-this container provides. -->
+contracts/AGENT_TOOLS.md (Apache-2.0; see LICENSE.Apache-2.0). Lists the tools
+liza-toolchain installs. -->
 
 # Agent Tools
 
