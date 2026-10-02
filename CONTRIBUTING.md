@@ -31,7 +31,7 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
 make check
 ```
 
-Runs lint and the docs build. A change under `src/`, `lib/` or `test/` is done only when
+Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib/` or `test/` is done only when
 the PR's `check` passes in CI. Don't run `devcontainer features test` locally: it writes
 to your real `claude-data`, `gh-config` and `liza-<devcontainerId>` volumes.
 

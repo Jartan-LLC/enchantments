@@ -1,10 +1,13 @@
 #!/bin/bash
+# shellcheck source-path=SCRIPTDIR
 # Runs every scenario of one Feature, or of _global, each as its own invocation
 # on fresh claude-data, gh-config and liza-rebuild volumes: the CLI removes
 # containers but never volumes, and the volume names are fixed. A scenario
 # named *-rebuild then runs again on the volumes it left, as a rebuilt
 # container would.
 set -euo pipefail
+# shellcheck source=feature_ids.sh
+. "$(dirname "$0")/feature_ids.sh"
 if [ "${CI:-}" != true ]; then
   echo "test-features.sh deletes the claude-data, gh-config and" \
     "liza-rebuild volumes; it runs only in CI" >&2
@@ -30,9 +33,7 @@ if [ -n "$overlap" ]; then
 fi
 # A new Feature mustn't skip the image-coverage tests.
 if [ "$id" = _global ]; then
-  all=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json \
-    -printf '%h\n' | cut -d/ -f2 | LC_ALL=C sort \
-    | jq -Rsc 'split("\n") | map(select(. != ""))')
+  all=$(feature_ids | jq -Rsc 'split("\n") | map(select(. != ""))')
   for name in alpine javascript-node root-user; do
     declared=$(jq -c --arg s "$name" '.[$s].features // {} | keys | sort' \
       "$scenarios")

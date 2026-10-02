@@ -22,7 +22,7 @@ loads them into every session:
 
 ## Verify
 
-Run `make check` before declaring work done — it runs lint and the strict docs build:
+Run `make check` before declaring work done — it runs lint, the strict docs build and the CI scripts' tests:
 
 ```bash
 make check
@@ -32,5 +32,5 @@ A change under `src/`, `lib/` or `test/` is done only when the PR's `check` pass
 Don't run `devcontainer features test` locally: it writes to your real
 `claude-data`, `gh-config` and `liza-<devcontainerId>` volumes.
 
-Individual targets (`make lint`, `make docs`) speed up the inner loop; `make help` lists
+Individual targets (`make lint`, `make docs`, `make test`) speed up the inner loop; `make help` lists
 them.
