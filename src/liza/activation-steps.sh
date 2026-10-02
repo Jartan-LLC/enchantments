@@ -9,10 +9,11 @@ steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 . "$steps_dir/claude_ready.sh"
 # shellcheck source=activation-lib.sh
 . "$steps_dir/activation-lib.sh"
-# liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md here for
-# these steps: renaming one means releasing both Features together.
-toolchain=$liza_toolchain
-# context7's registration as activation makes it.
+# liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md in
+# $liza_toolchain for these steps: renaming one means releasing both Features
+# together.
+
+# The command activation registers context7 with.
 context7_command=$HOME/.liza/bin/context7-mcp
 claude_code=/usr/local/share/enchantments/claude-code
 liza_bin=$HOME/.liza/libexec/liza
@@ -65,15 +66,17 @@ remove_context7() {
 # Without the toolchain, removes the context7 registration it made. Without
 # claude-code, none was made here.
 remove_context7_without_toolchain() {
-  [ -d "$toolchain" ] || [ ! -d "$claude_code" ] || remove_context7
+  if [ ! -d "$liza_toolchain" ] && [ -d "$claude_code" ]; then
+    remove_context7
+  fi
 }
 
 # With the toolchain, writes its env.sh and profile hook. configure picks the
 # profile files from $SHELL, which isn't the user's shell during create.
 configure_toolchain() {
   local env=$HOME/.liza/toolchain/env.sh args line
-  [ -d "$toolchain" ] || return 0
-  mapfile -t args <"$toolchain/configure.args"
+  [ -d "$liza_toolchain" ] || return 0
+  mapfile -t args <"$liza_toolchain/configure.args"
   if ! SHELL=$(getent passwd "$(id -un)" | cut -d: -f7) \
     "$liza_bin" toolchain configure "${args[@]}" </dev/null >/dev/null; then
     record_failure liza "liza toolchain configure failed, so the toolchain" \
@@ -83,14 +86,14 @@ configure_toolchain() {
   # configure may keep the file it wrote before.
   while IFS= read -r line; do
     grep -qxF -- "$line" "$env" || echo "$line" >>"$env"
-  done <"$toolchain/env.append"
+  done <"$liza_toolchain/env.append"
 }
 
 # Refreshes Liza's contracts and skills to match the binary, with the
 # AGENT_TOOLS.md that lists only the tools this container has.
 set_up_liza() {
   local agent_tools=$steps_dir/AGENT_TOOLS.minimal.md
-  [ -d "$toolchain" ] && agent_tools=$toolchain/AGENT_TOOLS.md
+  [ -d "$liza_toolchain" ] && agent_tools=$liza_toolchain/AGENT_TOOLS.md
   "$liza_bin" setup --force --yes --agent-tools "$agent_tools" </dev/null \
     >/dev/null \
     || record_failure liza "liza setup failed, so its contracts and skills" \
@@ -131,7 +134,7 @@ activate_clone() { # liza-init-args...
   rm -f "$refusal"
   [ "$rc" -eq 0 ] || return
   # Never replaced: a context7 you registered yourself stays.
-  if [ -d "$toolchain" ] && [ -d "$claude_code" ] \
+  if [ -d "$liza_toolchain" ] && [ -d "$claude_code" ] \
     && claude_ready liza "context7 isn't registered"; then
     (cd "$top" && { "$claude_bin" mcp get context7 >/dev/null 2>&1 \
       || "$claude_bin" mcp add --scope local context7 \
@@ -139,8 +142,7 @@ activate_clone() { # liza-init-args...
       || record_failure liza "registering context7 failed; retry from $top:" \
         "liza-activate"
   fi
-  [ "$(readlink -f "$top/CLAUDE.local.md")" \
-    = "$(readlink -f "$liza_contract")" ] \
+  contract_linked "$top" \
     || record_failure liza "$top/CLAUDE.local.md is your own file, so" \
       "Liza's contract isn't loaded there; move it aside, then run:" \
       "liza-activate"

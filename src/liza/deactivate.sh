@@ -41,7 +41,7 @@ if [ "${1:-}" = --tools ]; then
 fi
 
 # --- Undo activation, from its record ---
-local_settings=.claude/settings.local.json
+local_settings=$top/.claude/settings.local.json
 record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
@@ -58,9 +58,10 @@ if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
 fi
 trap 'rmdir "$lock"' EXIT
 
-drop_lines=() # exclude lines to remove
-kept=()       # files left for the user to check, with where their original is
-accounted=()  # originals the record lists
+drop_lines=()     # exclude lines to remove
+recorded_paths=() # the files activation created
+kept=()           # what is left for the user to check
+accounted=()      # originals the record lists
 if ! jq -e . "$record" >/dev/null 2>&1; then
   # No readable record: only the contract link and any saved originals can be
   # undone.
@@ -104,12 +105,11 @@ else
   done
   # A file activation created goes, unless it was edited since.
   mapfile -t recorded < <(record_query file_entries "$record")
-  recorded_paths=()
+  mapfile -t recorded_paths < <(record_query recorded_paths "$record")
   for entry in "${recorded[@]}"; do
     path=${entry% *}
-    recorded_paths+=("$path")
     # The settings revert above owns the local settings.
-    [ "$path" = "$top/$local_settings" ] && continue
+    [ "$path" = "$local_settings" ] && continue
     now=$(fingerprint "$path")
     [ -n "$now" ] || continue
     if [ "$now" = "$entry" ]; then
@@ -154,10 +154,8 @@ if [ -d "$record_dir/originals" ]; then
   done < <(find "$record_dir/originals" \( -type f -o -type l \) -print0)
 fi
 
-# --- Clean up: what is left for the user, the contract link, emptied
-# settings and dirs ---
-[ ${#kept[@]} -eq 0 ] \
-  || echo "deactivate: left these for you to check: ${kept[*]}" >&2
+# --- Clean up: the contract link, emptied settings and dirs, then what is
+# left for the user ---
 if [ -f "$local_settings" ] \
   && [ "$(jq -c . "$local_settings" 2>/dev/null)" = "{}" ]; then
   rm -f "$local_settings"
@@ -186,4 +184,13 @@ if [ ${#failed[@]} -eq 0 ]; then
   rm -rf -- "${record_dir:?}/originals"
   rmdir "$record_dir" 2>/dev/null
 fi
+# Local settings activation created that still hold your own entries stay; once
+# their exclude line is gone, git shows them, unless the repo ignores them.
+if [ -f "$local_settings" ] \
+  && in_list "$local_settings" "${recorded_paths[@]}" \
+  && ! git check-ignore -q -- "$local_settings"; then
+  kept+=("$local_settings (your own settings, which git now shows)")
+fi
+[ ${#kept[@]} -eq 0 ] \
+  || echo "deactivate: left these for you to check: ${kept[*]}" >&2
 finish

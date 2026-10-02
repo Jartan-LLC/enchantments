@@ -17,14 +17,15 @@
 ## Known limitations
 
 - scip-python doesn't see packages installed in a uv virtual environment, which has no `pip`.
-- Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook, as git-lfs, husky and lefthook install: that's where its code-index hooks go. Activation names the hook.
+- Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook, such as git-lfs, husky or lefthook install. Activation names the hook.
 - Where rtk can't run (aarch64 with glibc older than 2.39), it's removed and reported at each create, while `~/.liza/AGENT_TOOLS.md` still describes it.
 
 ## Removal
 
 1. While both Features are still declared, in each clone, run `liza-deactivate --tools`, then `liza-deactivate`.
-2. Remove the entry and rebuild: activation runs again without the toolchain.
-3. To also remove the toolchain's files from the volume, remove the volume before rebuilding: `docker volume rm liza-<devcontainerId>`.
+2. Remove the entry.
+3. To also remove the toolchain's files, stop the container and remove the volume: `docker volume rm liza-<devcontainerId>`. The rebuild reinstalls Liza into a fresh one.
+4. Rebuild: activation runs again without the toolchain.
 
 ## Image requirements
 

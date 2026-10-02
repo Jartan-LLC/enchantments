@@ -29,7 +29,7 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   esac
 done
 [ "$subcommand" = init ] || exec "$real_liza" "$@"
-# Help changes nothing to keep local.
+# --help writes nothing, so it goes straight to Liza.
 for arg in "$@"; do
   case "$arg" in -h | --help) exec "$real_liza" "$@" ;; esac
 done
@@ -104,21 +104,18 @@ fi
 # Liza reads the toolchain's LIZA_ENABLE_* gates at init time, and the shell
 # running init (a script, /onboard, Liza's operator agent) may not have loaded
 # them.
-toolchain=$liza_toolchain
-if [ -d "$toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
+if [ -d "$liza_toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
   # shellcheck source=/dev/null
   source "$HOME/.liza/toolchain/env.sh"
 fi
-# With an index gate, init installs Liza's code-index hooks, and fails rather
-# than replace a hook of the repo's own: refuse up front, naming it.
-truthy() { case "${1,,}" in 1 | true | yes | on) ;; *) return 1 ;; esac }
-if truthy "${LIZA_ENABLE_STACKLIT:-}" || truthy "${LIZA_ENABLE_SCIP_SEARCH:-}" \
-  || truthy "${LIZA_ENABLE_FUNCTIONAL_CLUSTERS:-}"; then
-  if own_hook=$(foreign_index_hook "$top"); then
-    refuse "the repo's own $own_hook git hook is where Liza's code-index hook" \
-      "goes, and Liza won't replace it."
-  fi
-fi
+# Refused up front, naming the hook, rather than left to fail inside init.
+own_hook=$(own_index_hook "$top")
+case $? in
+  0) refuse "the repo has its own $own_hook git hook, which Liza won't" \
+    "replace with its code-index hook." ;;
+  2) refuse "git can't locate this repo's hooks, so Liza's code-index hooks" \
+    "can't be checked." ;;
+esac
 
 # --- Snapshot the state before init ---
 had_global_contract=false
@@ -283,7 +280,7 @@ fi
 # ~/.claude/settings.json, rewriting commands in every project; here it applies
 # to activated clones only.
 rtk="$HOME/.liza/bin/rtk"
-if [ -d "$toolchain" ] && [ -x "$rtk" ] && [ -f "$local_settings" ]; then
+if [ -d "$liza_toolchain" ] && [ -x "$rtk" ] && [ -f "$local_settings" ]; then
   if ! { jq --arg cmd "$rtk hook claude" '
         .hooks.PreToolUse //= []
         | if any(.hooks.PreToolUse[].hooks[]?; .command == $cmd) then .

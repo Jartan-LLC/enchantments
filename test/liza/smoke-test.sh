@@ -57,6 +57,7 @@ stub_liza() {
     cat <<'EOF'
 #!/bin/sh
 settings() {
+  [ -f .claude/settings.json ] || echo '{}' >.claude/settings.json
   jq "$1" .claude/settings.json >.claude/t.json \
     && mv .claude/t.json .claude/settings.json
 }
@@ -609,6 +610,36 @@ check "init refuses a repo's own index hook" \
   test "$own_hook_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
 check "and names it" \
   grep -q "own post-commit git hook" "$stub_home/own-hook.err"
+# A hook Liza manages, or any hook with the gates off, lets init go ahead.
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+own_hooks=$(git -C "$refusals_clone" rev-parse --path-format=absolute \
+  --git-path hooks)
+printf '#!/bin/sh\n# PAIRING-INDEX-HOOK: managed\n' >"$own_hooks/post-commit"
+echo "export LIZA_ENABLE_STACKLIT='1'" >"$stub_home/.liza/toolchain/env.sh"
+stub_init "$refusals_clone" 2>/dev/null
+check "a hook Liza manages lets init go ahead" \
+  test -L "$refusals_clone/CLAUDE.local.md"
+stub_deactivate "$refusals_clone" 2>/dev/null
+rm -f "$stub_home/.liza/toolchain/env.sh"
+printf '#!/bin/sh\necho mine\n' >"$own_hooks/post-commit"
+stub_init "$refusals_clone" 2>/dev/null
+check "with the gates off, a hook of the repo's own lets init go ahead" \
+  test -L "$refusals_clone/CLAUDE.local.md" \
+  -a "$(cat "$own_hooks/post-commit")" = "$(printf '#!/bin/sh\necho mine')"
+stub_deactivate "$refusals_clone" 2>/dev/null
+rm -f "$own_hooks/post-commit"
+# --help writes nothing, so it goes straight to Liza.
+stub_liza <<'EOF'
+echo "$*" >.liza-help-call
+EOF
+(cd "$refusals_clone" && HOME="$stub_home" bash "$shim" init --help \
+  </dev/null >/dev/null)
+check "init --help goes straight to Liza" \
+  test "$(cat "$refusals_clone/.liza-help-call")" = "init --help" \
+  -a ! -L "$refusals_clone/CLAUDE.local.md"
+rm -f "$refusals_clone/.liza-help-call"
 gone_wt="$refusals_clone-gone"
 git -C "$refusals_clone" worktree add -q --detach "$gone_wt" 2>/dev/null
 rm -rf "$gone_wt"
@@ -620,6 +651,34 @@ check "a worktree whose directory is gone doesn't stop init" \
   test -L "$refusals_clone/CLAUDE.local.md"
 check "nor makes git print errors" \
   bash -c "! grep -q fatal: '$stub_home/gone.err'"
+
+# In a repo that doesn't ignore them, local settings activation created and
+# the user then edited stay after deactivation, and are named.
+shown_clone=$(stub_clone shown-clone)
+rm -f "$shown_clone/.claude/settings.local.json"
+: >"$shown_clone/.gitignore"
+git -C "$shown_clone" -c user.name=t -c user.email=t@t commit -qam unignore
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+stub_init "$shown_clone" 2>/dev/null
+jq '.permissions.allow += ["Bash(mine:*)"]' \
+  "$shown_clone/.claude/settings.local.json" >"$stub_home/edited.json" \
+  && mv "$stub_home/edited.json" "$shown_clone/.claude/settings.local.json"
+stub_deactivate "$shown_clone" 2>"$stub_home/shown.err"
+check "edited local settings in an unignoring repo are kept" \
+  jq -e '.permissions.allow == ["Bash(mine:*)"]' \
+  "$shown_clone/.claude/settings.local.json"
+check "and named" grep -q "your own settings" "$stub_home/shown.err"
+
+# liza-activate without Liza installed says so.
+missing_dir="$stub_home/missing-liza"
+cp -R "$liza_dir" "$missing_dir"
+echo 'liza_bin=/nonexistent/liza' >>"$missing_dir/activation-steps.sh"
+bash "$missing_dir/activate.sh" 2>"$stub_home/missing.err"
+missing_rc=$?
+check "liza-activate without Liza installed fails" test "$missing_rc" -ne 0
+check "and says so" grep -q "isn't installed" "$stub_home/missing.err"
 
 # --tools undoes the toolchain's registration, and only with --tools. The home
 # is laid out as claude-code leaves it: a stub claude logs its calls, and

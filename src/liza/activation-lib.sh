@@ -1,6 +1,8 @@
 # shellcheck shell=bash
-# Sourced by shim.sh, deactivate.sh and activation-steps.sh, which all work on
-# the activation record.
+# Activation's shared helpers, sourced by shim.sh, deactivate.sh and
+# activation-steps.sh. Loaded once, however many of those source it.
+[ -n "${activation_lib_loaded:-}" ] && return 0
+activation_lib_loaded=1
 
 # The contract, which activation links from the clone's CLAUDE.local.md.
 liza_contract="$HOME/.liza/CORE.md"
@@ -140,14 +142,22 @@ other_activation() { # top
   return 1
 }
 
-# Liza's code-index hooks, which its init installs when a toolchain gate asks
-# for indexes, and refuses to install over a hook it doesn't manage. Prints the
-# first such hook of the clone at $1 that's the repo's own.
-foreign_index_hook() { # top
+# Succeeds for a gate value that's on.
+truthy() { # value
+  case "${1,,}" in 1 | true | yes | on) ;; *) return 1 ;; esac
+}
+
+# With the stacklit or SCIP gate on, Liza's init installs code-index hooks, and
+# fails rather than replace one it doesn't manage, a dangling link included.
+# Prints the first such hook of the clone at $1; fails with 1 when there's none
+# or no gate asks, and with 2 when git can't locate the hooks.
+own_index_hook() { # top
   local dir name
-  dir=$(git_path "$1" hooks) || return 1
+  truthy "${LIZA_ENABLE_STACKLIT:-}" || truthy "${LIZA_ENABLE_SCIP_SEARCH:-}" \
+    || return 1
+  dir=$(git_path "$1" hooks 2>/dev/null) || return 2
   for name in post-checkout post-commit post-merge post-rewrite; do
-    [ -e "$dir/$name" ] || continue
+    [ -e "$dir/$name" ] || [ -L "$dir/$name" ] || continue
     grep -qs 'PAIRING-INDEX-HOOK: managed' "$dir/$name" && continue
     echo "$name"
     return 0

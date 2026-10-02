@@ -40,6 +40,7 @@ HOME=$own_home bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
 check "a ~/.liza of your own is reported" \
   grep -q "in the way" "$own_home/.cache/enchantments/liza.failures"
 check "and kept" test -d "$own_home/.liza/mine" -a ! -L "$own_home/.liza"
+rm -rf "$own_home"
 
 # The commands on PATH, by name.
 check "liza-deactivate runs" liza-deactivate
