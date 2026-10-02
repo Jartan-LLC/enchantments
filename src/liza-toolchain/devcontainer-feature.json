@@ -1,0 +1,13 @@
+{
+  "id": "liza-toolchain",
+  "version": "1.0.0",
+  "name": "Liza toolchain",
+  "description": "Liza's agent toolchain, every tool pinned and verified, installed into the liza Feature's volume.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza-toolchain",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "containerEnv": {
+    "PATH": "${PATH}:/mnt/enchantments/liza/bin"
+  },
+  "onCreateCommand": "f=/usr/local/share/enchantments/liza-toolchain/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/liza-toolchain/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

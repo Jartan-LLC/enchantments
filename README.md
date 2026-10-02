@@ -12,6 +12,8 @@ Dev container Features for Jartan LLC's projects, each one installable on its ow
 | [`codebase-memory-mcp`](src/codebase-memory-mcp/README.md) | Installs the codebase-memory-mcp code graph and registers it as an MCP server. |
 | [`gh-config`](src/gh-config/README.md) | Keeps the GitHub CLI's login in the `gh-config` volume. |
 | [`grimoire`](src/grimoire/README.md) | Installs plugins from the grimoire Claude Code marketplace. |
+| [`liza`](src/liza/README.md) | Installs Liza, pinned, and activates it locally for each clone. |
+| [`liza-toolchain`](src/liza-toolchain/README.md) | Installs Liza's agent toolchain, every tool pinned, into the `liza` volume. |
 
 <!-- declare:start -->
 None is published yet. Once they are, declare one in a project's `devcontainer.json`, or

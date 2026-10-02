@@ -1,0 +1,21 @@
+{
+  "id": "liza",
+  "version": "1.0.0",
+  "name": "Liza",
+  "description": "Liza, pinned and digest-checked, activated locally for each clone.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "mounts": [
+    {
+      "source": "liza-${devcontainerId}",
+      "target": "/mnt/enchantments/liza",
+      "type": "volume"
+    }
+  ],
+  "containerEnv": {
+    "PATH": "${PATH}:/mnt/enchantments/liza/bin"
+  },
+  "onCreateCommand": "f=/usr/local/share/enchantments/liza/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "updateContentCommand": "f=/usr/local/share/enchantments/liza/updateContent.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/liza/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

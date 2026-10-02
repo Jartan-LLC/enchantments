@@ -1,0 +1,26 @@
+{
+  "alone": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture && claude mcp add --scope local context7 -- true",
+    "features": {
+      "claude-code": {},
+      "liza": {}
+    }
+  },
+  "not-a-repo": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "liza": {},
+      "liza-toolchain": {}
+    }
+  },
+  "toolchain": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "onCreateCommand": "git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
+    "features": {
+      "claude-code": {},
+      "liza": {},
+      "liza-toolchain": {}
+    }
+  }
+}

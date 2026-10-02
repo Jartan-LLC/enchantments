@@ -15,6 +15,8 @@ features/claude-code
 features/codebase-memory-mcp
 features/gh-config
 features/grimoire
+features/liza
+features/liza-toolchain
 ```
 
 ```{toctree}
