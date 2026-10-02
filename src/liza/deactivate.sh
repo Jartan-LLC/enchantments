@@ -42,14 +42,13 @@ fi
 
 # --- Undo activation, from its record ---
 local_settings=.claude/settings.local.json
-core_contract="$HOME/.liza/CORE.md"
 record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
 
 # Nothing to undo. Originals alone are an activation interrupted before its
-# record or link was made, and are undone.
-activated "$top" || finish
+# record or link was made, and are undone; so is a contract link alone.
+activated "$top" || contract_linked "$top" || finish
 
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
@@ -159,8 +158,7 @@ if [ -f "$local_settings" ] \
   && [ "$(jq -c . "$local_settings" 2>/dev/null)" = "{}" ]; then
   rm -f "$local_settings"
 fi
-[ "$(readlink CLAUDE.local.md)" = "$core_contract" ] \
-  && remove_created CLAUDE.local.md
+contract_linked "$top" && remove_created CLAUDE.local.md
 rmdir .claude/hooks .claude/skills 2>/dev/null
 
 # After a failure the exclude lines stay too, so what's left stays hidden until

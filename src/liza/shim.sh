@@ -37,49 +37,59 @@ local_settings="$claude_dir/settings.local.json"
 held_settings="$claude_dir/settings.json.liza-shim-held"
 backup_settings="$claude_dir/settings.local.json.liza-shim-backup"
 global_contract="$HOME/.claude/CLAUDE.md"
-core_contract="$HOME/.liza/CORE.md"
 
-# --- Lock the clone for this init ---
-# Every refusal exits 3, so a caller can tell it from a failed init.
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
-mkdir -p "$claude_dir"
+core_contract=$liza_contract
+
+# Refuses this init with exit 75, which init itself never passes on, so a
+# caller can tell a refusal from a failure. The message also goes to the file
+# $LIZA_SHIM_REFUSAL names, when set, for a caller that records it.
+refuse() { # message...
+  echo "liza shim: $*" >&2
+  [ -z "${LIZA_SHIM_REFUSAL:-}" ] || printf '%s\n' "$*" >"$LIZA_SHIM_REFUSAL"
+  exit 75
+}
+
+# Takes a lock directory; refuses when another holder has it.
+take_lock() { # dir holder
+  mkdir "$1" 2>/dev/null && return 0
+  [ -d "$1" ] && refuse "$2 holds $1; remove it with rmdir if none is running."
+  echo "liza shim: can't create $1" >&2
+  exit 1
+}
+
+# --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the
 # already-swapped files. Held until the record is written, so a deactivate or
-# another init can't interleave.
+# another init can't interleave. The repo's lock keeps two worktrees from
+# activating at once. Each is released only by the run that took it.
 lock="$claude_dir/.liza-shim.lock"
-if ! mkdir "$lock" 2>/dev/null; then
-  echo "liza shim: another init holds $lock; remove it if none is running." >&2
-  exit 3
-fi
-# The repo's lock keeps two worktrees from activating at once.
 repo_lock="$(git -C "$top" rev-parse --path-format=absolute \
   --git-common-dir)/liza-activation.lock"
-have_repo_lock=false
+have_lock=false have_repo_lock=false
 unlock() {
-  rmdir "$lock"
+  if $have_lock; then rmdir "$lock"; fi
   if $have_repo_lock; then rmdir "$repo_lock"; fi
 }
 trap unlock EXIT
 trap 'exit 130' INT TERM
-if ! mkdir "$repo_lock" 2>/dev/null; then
-  echo "liza shim: another worktree's init holds $repo_lock; remove it if" \
-    "none is running." >&2
-  exit 3
-fi
-have_repo_lock=true
+mkdir -p "$claude_dir"
+take_lock "$lock" "another init" && have_lock=true
+take_lock "$repo_lock" "another worktree's init" && have_repo_lock=true
 # A repo's worktrees share its git hooks and exclude file.
-if active=$(other_activation "$top"); then
-  echo "liza shim: Liza is active in $active, another worktree of this" \
-    "repo; run liza-deactivate there first." >&2
-  exit 3
-fi
+active=$(other_activation "$top")
+case $? in
+  0) refuse "Liza is active in $active, another worktree of this repo; run" \
+    "liza-deactivate there first." ;;
+  2) refuse "git can't list this repo's worktrees, so another one's" \
+    "activation can't be ruled out; Liza needs git 2.36 or later." ;;
+esac
 if [ -e "$held_settings" ]; then
-  echo "liza shim: $held_settings exists from an interrupted init; move it" \
-    "back to settings.json (and any settings.local.json.liza-shim-backup back" \
-    "to settings.local.json) first." >&2
-  exit 3
+  refuse "$held_settings exists from an interrupted init; move it back to" \
+    "settings.json (and any settings.local.json.liza-shim-backup back to" \
+    "settings.local.json) first."
 fi
 
 # --- Snapshot the state before init ---
@@ -93,8 +103,8 @@ init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
 }
-# What git shows untracked, and what an exclude line hides where init writes:
-# either way, a file init creates there is its.
+# A file init creates counts as its own whether git shows it or an exclude line
+# hides it.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
@@ -235,6 +245,7 @@ fi
 
 "$real_liza" "$@"
 rc=$?
+[ "$rc" -eq 75 ] && rc=1 # 75 means refused
 
 release
 trap unlock EXIT

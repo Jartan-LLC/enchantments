@@ -33,8 +33,8 @@
 
 ## Image requirements
 
-- Debian-based, with `bash`, `curl`, `jq` and `git`.
+- Debian-based, with `bash`, `curl`, `jq` and `git` 2.36 or later.
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` leaves `.git/liza-activation.lock` behind, remove it, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. `liza-activate` reports at once, and exits non-zero when something failed.
+The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. `liza-activate` reports at once, and exits non-zero when something failed.

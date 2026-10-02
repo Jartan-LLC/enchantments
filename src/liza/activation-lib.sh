@@ -1,6 +1,9 @@
 # shellcheck shell=bash
-# Sourced by shim.sh and deactivate.sh, which both work on the activation
-# record.
+# Sourced by shim.sh, deactivate.sh and activation-steps.sh, which all work on
+# the activation record.
+
+# The contract, which activation links from the clone's CLAUDE.local.md.
+liza_contract="$HOME/.liza/CORE.md"
 
 # Prints "<path> <fingerprint>" for each existing file or symlink given, so
 # activation can record what it created and deactivation can tell whether it has
@@ -92,20 +95,26 @@ record_dir_of() { # top
   git_path "$1" liza
 }
 
-# Succeeds when the clone at $1 holds any part of an activation: its record,
-# the originals an interrupted one saved, or the contract link.
+# Succeeds when the clone at $1 holds this shim's activation record, or the
+# originals an interrupted activation saved.
 activated() { # top
   local dir
-  dir=$(record_dir_of "$1") || return 1
-  [ -f "$dir/activation.json" ] || [ -d "$dir/originals" ] \
-    || [ "$(readlink "$1/CLAUDE.local.md")" = "$HOME/.liza/CORE.md" ]
+  dir=$(record_dir_of "$1" 2>/dev/null) || return 1
+  [ -f "$dir/activation.json" ] || [ -d "$dir/originals" ]
+}
+
+# Succeeds when the clone at $1's CLAUDE.local.md is activation's link.
+contract_linked() { # top
+  [ "$(readlink "$1/CLAUDE.local.md")" = "$liza_contract" ]
 }
 
 # Linked worktrees of a repo share its git hooks and exclude file, so only one
 # of them is activated at a time. Prints another activated worktree of the
-# clone at $1; fails when there's none.
+# clone at $1, and fails with 1 when there's none, or with 2 when git can't
+# list the worktrees: -z needs git 2.36.
 other_activation() { # top
   local line wt
+  git -C "$1" worktree list --porcelain -z >/dev/null 2>&1 || return 2
   while IFS= read -r -d '' line; do
     [[ "$line" == "worktree "* ]] || continue
     wt=${line#worktree }

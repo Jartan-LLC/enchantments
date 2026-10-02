@@ -482,16 +482,24 @@ repo_lock="$main/.git/liza-activation.lock"
 mkdir "$repo_lock"
 stub_init "$main-linked" 2>"$stub_home/lock.err"
 lock_rc=$?
-rmdir "$repo_lock"
 check "init refuses while another worktree's init holds the repo lock" \
-  test "$lock_rc" -eq 3 -a ! -L "$main-linked/CLAUDE.local.md"
+  test "$lock_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
 check "and names the lock" grep -qF "$repo_lock" "$stub_home/lock.err"
+check "and leaves that lock to its holder" test -d "$repo_lock"
+rmdir "$repo_lock"
 stub_init "$main" 2>/dev/null
 stub_init "$main-linked" 2>"$stub_home/wt.err"
 refused_rc=$?
 check "init refuses a second worktree of an activated repo" \
-  test "$refused_rc" -eq 3 -a ! -L "$main-linked/CLAUDE.local.md"
+  test "$refused_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
 check "and leaves the repo lock free" test ! -e "$repo_lock"
+# Activation at create records the refusal's own message.
+(cd "$main-linked" && HOME="$stub_home" bash -c \
+  '. "$1/activation-steps.sh" && top=$PWD && activate_clone' _ "$liza_dir") \
+  2>/dev/null
+check "activation records the refusal" \
+  grep -qF "Liza isn't activated in $main-linked: Liza is active in $main," \
+  "$stub_home/.cache/enchantments/liza.failures"
 check "and names the active one" grep -qF "$main," "$stub_home/wt.err"
 check "an odd name gets one escaped exclude line" \
   grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
@@ -515,6 +523,19 @@ check "and its deactivation leaves no hook or exclude line" \
     && ! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
 check "nor its own files" \
   test ! -e "$main-linked/.claudeignore" -a ! -e "$main-linked/odd [1]*.txt"
+check "nor its contract link, and its status is clean" \
+  test ! -L "$main-linked/CLAUDE.local.md" \
+  -a -z "$(git -C "$main-linked" status --porcelain)"
+# An activated worktree whose path holds a newline still counts.
+odd_wt="$main-nl"$'\n'"wt"
+git -C "$main" worktree add -q --detach "$odd_wt" 2>/dev/null
+echo '{}' >"$odd_wt/.claude/settings.local.json"
+stub_init "$odd_wt" 2>/dev/null
+stub_init "$main-linked" 2>/dev/null
+odd_rc=$?
+check "an activated worktree with a newline in its path blocks another" \
+  test "$odd_rc" -eq 75
+stub_deactivate "$odd_wt" 2>/dev/null
 
 # Activation keeps the exclude file's last line whole, and records a file it
 # creates under a line that already hides it; a generated link goes too.

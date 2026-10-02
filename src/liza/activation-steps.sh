@@ -112,21 +112,19 @@ unlink_global_skills() {
 # Activates the clone at $top through the shim, which keeps every write
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
-  local err rc
-  # The shim's stderr is kept to report a refusal, which exits 3.
-  { err=$(cd "$top" && bash "$steps_dir/shim.sh" init --claude --yes "$@" \
-    </dev/null 2>&1 >&3); } 3>&1
+  local refusal rc
+  refusal=$(mktemp) || return
+  (cd "$top" && LIZA_SHIM_REFUSAL=$refusal \
+    bash "$steps_dir/shim.sh" init --claude --yes "$@" </dev/null)
   rc=$?
-  if [ "$rc" -eq 3 ]; then
-    record_failure liza "Liza isn't activated in $top: ${err#liza shim: }"
-    return
-  fi
-  [ -z "$err" ] || printf '%s\n' "$err" >&2
-  if [ "$rc" -ne 0 ]; then
+  if [ "$rc" -eq 75 ]; then
+    record_failure liza "Liza isn't activated in $top: $(cat "$refusal")"
+  elif [ "$rc" -ne 0 ]; then
     record_failure liza "liza init failed in $top, so Liza isn't active" \
       "there; retry from it: liza-activate"
-    return
   fi
+  rm -f "$refusal"
+  [ "$rc" -eq 0 ] || return
   # Never replaced: a context7 you registered yourself stays.
   if [ -d "$toolchain" ] && [ -d "$claude_code" ] \
     && claude_ready liza "context7 isn't registered"; then
@@ -137,7 +135,7 @@ activate_clone() { # liza-init-args...
         "liza-activate"
   fi
   [ "$(readlink -f "$top/CLAUDE.local.md")" \
-    = "$(readlink -f "$HOME/.liza/CORE.md")" ] \
+    = "$(readlink -f "$liza_contract")" ] \
     || record_failure liza "$top/CLAUDE.local.md is your own file, so" \
       "Liza's contract isn't loaded there; move it aside, then run:" \
       "liza-activate"
