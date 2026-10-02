@@ -12,8 +12,9 @@ fast.
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:1 --output-format json | jq -r .canonicalId`
    matches the same query for the new version.
 3. **Fix the projects that declare it:** in each repo whose
-   `.devcontainer/devcontainer-lock.json` holds the bad digest, close any open Dependabot PR
-   to it, run `devcontainer upgrade --workspace-folder .`, and merge the result yourself.
+   `.devcontainer/devcontainer-lock.json` holds the bad digest, enchantments included, close
+   any open Dependabot PR to it, run `devcontainer upgrade --workspace-folder .`, and merge
+   the result yourself.
 
 Don't delete the bad version from GHCR before `:1` points at the fix: deleting it takes
 `:1`, `1.x` and `latest` with it, and breaks every build that uses `defaultFeatures`.

@@ -16,11 +16,18 @@ while read -r id; do
 done < <(grep -o 'ghcr\.io/jartan-llc/enchantments/[a-z0-9-]*' .devcontainer/devcontainer.json | sed 's|.*/||')
 # Covers every Feature hook, grimoire's plugin install included. CI's gh isn't logged in,
 # which gh-config records.
-check "no Feature hook failed" bash -c '! ls ~/.cache/enchantments/*.failures* 2>/dev/null | grep -vF /gh-config.failures'
+failed=
+for f in "$HOME"/.cache/enchantments/*.failures*; do
+    [ -e "$f" ] && [[ $f != */gh-config.failures* ]] && failed+=" ${f##*/}"
+done
+check "no Feature hook failed${failed:+:$failed}" test -z "$failed"
 check "pre-commit hook wired" test -f "$(git rev-parse --git-path hooks)/pre-commit"
+# Liza sets core.hooksPath in task worktrees; set here, make install skips pre-commit.
 check "core.hooksPath unset" test -z "$(git config core.hooksPath)"
 if has claude-code; then
     check "Claude Code CLI runs" claude --version
+    check "Claude config is in claude-data" test "$(readlink -f "$HOME/.claude")" = /mnt/enchantments/claude-data \
+        -a "$(readlink -f "$HOME/.claude.json")" = /mnt/enchantments/claude-data/claude.json
 fi
 if has gh-config; then
     check "gh config is the gh-config mount" test "$(readlink -f "$HOME/.config/gh")" = /mnt/enchantments/gh-config
@@ -35,7 +42,7 @@ fi
 if has liza && has liza-toolchain; then
     # shellcheck disable=SC2016 # $t expands in the inner bash
     check "Liza toolchain installed" bash -c 'cd ~/.liza/bin && for t in ast-grep yq rtk stacklit scip-search \
-        functional-clusters mdtoc bash-policy semble; do [ -x "$t" ] || exit 1; done'
+        functional-clusters mdtoc bash-policy semble scip-python scip-typescript context7-mcp; do [ -x "$t" ] || exit 1; done'
     # mdq publishes no arm64 Linux build.
     [ "$(uname -m)" = x86_64 ] && check "mdq installed" test -x ~/.liza/bin/mdq
     has claude-code && check "context7 registered" claude mcp get context7

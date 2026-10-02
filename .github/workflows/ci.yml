@@ -200,8 +200,10 @@ jobs:
             pull_request) base=HEAD^1 ;;
             push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
           esac
+          # Everything the dev container build reads, post-create's installs included.
           if [ -z "${base:-}" ] \
-              || git diff --name-only "$base" HEAD | grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$'; then
+              || git diff --name-only "$base" HEAD | grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$' \
+                -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$'; then
             echo devcontainer=true >>"$GITHUB_OUTPUT"
           fi
 
