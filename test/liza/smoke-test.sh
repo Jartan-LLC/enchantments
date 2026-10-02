@@ -7,6 +7,9 @@
 # and leaves disabledMcpServers alone.
 
 set -uo pipefail
+# A shell that loaded the toolchain has its gates; stubbed runs get only those
+# a check writes. The shim reloads the real ones for real runs.
+for gate in $(compgen -e | grep '^LIZA_ENABLE_'); do unset "$gate"; done
 
 liza_dir=/usr/local/share/enchantments/liza
 shim=$liza_dir/shim.sh
