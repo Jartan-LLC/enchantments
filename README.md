@@ -1,6 +1,7 @@
 # enchantments
 
 [![CI](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml/badge.svg)](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Jartan-LLC/enchantments/badge)](https://scorecard.dev/viewer/?uri=github.com/Jartan-LLC/enchantments)
 
 Dev container Features for Jartan LLC's projects, each one installable on its own.
 

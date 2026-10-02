@@ -99,6 +99,11 @@ updates:
       day: "monday"
     commit-message:
       prefix: "chore(deps)"
+    # A major changes the ":1" key, which devcontainer.json and VS Code's defaultFeatures
+    # must share (docs/using.md); move both by hand.
+    ignore:
+      - dependency-name: "ghcr.io/jartan-llc/enchantments/*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types:
