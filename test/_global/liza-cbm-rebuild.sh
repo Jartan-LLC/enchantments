@@ -26,7 +26,8 @@ activated() {
     && test -f "$(git rev-parse --git-path liza)/activation.json"
 }
 no_rtk_or_bash_policy_hook() {
-  ! jq -r '.hooks[]?[]?.hooks[]?.command' .claude/settings.local.json \
+  [ -f .claude/settings.local.json ] \
+    && ! jq -r '.hooks[]?[]?.hooks[]?.command' .claude/settings.local.json \
     | grep -Eq 'bin/(rtk|bash-policy) '
 }
 registered_for() { # workspace

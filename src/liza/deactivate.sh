@@ -104,8 +104,12 @@ else
   done
   # A file activation created goes, unless it was edited since.
   mapfile -t recorded < <(record_query file_entries "$record")
+  recorded_paths=()
   for entry in "${recorded[@]}"; do
     path=${entry% *}
+    recorded_paths+=("$path")
+    # The settings revert above owns the local settings.
+    [ "$path" = "$top/$local_settings" ] && continue
     now=$(fingerprint "$path")
     [ -n "$now" ] || continue
     if [ "$now" = "$entry" ]; then
@@ -121,8 +125,8 @@ else
   for line in "${drop_lines[@]}"; do
     rel=$(exclude_line_path "$line") || continue
     path="$top/$rel"
-    printf '%s\n' "${recorded[@]}" | grep -q -F -- "$path " && continue
-    printf '%s\n' "${preexisting[@]}" | grep -q -x -F -- "$path" && continue
+    in_list "$path" "${recorded_paths[@]}" && continue
+    in_list "$path" "${preexisting[@]}" && continue
     # The shim only saw the top level and .claude/ before init: elsewhere, the
     # file may be the user's.
     if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
@@ -138,7 +142,7 @@ fi
 # than drop it.
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
-    printf '%s\n' "${accounted[@]}" | grep -q -x -F -- "$original" && continue
+    in_list "$original" "${accounted[@]}" && continue
     path="$top/${original#"$record_dir/originals/"}"
     if [ -e "$path.pre-liza" ] || [ -L "$path.pre-liza" ] \
       || { mkdir -p "$(dirname "$path")" \

@@ -597,6 +597,18 @@ if [ "$(id -u)" != 0 ]; then
   check "a lock that can't be created fails with 1" test "$no_lock_rc" -eq 1
   check "and says so" grep -q "can't create" "$stub_home/no-lock.err"
 fi
+# With an index gate on, a hook of the repo's own refuses init, named.
+mkdir -p "$stub_home/.liza/toolchain"
+echo "export LIZA_ENABLE_STACKLIT='1'" >"$stub_home/.liza/toolchain/env.sh"
+printf '#!/bin/sh\necho mine\n' >"$refusals_clone/.git/hooks/post-commit"
+stub_init "$refusals_clone" 2>"$stub_home/own-hook.err"
+own_hook_rc=$?
+rm -f "$stub_home/.liza/toolchain/env.sh" \
+  "$refusals_clone/.git/hooks/post-commit"
+check "init refuses a repo's own index hook" \
+  test "$own_hook_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
+check "and names it" \
+  grep -q "own post-commit git hook" "$stub_home/own-hook.err"
 gone_wt="$refusals_clone-gone"
 git -C "$refusals_clone" worktree add -q --detach "$gone_wt" 2>/dev/null
 rm -rf "$gone_wt"
@@ -663,10 +675,11 @@ mkdir .claude/.liza-shim.lock
 bash "$liza_dir/deactivate.sh" 2>/dev/null
 lock_rc=$?
 rmdir .claude/.liza-shim.lock
-check "deactivate refuses while an init holds the lock" test "$lock_rc" -ne 0
+check "deactivate refuses while an init holds the lock" test "$lock_rc" -eq 1
 
 PATH="$tools_home/.local/bin:$PATH" bash "$liza_dir/deactivate.sh"
-check "plain deactivate leaves the toolchain alone" \
-  test ! -e "$tools_home/claude-calls"
+plain_rc=$?
+check "plain deactivate succeeds and leaves the toolchain alone" \
+  test "$plain_rc" -eq 0 -a ! -e "$tools_home/claude-calls"
 
 exit $((failures > 0))

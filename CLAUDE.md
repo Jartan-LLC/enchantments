@@ -29,9 +29,9 @@ make check
 ```
 
 A change under `src/`, `lib/` or `test/` is done only when the PR's `check` passes in CI.
-Don't run `devcontainer features test` locally: it mounts and writes to your real
-`claude-data` and `gh-config` volumes. `.github/scripts/test-features.sh` deletes
-them, and `liza-rebuild`.
+Don't run `devcontainer features test` or `.github/scripts/test-features.sh`
+locally: they write to your real `claude-data` and `gh-config` volumes, and the
+script deletes those two and `liza-rebuild`.
 
 Individual targets (`make lint`, `make docs`) speed up the inner loop; `make help` lists
 them.

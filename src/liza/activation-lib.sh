@@ -4,6 +4,9 @@
 
 # The contract, which activation links from the clone's CLAUDE.local.md.
 liza_contract="$HOME/.liza/CORE.md"
+# liza-toolchain's presence marker.
+# shellcheck disable=SC2034 # read by the scripts that source this
+liza_toolchain=/usr/local/share/enchantments/liza-toolchain
 # The shim's exit code when it refuses an init, which a caller reports as is.
 # shellcheck disable=SC2034 # read by the scripts that source this
 liza_refused=75
@@ -29,6 +32,14 @@ put_copy() { # source dest
   rm -f -- "$2.liza-tmp"
   cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return
   rm -f -- "$2.liza-tmp"
+  return 1
+}
+
+# Succeeds when the first argument equals one of the others. A loop, not a pipe
+# into grep -q, which can lose to SIGPIPE under pipefail.
+in_list() { # value list...
+  local item
+  for item in "${@:2}"; do [ "$item" = "$1" ] && return 0; done
   return 1
 }
 
@@ -126,5 +137,20 @@ other_activation() { # top
     printf '%s\n' "$wt"
     return 0
   done < <(git -C "$1" worktree list --porcelain -z)
+  return 1
+}
+
+# Liza's code-index hooks, which its init installs when a toolchain gate asks
+# for indexes, and refuses to install over a hook it doesn't manage. Prints the
+# first such hook of the clone at $1 that's the repo's own.
+foreign_index_hook() { # top
+  local dir name
+  dir=$(git_path "$1" hooks) || return 1
+  for name in post-checkout post-commit post-merge post-rewrite; do
+    [ -e "$dir/$name" ] || continue
+    grep -qs 'PAIRING-INDEX-HOOK: managed' "$dir/$name" && continue
+    echo "$name"
+    return 0
+  done
   return 1
 }

@@ -12,7 +12,8 @@ activated() {
     && test -f "$(git rev-parse --git-path liza)/activation.json"
 }
 no_rtk_or_bash_policy_hook() {
-  ! jq -r '.hooks[]?[]?.hooks[]?.command' .claude/settings.local.json \
+  [ -f .claude/settings.local.json ] \
+    && ! jq -r '.hooks[]?[]?.hooks[]?.command' .claude/settings.local.json \
     | grep -Eq 'bin/(rtk|bash-policy) '
 }
 reports=~/.cache/enchantments
@@ -31,6 +32,14 @@ check "a context7 Liza didn't register survives" \
 check "and keeps its command" \
   jq -e --arg p "$PWD" '.projects[$p].mcpServers.context7.command == "true"' \
   ~/.claude.json
+
+# A ~/.liza of your own is reported, never replaced.
+own_home=$(mktemp -d)
+mkdir -p "$own_home/.liza/mine"
+HOME=$own_home bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
+check "a ~/.liza of your own is reported" \
+  grep -q "in the way" "$own_home/.cache/enchantments/liza.failures"
+check "and kept" test -d "$own_home/.liza/mine" -a ! -L "$own_home/.liza"
 
 # The commands on PATH, by name.
 check "liza-deactivate runs" liza-deactivate

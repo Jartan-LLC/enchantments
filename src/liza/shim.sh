@@ -29,6 +29,10 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   esac
 done
 [ "$subcommand" = init ] || exec "$real_liza" "$@"
+# Help changes nothing to keep local.
+for arg in "$@"; do
+  case "$arg" in -h | --help) exec "$real_liza" "$@" ;; esac
+done
 
 top=$(git -C "${project_root:-.}" rev-parse --show-toplevel) || exit 1
 claude_dir="$top/.claude"
@@ -97,6 +101,25 @@ if [ -e "$held_settings" ]; then
     "settings.local.json) first."
 fi
 
+# Liza reads the toolchain's LIZA_ENABLE_* gates at init time, and the shell
+# running init (a script, /onboard, Liza's operator agent) may not have loaded
+# them.
+toolchain=$liza_toolchain
+if [ -d "$toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.liza/toolchain/env.sh"
+fi
+# With an index gate, init installs Liza's code-index hooks, and fails rather
+# than replace a hook of the repo's own: refuse up front, naming it.
+truthy() { case "${1,,}" in 1 | true | yes | on) ;; *) return 1 ;; esac }
+if truthy "${LIZA_ENABLE_STACKLIT:-}" || truthy "${LIZA_ENABLE_SCIP_SEARCH:-}" \
+  || truthy "${LIZA_ENABLE_FUNCTIONAL_CLUSTERS:-}"; then
+  if own_hook=$(foreign_index_hook "$top"); then
+    refuse "the repo's own $own_hook git hook is where Liza's code-index hook" \
+      "goes, and Liza won't replace it."
+  fi
+fi
+
 # --- Snapshot the state before init ---
 had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
@@ -151,16 +174,14 @@ read_top_paths candidates "$top" < <(init_area_untracked)
 prune_originals() { # paths to keep...
   local path
   for path in "${!fp_before[@]}"; do
-    printf '%s\n' "$@" | grep -q -x -F -- "$path" \
-      || rm -f -- "$originals/${path#"$top"/}"
+    in_list "$path" "$@" || rm -f -- "$originals/${path#"$top"/}"
   done
   find "$record_dir" -depth -type d -empty -delete 2>/dev/null
 }
 
 declare -A fp_before=()
 for path in "${candidates[@]}"; do
-  printf '%s\n' "${recorded_files[@]}" "${saved[@]}" \
-    | grep -q -x -F -- "$path" && continue
+  in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
   [ -n "$fp" ] || continue
   fp_before[$path]=$fp
@@ -239,15 +260,6 @@ release() {
 trap 'release; restore_candidates; unlock' EXIT
 
 # --- Run Liza's init ---
-# Liza reads the toolchain's LIZA_ENABLE_* gates at init
-# time, and the shell running init (a script, /onboard, Liza's operator agent)
-# may not have loaded them.
-toolchain=/usr/local/share/enchantments/liza-toolchain
-if [ -d "$toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
-  # shellcheck source=/dev/null
-  source "$HOME/.liza/toolchain/env.sh"
-fi
-
 "$real_liza" "$@"
 rc=$?
 # The refusal code is the shim's own: init failing with it is still a failure.

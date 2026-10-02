@@ -1,6 +1,6 @@
 # shellcheck shell=bash source-path=SCRIPTDIR
 # The activation sequence. updateContent.sh runs every step; liza-activate runs
-# only the steps that act on a clone, so the two callers can't drift apart.
+# only the steps that act on a clone, so the two callers share them.
 
 steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 # shellcheck source=record_failure.sh
@@ -11,7 +11,9 @@ steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 . "$steps_dir/activation-lib.sh"
 # liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md here for
 # these steps: renaming one means releasing both Features together.
-toolchain=/usr/local/share/enchantments/liza-toolchain
+toolchain=$liza_toolchain
+# context7's registration as activation makes it.
+context7_command=$HOME/.liza/bin/context7-mcp
 claude_code=/usr/local/share/enchantments/claude-code
 liza_bin=$HOME/.liza/libexec/liza
 
@@ -50,7 +52,7 @@ find_clone() {
 # --tools runs this alone.
 remove_context7() {
   claude_ready liza "context7's registration isn't checked" || return 1
-  jq -e --arg p "$top" --arg c "$HOME/.liza/bin/context7-mcp" \
+  jq -e --arg p "$top" --arg c "$context7_command" \
     '.projects[$p].mcpServers.context7.command == $c' "$claude_json" \
     >/dev/null 2>&1 || return 0
   (cd "$top" && "$claude_bin" mcp remove --scope local context7 >/dev/null) \
@@ -62,7 +64,7 @@ remove_context7() {
 
 # Without the toolchain, removes the context7 registration it made. Without
 # claude-code, none was made here.
-remove_toolchain_registration() {
+remove_context7_without_toolchain() {
   [ -d "$toolchain" ] || [ ! -d "$claude_code" ] || remove_context7
 }
 
@@ -133,7 +135,7 @@ activate_clone() { # liza-init-args...
     && claude_ready liza "context7 isn't registered"; then
     (cd "$top" && { "$claude_bin" mcp get context7 >/dev/null 2>&1 \
       || "$claude_bin" mcp add --scope local context7 \
-        -- "$HOME/.liza/bin/context7-mcp" >/dev/null; }) \
+        -- "$context7_command" >/dev/null; }) \
       || record_failure liza "registering context7 failed; retry from $top:" \
         "liza-activate"
   fi

@@ -11,7 +11,12 @@ here=$(dirname "$(readlink -f "$0")")
 recorded() { cat "$enchantments_failures_dir/liza.failures" 2>/dev/null; }
 before=$(recorded)
 liza_volume_ready "Liza isn't activated" || exit 1
+if [ ! -x "$liza_bin" ]; then
+  record_failure liza "Liza isn't installed (see liza's report), so it isn't" \
+    "activated; rebuild the container"
+  exit 1
+fi
 find_clone || exit 1
-remove_toolchain_registration
+remove_context7_without_toolchain
 activate_clone "$@"
 [ "$(recorded)" = "$before" ]

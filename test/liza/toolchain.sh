@@ -26,6 +26,10 @@ hook() { # command-substring
     'any(.hooks[]?[]?.hooks[]?; .command | contains($c))' \
     .claude/settings.local.json
 }
+check "liza runs from PATH" liza version
+for tool in rg rtk; do
+  check "$tool runs from PATH" "$tool" --version
+done
 check "Liza is activated for the clone" activated
 check "the shell profiles load the toolchain" profiles_load_toolchain
 check "git status is clean" test -z "$(git status --porcelain)"

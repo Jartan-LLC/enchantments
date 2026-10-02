@@ -18,7 +18,9 @@ hook() { # command-substring
     'any(.hooks[]?[]?.hooks[]?; .command | contains($c))' \
     .claude/settings.local.json
 }
-no_hook() { ! hook "$1"; } # command-substring
+no_hook() { # command-substring
+  [ -f .claude/settings.local.json ] && ! hook "$1"
+}
 # Offline, so it answers only from the pinned local model.
 semble_answers() {
   # shellcheck source=/dev/null # written at create time
@@ -59,6 +61,13 @@ else
   check "no failures recorded" \
     test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 fi
+
+# A stale pin is reinstalled on the next create.
+pins=/mnt/enchantments/liza/bin/.pins
+echo stale >"$pins/yq"
+bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh >/dev/null 2>&1
+check "a stale pin is reinstalled" \
+  bash -c "! grep -qx stale $pins/yq && yq --version"
 
 # shellcheck source=../../src/liza-toolchain/fetch_verified.sh
 . /usr/local/share/enchantments/liza-toolchain/fetch_verified.sh

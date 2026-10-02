@@ -1,5 +1,5 @@
-# Hash-locked semble for liza-toolchain's onCreate.sh, from semble.in. The
-# pin-bump workflow regenerates it with:
+# Hash-locked semble for liza-toolchain's onCreate.sh, from semble.in.
+# Regenerate it with:
 #   uv pip compile src/liza-toolchain/semble.in --universal --python-version 3.12 --generate-hashes --no-build --upgrade --exclude-newer <7 days ago> -o src/liza-toolchain/semble-requirements.txt
 anyio==4.15.1 \
     --hash=sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101 \

@@ -16,7 +16,7 @@ Liza's agent toolchain, every tool pinned and verified, installed into the liza 
 ## How it works
 
 - **When the container is created,** every tool below is installed at its pinned version into the `liza` Feature's volume, and `/mnt/enchantments/liza/bin` goes on `PATH`. Node and uv stay in the volume, off `PATH`; Go is fetched only to build, then deleted. A rebuild reinstalls only what changed.
-- **Then, in the workspace,** the `liza` Feature turns the toolchain on: Liza's `LIZA_ENABLE_*` gates go in `~/.liza/toolchain/env.sh`, which `~/.bashrc` and `~/.profile` source, and, with the `claude-code` Feature, context7 is registered with Claude Code for this clone.
+- **Then, in the workspace,** the `liza` Feature turns the toolchain on: Liza's `LIZA_ENABLE_*` gates go in `~/.liza/toolchain/env.sh`, which your login shell's startup files source, and, with the `claude-code` Feature, context7 is registered with Claude Code for this clone.
 - **Without `liza`,** it installs nothing, and says so.
 
 ## Tools
@@ -32,12 +32,14 @@ Liza's agent toolchain, every tool pinned and verified, installed into the liza 
 ## Known limitations
 
 - scip-python doesn't see packages installed in a uv virtual environment, which has no `pip`.
+- Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook, as git-lfs, husky and lefthook install: that's where its code-index hooks go. Activation names the hook.
 - Where rtk can't run (aarch64 with glibc older than 2.39), it's removed and reported at each create, while `~/.liza/AGENT_TOOLS.md` still describes it.
 
 ## Removal
 
 1. While both Features are still declared, in each clone, run `liza-deactivate --tools`, then `liza-deactivate`.
 2. Remove the entry and rebuild: activation runs again without the toolchain.
+3. To also remove the toolchain's files from the volume, remove the volume before rebuilding: `docker volume rm liza-<devcontainerId>`.
 
 ## Image requirements
 
