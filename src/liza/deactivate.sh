@@ -11,6 +11,8 @@ set -uo pipefail
 here=$(dirname "$(readlink -f "$0")")
 top=$(git rev-parse --show-toplevel) || exit 1
 cd "$top" || exit 1
+# shellcheck source=activation-lib.sh
+source "$here/activation-lib.sh"
 # shellcheck source=activation-steps.sh
 source "$here/activation-steps.sh"
 failed=()
@@ -41,16 +43,13 @@ fi
 # --- Undo activation, from its record ---
 local_settings=.claude/settings.local.json
 core_contract="$HOME/.liza/CORE.md"
-record_dir=$(git_path "$top" liza)
+record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
 
-# Originals without a record or link: an activation interrupted before either
-# was made.
-if [ ! -f "$record" ] && [ ! -d "$record_dir/originals" ] \
-  && [ "$(readlink CLAUDE.local.md)" != "$core_contract" ]; then
-  finish # never activated
-fi
+# Nothing to undo. Originals alone are an activation interrupted before its
+# record or link was made, and are undone.
+activated "$top" || finish
 
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then

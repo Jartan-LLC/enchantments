@@ -15,7 +15,8 @@
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
 - `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
-- Liza is active in one worktree of a repo at a time. To move it, run `liza-deactivate` in the active worktree, then `liza-activate` in the other. Run `liza-deactivate` before `git worktree remove`.
+- Liza is active in one worktree of a repo at a time. To move it, run `liza-deactivate` in the active worktree, then `liza-activate` in the other.
+- Run `liza-deactivate` before `git worktree remove`; otherwise Liza's git hooks and exclude lines stay in the repo.
 - `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
 - If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.
 - Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`.
@@ -36,4 +37,4 @@
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. `liza-activate` reports at once, and exits non-zero when something failed.
+The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` leaves `.git/liza-activation.lock` behind, remove it, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. `liza-activate` reports at once, and exits non-zero when something failed.

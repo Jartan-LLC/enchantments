@@ -87,17 +87,32 @@ exclude_line_path() { # line
   printf '%s\n' "$path"
 }
 
+# Prints the directory holding the activation record of the clone at $1.
+record_dir_of() { # top
+  git_path "$1" liza
+}
+
+# Succeeds when the clone at $1 holds any part of an activation: its record,
+# the originals an interrupted one saved, or the contract link.
+activated() { # top
+  local dir
+  dir=$(record_dir_of "$1") || return 1
+  [ -f "$dir/activation.json" ] || [ -d "$dir/originals" ] \
+    || [ "$(readlink "$1/CLAUDE.local.md")" = "$HOME/.liza/CORE.md" ]
+}
+
 # Linked worktrees of a repo share its git hooks and exclude file, so only one
-# of them is activated at a time. Prints another worktree of the clone at $1
-# with an activation record; fails when there's none.
+# of them is activated at a time. Prints another activated worktree of the
+# clone at $1; fails when there's none.
 other_activation() { # top
-  local wt
-  while IFS= read -r wt; do
+  local line wt
+  while IFS= read -r -d '' line; do
+    [[ "$line" == "worktree "* ]] || continue
+    wt=${line#worktree }
     [ "$wt" -ef "$1" ] && continue
-    [ -e "$(git -C "$wt" rev-parse --path-format=absolute \
-      --git-path liza/activation.json 2>/dev/null)" ] || continue
-    echo "$wt"
+    activated "$wt" || continue
+    printf '%s\n' "$wt"
     return 0
-  done < <(git -C "$1" worktree list --porcelain | sed -n 's/^worktree //p')
+  done < <(git -C "$1" worktree list --porcelain -z)
   return 1
 }

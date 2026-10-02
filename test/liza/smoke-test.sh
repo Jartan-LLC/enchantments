@@ -478,11 +478,20 @@ EOF
 main=$(stub_clone wt-main)
 git -C "$main" worktree add -q "$main-linked" 2>/dev/null
 echo '{}' >"$main-linked/.claude/settings.local.json"
+repo_lock="$main/.git/liza-activation.lock"
+mkdir "$repo_lock"
+stub_init "$main-linked" 2>"$stub_home/lock.err"
+lock_rc=$?
+rmdir "$repo_lock"
+check "init refuses while another worktree's init holds the repo lock" \
+  test "$lock_rc" -eq 3 -a ! -L "$main-linked/CLAUDE.local.md"
+check "and names the lock" grep -qF "$repo_lock" "$stub_home/lock.err"
 stub_init "$main" 2>/dev/null
 stub_init "$main-linked" 2>"$stub_home/wt.err"
 refused_rc=$?
 check "init refuses a second worktree of an activated repo" \
-  test "$refused_rc" -ne 0 -a ! -L "$main-linked/CLAUDE.local.md"
+  test "$refused_rc" -eq 3 -a ! -L "$main-linked/CLAUDE.local.md"
+check "and leaves the repo lock free" test ! -e "$repo_lock"
 check "and names the active one" grep -qF "$main," "$stub_home/wt.err"
 check "an odd name gets one escaped exclude line" \
   grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
@@ -504,6 +513,8 @@ stub_deactivate "$main-linked" 2>/dev/null
 check "and its deactivation leaves no hook or exclude line" \
   bash -c "test ! -e '$main/.git/hooks/liza-test-hook' \
     && ! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
+check "nor its own files" \
+  test ! -e "$main-linked/.claudeignore" -a ! -e "$main-linked/odd [1]*.txt"
 
 # Activation keeps the exclude file's last line whole, and records a file it
 # creates under a line that already hides it; a generated link goes too.

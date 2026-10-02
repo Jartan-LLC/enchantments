@@ -40,44 +40,46 @@ global_contract="$HOME/.claude/CLAUDE.md"
 core_contract="$HOME/.liza/CORE.md"
 
 # --- Lock the clone for this init ---
-mkdir -p "$claude_dir"
-# mkdir is atomic: a second concurrent init would otherwise swap the
-# already-swapped files.
-lock="$claude_dir/.liza-shim.lock"
-if ! mkdir "$lock" 2>/dev/null; then
-  echo "liza shim: another init holds $lock; remove it if none is running." >&2
-  exit 1
-fi
-# Held until the record is written, so a deactivate or another init can't
-# interleave. The repo's lock keeps two worktrees from activating at once.
+# Every refusal exits 3, so a caller can tell it from a failed init.
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
+mkdir -p "$claude_dir"
+# mkdir is atomic: a second concurrent init would otherwise swap the
+# already-swapped files. Held until the record is written, so a deactivate or
+# another init can't interleave.
+lock="$claude_dir/.liza-shim.lock"
+if ! mkdir "$lock" 2>/dev/null; then
+  echo "liza shim: another init holds $lock; remove it if none is running." >&2
+  exit 3
+fi
+# The repo's lock keeps two worktrees from activating at once.
 repo_lock="$(git -C "$top" rev-parse --path-format=absolute \
   --git-common-dir)/liza-activation.lock"
+have_repo_lock=false
 unlock() {
   rmdir "$lock"
-  rmdir "$repo_lock" 2>/dev/null
+  if $have_repo_lock; then rmdir "$repo_lock"; fi
 }
-trap 'rmdir "$lock"' EXIT
+trap unlock EXIT
 trap 'exit 130' INT TERM
 if ! mkdir "$repo_lock" 2>/dev/null; then
   echo "liza shim: another worktree's init holds $repo_lock; remove it if" \
     "none is running." >&2
-  exit 1
+  exit 3
 fi
-trap unlock EXIT
+have_repo_lock=true
 # A repo's worktrees share its git hooks and exclude file.
 if active=$(other_activation "$top"); then
   echo "liza shim: Liza is active in $active, another worktree of this" \
     "repo; run liza-deactivate there first." >&2
-  exit 1
+  exit 3
 fi
 if [ -e "$held_settings" ]; then
   echo "liza shim: $held_settings exists from an interrupted init; move it" \
     "back to settings.json (and any settings.local.json.liza-shim-backup back" \
     "to settings.local.json) first." >&2
-  exit 1
+  exit 3
 fi
 
 # --- Snapshot the state before init ---
@@ -85,16 +87,19 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# What git shows untracked, and what an exclude line hides at the top level and
-# in .claude/, where init writes: either way, a file init creates there is its.
-# Activation manages the two settings files itself.
+# Untracked paths at the top level and in .claude/, where init writes, minus
+# the two settings files activation manages itself.
+init_area_untracked() { # ls-files-options...
+  git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
+    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+}
+# What git shows untracked, and what an exclude line hides where init writes:
+# either way, a file init creates there is its.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
 hidden_untracked() {
-  git -C "$top" ls-files -z --others --ignored --exclude-standard \
-    -- .claude ':(glob)*' \
-    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+  init_area_untracked --ignored --exclude-standard
 }
 untracked_before=()
 read_top_paths untracked_before "$top" \
@@ -102,7 +107,7 @@ read_top_paths untracked_before "$top" \
 git_dir=$(git -C "$top" rev-parse --absolute-git-dir)
 hooks_dir=$(git_path "$top" hooks)
 exclude_file=$(git_path "$top" info/exclude)
-record_dir=$(git_path "$top" liza)
+record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 recorded_files=()
 [ -f "$record" ] && mapfile -t recorded_files \
@@ -125,11 +130,7 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-read_top_paths candidates "$top" < <({
-  git -C "$top" ls-files -z --others --exclude-standard -- .claude ':(glob)*' \
-    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
-  hidden_untracked
-} | sort -z -u)
+read_top_paths candidates "$top" < <(init_area_untracked)
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...

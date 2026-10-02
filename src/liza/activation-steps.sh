@@ -112,15 +112,17 @@ unlink_global_skills() {
 # Activates the clone at $top through the shim, which keeps every write
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
-  local active
-  if active=$(other_activation "$top"); then
-    record_failure liza "Liza is active in $active, another worktree of" \
-      "this repo, so not in $top; run liza-deactivate there, then" \
-      "liza-activate here"
+  local err rc
+  # The shim's stderr is kept to report a refusal, which exits 3.
+  { err=$(cd "$top" && bash "$steps_dir/shim.sh" init --claude --yes "$@" \
+    </dev/null 2>&1 >&3); } 3>&1
+  rc=$?
+  if [ "$rc" -eq 3 ]; then
+    record_failure liza "Liza isn't activated in $top: ${err#liza shim: }"
     return
   fi
-  if ! (cd "$top" && bash "$steps_dir/shim.sh" init --claude --yes "$@" \
-    </dev/null); then
+  [ -z "$err" ] || printf '%s\n' "$err" >&2
+  if [ "$rc" -ne 0 ]; then
     record_failure liza "liza init failed in $top, so Liza isn't active" \
       "there; retry from it: liza-activate"
     return
