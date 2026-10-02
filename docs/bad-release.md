@@ -58,13 +58,19 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="main" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .conditions.ref_name.include==["~DEFAULT_BRANCH"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"] and any(.rules[]; .type=="required_status_checks" and any(.parameters.required_status_checks[]; .context=="check" and .integration_id==15368))'
      ```
 
-   - Check the `ghcr` environment's content: on the environment GET,
-     `.deployment_branch_policy` equals
-     `{"protected_branches":false,"custom_branch_policies":true}`; its branch policies
-     equal `["main"]`; and
-     `--jq '[.protection_rules[]|select(.type=="required_reviewers")|.reviewers[].reviewer.login]'`
-     equals `["JartanFTW"]`. Check against these expected values, never against a peer
-     repo the same token could have changed.
+   - Check the `ghcr` environment's content against these expected values, never against
+     a peer repo the same token could have changed:
+
+     ```bash
+     env=repos/Jartan-LLC/enchantments/environments/ghcr
+     gh api $env --jq .deployment_branch_policy
+     # {"custom_branch_policies":true,"protected_branches":false}
+     gh api $env/deployment-branch-policies --jq '[.branch_policies[].name]'
+     # ["main"]
+     gh api $env --jq '[.protection_rules[]|select(.type=="required_reviewers")|.reviewers[].reviewer.login]'
+     # ["JartanFTW"]
+     ```
+
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
      approved `publish` runs.
@@ -77,7 +83,8 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    `gh auth refresh -s read:packages,delete:packages`; find each with
    `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions --jq '.[] | select(.name=="<bad-digest>") | .id'`
    for each unapproved digest, whatever its tags; delete it with
-   `gh api -X DELETE .../versions/<version-id>`; then
+   `gh api -X DELETE orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions/<version-id>`;
+   then
    `gh auth refresh -r read:packages,delete:packages`. Confirm that each version is gone
    from that listing, that
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:<bad-version>`

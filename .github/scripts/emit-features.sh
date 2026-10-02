@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source-path=SCRIPTDIR
 # Writes the test matrix and the base commit to $GITHUB_OUTPUT. The matrix is
 # every Feature and _global on both architectures, all or nothing: consumer
 # scenarios build sibling Features from source, so one Feature's change re-runs
@@ -6,6 +7,8 @@
 # everything runs, rather than risk skipping a change. EVENT and BEFORE carry
 # github.event_name and github.event.before.
 set -euo pipefail
+# shellcheck source=feature_ids.sh
+. "$(dirname "$0")/feature_ids.sh"
 case "$EVENT" in
   pull_request) base=HEAD^1 ;;
   push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
@@ -15,8 +18,7 @@ if [ -n "${base:-}" ]; then
   base=$(git rev-parse "$base")
 fi
 
-ids=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json \
-  -printf '%h\n' | cut -d/ -f2 | sort)
+ids=$(feature_ids)
 if [ "$EVENT" = schedule ] && [ -z "$ids" ]; then
   echo "::error::no Features found under src"
   exit 1

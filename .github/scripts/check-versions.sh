@@ -23,6 +23,13 @@ for id in $ids; do
   json=src/$id/devcontainer-feature.json
   [ -f "$json" ] || continue # deleted
   head_version=$(jq -r .version "$json")
+  # Publishing rejects anything but semver, and a pre-release would sort wrong.
+  if ! [[ "$head_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "::error file=$json::src/$id's version must be X.Y.Z, but it's" \
+      "$head_version"
+    failed=1
+    continue
+  fi
   if base_json=$(git show "$base:$json" 2>/dev/null); then
     base_version=$(jq -r .version <<<"$base_json")
     if [ "$head_version" = "$base_version" ] || ! printf '%s\n%s\n' \

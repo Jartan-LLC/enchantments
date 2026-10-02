@@ -1,5 +1,5 @@
 # Task runner for the local dev loop. Run `make` or `make help` to list targets.
-.PHONY: help install lint vendor readmes docs check all
+.PHONY: help install lint vendor readmes docs test check all
 
 # Every target uses one Python environment, chosen here: this
 # checkout's .venv, else the active one, else, in the main checkout only, the system
@@ -62,7 +62,10 @@ readmes:  ## Regenerate each Feature's README from its devcontainer-feature.json
 docs: readmes  ## Regenerate the Feature READMEs, then build the docs site, warnings-as-errors
 	sphinx-build -W -b html docs docs/_build/html
 
-check:  ## Run every local check (lint, docs)
-	$(MAKE) lint docs
+test:  ## Test the CI scripts against throwaway repos
+	.github/scripts/test-scripts.sh
+
+check:  ## Run every local check (lint, docs, test)
+	$(MAKE) lint docs test
 
 all: check  ## Alias for `check`

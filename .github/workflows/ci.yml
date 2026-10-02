@@ -130,6 +130,15 @@ jobs:
           git fetch -q --depth=1 origin "$BASE"
           .github/scripts/check-versions.sh "$BASE"
 
+  scripts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: .github/scripts/test-scripts.sh
+
   vendor-drift:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -247,12 +256,12 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, docs, features, test, versions, vendor-drift, readme-drift, changes, liza-smoke, devcontainer]
+    needs: [lint, docs, features, test, versions, scripts, vendor-drift, readme-drift, changes, liza-smoke, devcontainer]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - run: |
-          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.versions.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.versions.result }}" "${{ needs.scripts.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
           for r in "${results[@]}"; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "Check failed: $r"
@@ -260,7 +269,7 @@ jobs:
             fi
           done
 
-  # The registry decides what's released (list-pending.sh).
+  # The registry decides what's released (check-pending.sh).
   pending:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -283,7 +292,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          ids=$(.github/scripts/list-pending.sh)
+          ids=$(.github/scripts/check-pending.sh)
           echo "Pending: ${ids:-none}"
           echo "ids=$ids" >>"$GITHUB_OUTPUT"
 
