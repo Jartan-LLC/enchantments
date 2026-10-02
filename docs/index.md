@@ -20,8 +20,22 @@ features/liza-toolchain
 ```
 
 ```{toctree}
+:maxdepth: 1
+:caption: Guides
+
+choosing
+using
+persistence
+trust-boundary
+troubleshooting
+```
+
+```{toctree}
 :maxdepth: 2
 :caption: Maintenance
 
+adding-a-feature
+releasing
+bad-release
 scaffold
 ```

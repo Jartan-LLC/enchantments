@@ -17,9 +17,11 @@ permissions:
 env:
   UV_SYSTEM_PYTHON: 1
 
+# A PR's new push cancels its old run; main's runs never cancel each other, so a
+# run waiting on a ghcr approval doesn't block the next one.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
@@ -78,6 +80,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.emit.outputs.matrix }}
+      base: ${{ steps.emit.outputs.base }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -94,6 +97,10 @@ jobs:
             pull_request) base=HEAD^1 ;;
             push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
           esac
+          # The versions job reads the base from here, as a commit.
+          if [ -n "${base:-}" ]; then
+            base=$(git rev-parse "$base")
+          fi
           ids=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | sort)
           if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
               || git diff --name-only "$base" HEAD | grep -qE '^(src/|lib/|test/|\.github/scripts/|package\.json$|package-lock\.json$|\.github/workflows/ci\.yml$|Makefile$)'; then
@@ -107,6 +114,7 @@ jobs:
             exit 1
           fi
           echo "matrix=$matrix" >>"$GITHUB_OUTPUT"
+          echo "base=${base:-}" >>"$GITHUB_OUTPUT"
 
   test:
     name: test (${{ matrix.id }}, ${{ matrix.runner }})
@@ -130,6 +138,23 @@ jobs:
       - env:
           ID: ${{ matrix.id }}
         run: .github/scripts/test-features.sh "$ID"
+
+  # A Feature's change must raise its version, with that version's changelog
+  # entry (GUARDRAILS.md). Without a base there's nothing to compare.
+  versions:
+    needs: features
+    if: needs.features.outputs.base != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - env:
+          BASE: ${{ needs.features.outputs.base }}
+        run: |
+          git fetch -q --depth=1 origin "$BASE"
+          .github/scripts/check-versions.sh "$BASE"
 
   vendor-drift:
     runs-on: ubuntu-24.04
@@ -248,15 +273,128 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, docs, features, test, vendor-drift, readme-drift, changes, liza-smoke, devcontainer]
+    needs: [lint, docs, features, test, versions, vendor-drift, readme-drift, changes, liza-smoke, devcontainer]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - run: |
-          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.versions.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.liza-smoke.result }}" "${{ needs.devcontainer.result }}")
           for r in "${results[@]}"; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "Check failed: $r"
               exit 1
             fi
           done
+
+  # The registry decides what's released: an id whose version isn't among the
+  # tags of its :1 yet. The bare ref would mean latest, and a deleted latest
+  # would keep an id pending forever. Any failed lookup, an outage included,
+  # lists the id; publishing skips a version that exists.
+  pending:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      ids: ${{ steps.changelogs.outputs.ids }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - id: query
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          ids=()
+          for json in src/*/devcontainer-feature.json; do
+            id=${json#src/}
+            id=${id%%/*}
+            version=$(jq -r .version "$json")
+            if tags=$(node_modules/.bin/devcontainer features info tags \
+                "ghcr.io/jartan-llc/enchantments/$id:1" --output-format json) \
+              && jq -e --arg v "$version" '.publishedTags | index($v)' \
+                <<<"$tags" >/dev/null; then
+              continue
+            fi
+            ids+=("$id")
+          done
+          echo "ids=${ids[*]}" >>"$GITHUB_OUTPUT"
+      # Without the token: an invalid changelog stops the release here, so no
+      # repo script runs where packages: write is held.
+      - id: changelogs
+        env:
+          IDS: ${{ steps.query.outputs.ids }}
+        run: |
+          for id in $IDS; do
+            .github/scripts/check-changelog.sh --release "$id"
+          done
+          echo "Pending: ${IDS:-none}"
+          echo "ids=$IDS" >>"$GITHUB_OUTPUT"
+
+  # Only a run that tested the full matrix publishes: test must have succeeded,
+  # not been skipped. always() stops a skipped upstream job from skipping this.
+  publish:
+    needs: [check, pending, test]
+    if: always() && !cancelled() && needs.check.result == 'success' && needs.pending.result == 'success' && needs.test.result == 'success' && github.event_name != 'pull_request' && needs.pending.outputs.ids != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ghcr
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      # Prints each id's published tags and digest as JSON, which the
+      # first-release squat check reads (docs/adding-a-feature.md).
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node_modules/.bin/devcontainer features publish -r ghcr.io -n jartan-llc/enchantments src
+
+  # Consumers pull anonymously, so each id's :1 must resolve without
+  # credentials. Red until every package is public.
+  visibility:
+    needs: [pending, publish]
+    if: always() && !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: |
+          private=()
+          for json in src/*/devcontainer-feature.json; do
+            id=${json#src/}
+            id=${id%%/*}
+            if ! env -u GITHUB_TOKEN DOCKER_CONFIG="$(mktemp -d)" \
+              node_modules/.bin/devcontainer features info manifest \
+              "ghcr.io/jartan-llc/enchantments/$id:1" >/dev/null; then
+              private+=("$id")
+            fi
+          done
+          if [ "${#private[@]}" -gt 0 ]; then
+            echo "::error::not publicly readable at :1: ${private[*]}"
+            exit 1
+          fi

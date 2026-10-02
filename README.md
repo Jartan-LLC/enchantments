@@ -16,8 +16,8 @@ Dev container Features for Jartan LLC's projects, each one installable on its ow
 | [`liza-toolchain`](src/liza-toolchain/README.md) | Installs Liza's agent toolchain, every tool pinned, into the `liza` volume. |
 
 <!-- declare:start -->
-None is published yet. Once they are, declare one in a project's `devcontainer.json`, or
-for every container in VS Code's `dev.containers.defaultFeatures`:
+Declare one in a project's `devcontainer.json`, or for every container in VS Code's
+`dev.containers.defaultFeatures`:
 
 ```json
 {
