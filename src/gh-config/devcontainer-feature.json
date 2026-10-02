@@ -1,6 +1,6 @@
 {
   "id": "gh-config",
-  "version": "0.9.0",
+  "version": "1.0.1",
   "name": "GitHub CLI login persistence",
   "description": "Keeps the GitHub CLI's login in the gh-config volume, so it survives rebuilds and is shared by every container that mounts it.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/gh-config",
