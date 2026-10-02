@@ -17,9 +17,9 @@ and CI's tests catch broken releases; they don't stop someone who holds your gh 
 - **Your gh token.** It can push to enchantments and approve the `ghcr` deployment, so code
   running in any of these containers can publish a release that every other one runs as
   root at its next build.
-- **A plugin marketplace's default branch,** grimoire's or any other you enable. Each
-  attach updates the clone's plugins from it, so whatever is merged there runs as you at
-  the next attach, without a rebuild.
+- **The default branch of each enabled plugin's marketplace.** Each attach updates the
+  clone's plugins from it, so whatever is merged there runs as you at the next attach,
+  without a rebuild.
 - **Write access to enchantments.** Any workflow on a branch can ask for permission to
   publish, and an admin can bypass or change the `ghcr` approval.
 - **Auto-merged dependency bumps.** Minor and patch updates to what `publish` runs (the

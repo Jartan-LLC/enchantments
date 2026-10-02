@@ -23,7 +23,7 @@ Don't delete the bad version from GHCR before `:1` points at the fix: deleting i
 Clearing `defaultFeatures` doesn't stop a bad commit on a marketplace's default branch: its
 plugins' hooks run as you, with your gh token. Do step 1 of
 [If it may have been malicious](#if-it-may-have-been-malicious). Then, from the clean host,
-revert grimoire's `main`, or, for a marketplace you don't control, remove its
+revert the marketplace's default branch if you control it; otherwise remove its
 `extraKnownMarketplaces` entry and its `@<name>` `enabledPlugins` keys from each affected
 repo's `.claude/settings.json`, and push. Then do steps 2, 4 (if step 2 finds a version you
 didn't approve) and 5.
@@ -47,11 +47,11 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      environment edits, apps and membership, across every Jartan-LLC repo.
    - Review your account's security log for added SSH or GPG keys, OAuth authorizations
      and personal-repo events.
-   - For scaffold (a template, so anything planted spreads), enchantments, grimoire and
-     every repo that declares these Features, review default-branch commits and merged PRs
-     in the window (`git log --since`,
-     `gh pr list --state merged --search 'merged:>=<start>'`), and revert any you didn't
-     make.
+   - For enchantments, every plugin marketplace you control, every template repo (anything
+     planted there spreads to repos made from it) and every repo that declares these
+     Features, review default-branch commits and merged PRs in the window
+     (`git log --since`, `gh pr list --state merged --search 'merged:>=<start>'`), and
+     revert any you didn't make.
    - Check the `main` ruleset's content: this prints `true`.
 
      ```bash
