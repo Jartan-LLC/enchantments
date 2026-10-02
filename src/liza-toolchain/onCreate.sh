@@ -100,8 +100,8 @@ release_tool rtk rtk-ai/rtk RTK rtk
 if [ -e "$bin/rtk" ] && ! "$bin/rtk" --version >/dev/null 2>&1; then
   rm -f "$bin/rtk" "$pins/rtk"
   record_failure "$id" "rtk $RTK_TAG doesn't run here (its arm64 build" \
-    "needs glibc 2.39 or later), so it's removed; ~/.liza/AGENT_TOOLS.md" \
-    "still describes rtk, which this container lacks"
+    "needs glibc 2.39 or later), so it's removed, and left out of" \
+    "$HOME/.liza/AGENT_TOOLS.md"
 fi
 # mdq publishes no arm64 Linux build, and nothing depends on it.
 [ "$arch" = X86_64 ] && release_tool mdq yshavit/mdq MDQ mdq

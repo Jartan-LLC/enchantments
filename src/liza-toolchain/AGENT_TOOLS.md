@@ -21,7 +21,7 @@ Phased repository search:
 
 Directly named files/sections/symbols may bypass orientation; use indexes afterward for impact and reference questions. If an optional index/search tool is disabled, unavailable, or not advertised, fall back to `rg`, `ast-grep`, and direct reads. Use bounded `rg` for exact text search and path discovery; use `git grep` for tracked/index/HEAD/history searches.
 
-**`rg` is not guaranteed to exist, and its absence looks like a search bug.** Where `rg` is unavailable as an executable, any invocation that spawns it fails with `rtk: search failed: Failed to execute command: No such file or directory (os error 2)` or `Failed to spawn process`. That message means the tool is missing, not that your pattern, quoting, pipe or glob was wrong — retrying the same search reworded cannot succeed. On the first such failure, switch for the rest of the session to `rtk grep -rn "<pattern>" <paths>` (same compact output) or plain `grep -rn`, use `find` or `rtk find` where the row below says `rg --files`, and use `git grep` for tracked files. Check once with `env rg --version`, which spawns the binary exactly as a tool would; `command -v`/`which`/`type` all match shell functions and aliases, so they report a usable `rg` where none exists. `rtk find` takes only simple predicates; for `-o`, `-not` or `-exec`, call `find` directly — rtk says so itself when it refuses. Use direct, line-numbered reads (`nl -ba ... | sed -n ...`) for source-of-truth verification and edit discussion.
+**`rg` is not guaranteed to exist, and its absence looks like a search bug.** Where `rg` is unavailable as an executable, any invocation that spawns it fails with `No such file or directory` or `Failed to spawn process`. That message means the tool is missing, not that your pattern, quoting, pipe or glob was wrong — retrying the same search reworded cannot succeed. On the first such failure, switch for the rest of the session to plain `grep -rn`, use `find` where the row below says `rg --files`, and use `git grep` for tracked files. Check once with `env rg --version`, which spawns the binary exactly as a tool would; `command -v`/`which`/`type` all match shell functions and aliases, so they report a usable `rg` where none exists. Use direct, line-numbered reads (`nl -ba ... | sed -n ...`) for source-of-truth verification and edit discussion.
 
 When Stacklit and `scip-search` are available, use them as the pre-edit impact baseline for shared/exported symbols or unfamiliar control paths. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`/`ast-grep`, and behavior tests; stale indexes are not proof of post-edit scope.
 
@@ -229,6 +229,8 @@ rtk npm run build
 rtk pytest -q
 rtk semble search "where is review submission validated?" <target-root>
 ```
+
+Where `rg` is missing, rtk reports `rtk: search failed: Failed to execute command: No such file or directory (os error 2)`. Then `rtk grep -rn "<pattern>" <paths>` and `rtk find` give the same compact output as `rg`. `rtk find` takes only simple predicates; for `-o`, `-not` or `-exec`, call `find` directly — rtk says so itself when it refuses.
 
 Temporary upstream bug workarounds, until rtk-ai/rtk#1922 and rtk-ai/rtk#925 merge:
 

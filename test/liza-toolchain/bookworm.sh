@@ -48,9 +48,10 @@ check "git status is clean" test -z "$(git status --porcelain)"
 # rtk's only arm64 build needs glibc 2.39; bookworm has 2.36.
 if [ "$(uname -m)" = aarch64 ]; then
   check "rtk is absent" test ! -e "$bin/rtk"
-  check "the report names glibc and AGENT_TOOLS.md" \
-    bash -c "grep -q 'glibc 2.39' $reports/liza-toolchain.failures.reported \
-      && grep -q AGENT_TOOLS.md $reports/liza-toolchain.failures.reported"
+  check "the report names glibc" \
+    grep -q 'glibc 2.39' "$reports/liza-toolchain.failures.reported"
+  check "AGENT_TOOLS.md leaves rtk out" \
+    bash -c "! grep -qi rtk ~/.liza/AGENT_TOOLS.md"
   check "no rtk hook" no_hook "bin/rtk hook"
   check "nothing else recorded" \
     test "$(cd "$reports" && ls)" = liza-toolchain.failures.reported
@@ -58,6 +59,8 @@ else
   check "rtk runs from PATH" on_path rtk
   check "mdq runs from PATH" on_path mdq
   check "rtk's hook is in the local settings" hook "bin/rtk hook"
+  check "AGENT_TOOLS.md describes rtk" \
+    grep -q '^#### RTK' ~/.liza/AGENT_TOOLS.md
   check "no failures recorded" \
     test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 fi

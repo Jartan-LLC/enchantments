@@ -92,12 +92,22 @@ configure_toolchain() {
 # Refreshes Liza's contracts and skills to match the binary, with the
 # AGENT_TOOLS.md that lists only the tools this container has.
 set_up_liza() {
-  local agent_tools=$steps_dir/AGENT_TOOLS.minimal.md
-  [ -d "$liza_toolchain" ] && agent_tools=$liza_toolchain/AGENT_TOOLS.md
+  local agent_tools=$steps_dir/AGENT_TOOLS.minimal.md without_rtk=''
+  if [ -d "$liza_toolchain" ]; then
+    agent_tools=$liza_toolchain/AGENT_TOOLS.md
+    # Where rtk couldn't be installed, its section goes too.
+    if [ ! -x "$HOME/.liza/bin/rtk" ] && without_rtk=$(mktemp); then
+      awk '/^#### RTK/ { skip = 1; next }
+        skip && (/^#{1,4} / || /^---$/) { skip = 0 }
+        !skip { gsub(/`rtk jq`/, "`jq`"); print }' "$agent_tools" \
+        >"$without_rtk" && agent_tools=$without_rtk
+    fi
+  fi
   "$liza_bin" setup --force --yes --agent-tools "$agent_tools" </dev/null \
     >/dev/null \
     || record_failure liza "liza setup failed, so its contracts and skills" \
       "may not match its binary"
+  [ -z "$without_rtk" ] || rm -f "$without_rtk"
 }
 
 # setup links every skill into ~/.claude/skills, which would load them in every

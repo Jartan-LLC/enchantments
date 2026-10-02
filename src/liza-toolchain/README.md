@@ -33,7 +33,7 @@ Liza's agent toolchain, every tool pinned and verified, installed into the liza 
 
 - scip-python doesn't see packages installed in a uv virtual environment, which has no `pip`.
 - Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook; git-lfs, husky and lefthook install such hooks. Activation names the hook.
-- Where rtk can't run (aarch64 with glibc older than 2.39), it's removed and reported at each create, while `~/.liza/AGENT_TOOLS.md` still describes it.
+- Where rtk can't run (aarch64 with glibc older than 2.39), it's removed, left out of `~/.liza/AGENT_TOOLS.md`, and reported at each create.
 
 ## Removal
 
