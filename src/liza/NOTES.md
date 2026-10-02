@@ -29,7 +29,7 @@
 
 1. While the Feature is still declared, in each clone, run `liza-deactivate --tools` if `liza-toolchain` is declared, then `liza-deactivate`.
 2. Remove the `liza` entry, and `liza-toolchain`'s if declared.
-3. Remove the volume: `docker volume rm liza-<devcontainerId>`.
+3. Remove the container, then the volume: `docker volume rm liza-<devcontainerId>`.
 
 ## Image requirements
 

@@ -1,9 +1,10 @@
 #!/bin/sh
 # Image build, as root: stage the hooks, which the lifecycle commands run as the
 # remote user, and the files liza's activation reads: configure.args,
-# env.append and AGENT_TOOLS.md, which liza's activation-steps.sh names, so
-# renaming one means releasing both Features together. The staged directory is
-# also the presence marker liza checks.
+# env.append and AGENT_TOOLS.md, which liza's activation-steps.sh names, and
+# whose "#### RTK" section it drops where rtk isn't installed: renaming a file
+# or reshaping that section means releasing both Features together. The staged
+# directory is also the presence marker liza checks.
 id=liza-toolchain
 dest=/usr/local/share/enchantments/$id
 

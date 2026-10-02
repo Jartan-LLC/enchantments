@@ -616,11 +616,14 @@ check "and names it" \
 # A dangling link at a hook's path counts as the repo's own: init fails on it.
 echo "export LIZA_ENABLE_STACKLIT='1'" >"$stub_home/.liza/toolchain/env.sh"
 ln -s /nonexistent "$refusals_clone/.git/hooks/post-commit"
-stub_init "$refusals_clone" 2>/dev/null
+stub_init "$refusals_clone" 2>"$stub_home/dangling.err"
 dangling_rc=$?
 rm -f "$stub_home/.liza/toolchain/env.sh" \
   "$refusals_clone/.git/hooks/post-commit"
-check "a dangling hook link refuses init" test "$dangling_rc" -eq 75
+check "a dangling hook link refuses init" \
+  test "$dangling_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
+check "and names it" \
+  grep -q "own post-commit git hook" "$stub_home/dangling.err"
 # A hook Liza manages, or any hook with the gates off, lets init go ahead.
 stub_liza <<'EOF'
 settings "$hook"

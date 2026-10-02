@@ -50,8 +50,9 @@ if [ "$(uname -m)" = aarch64 ]; then
   check "rtk is absent" test ! -e "$bin/rtk"
   check "the report names glibc" \
     grep -q 'glibc 2.39' "$reports/liza-toolchain.failures.reported"
-  check "AGENT_TOOLS.md leaves rtk out" \
-    bash -c "! grep -qi rtk ~/.liza/AGENT_TOOLS.md"
+  check "AGENT_TOOLS.md leaves rtk out, and only rtk" \
+    bash -c "grep -q '^## Trusted Support Tools' ~/.liza/AGENT_TOOLS.md \
+      && ! grep -qi rtk ~/.liza/AGENT_TOOLS.md"
   check "no rtk hook" no_hook "bin/rtk hook"
   check "nothing else recorded" \
     test "$(cd "$reports" && ls)" = liza-toolchain.failures.reported

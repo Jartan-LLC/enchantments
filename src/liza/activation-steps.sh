@@ -10,8 +10,9 @@ steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 # shellcheck source=activation-lib.sh
 . "$steps_dir/activation-lib.sh"
 # liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md in
-# $liza_toolchain for these steps: renaming one means releasing both Features
-# together.
+# $liza_toolchain for these steps, and set_up_liza relies on AGENT_TOOLS.md's
+# "#### RTK" section ending at the next heading or "---": changing either means
+# releasing both Features together.
 
 # The command activation registers context7 with.
 context7_command=$HOME/.liza/bin/context7-mcp
@@ -96,11 +97,17 @@ set_up_liza() {
   if [ -d "$liza_toolchain" ]; then
     agent_tools=$liza_toolchain/AGENT_TOOLS.md
     # Where rtk couldn't be installed, its section goes too.
-    if [ ! -x "$HOME/.liza/bin/rtk" ] && without_rtk=$(mktemp); then
-      awk '/^#### RTK/ { skip = 1; next }
-        skip && (/^#{1,4} / || /^---$/) { skip = 0 }
-        !skip { gsub(/`rtk jq`/, "`jq`"); print }' "$agent_tools" \
-        >"$without_rtk" && agent_tools=$without_rtk
+    if [ ! -x "$HOME/.liza/bin/rtk" ]; then
+      if without_rtk=$(mktemp) \
+        && awk '/^#### RTK/ { skip = 1; next }
+          skip && (/^#+ / || /^---$/) { skip = 0 }
+          !skip { gsub(/`rtk jq`/, "`jq`"); print }' "$agent_tools" \
+          >"$without_rtk"; then
+        agent_tools=$without_rtk
+      else
+        record_failure liza "couldn't leave rtk out of AGENT_TOOLS.md, which" \
+          "describes it though this container lacks it"
+      fi
     fi
   fi
   "$liza_bin" setup --force --yes --agent-tools "$agent_tools" </dev/null \

@@ -35,6 +35,6 @@
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. To retry, run it from the workspace folder: `bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh`. A failed tool is retried on the next create.
+The container still starts, and what went wrong is printed the next time it starts. To retry, run from the workspace folder `bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh`, then `bash /usr/local/share/enchantments/liza/updateContent.sh`, which puts a reinstalled tool to use. A failed tool is retried on the next create.
 
 A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: declare both in the project's config, or both only through `defaultFeatures`.
