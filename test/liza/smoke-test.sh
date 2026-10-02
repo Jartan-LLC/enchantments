@@ -466,65 +466,63 @@ check "deactivate saves originals left without a record" \
   test "$(cat "$interrupted_clone/.claude/keep/f.sh.pre-liza" 2>/dev/null)" \
   = "user file"
 
-# Linked worktrees share the git hooks and the exclude file. While one stays
-# activated, deactivating another keeps those, and names them; the worktree
-# that activated first removes them when it deactivates last. Names with
-# spaces and glob characters get one escaped exclude line each.
+# Linked worktrees share the git hooks and the exclude file, so Liza is active
+# in one worktree of a repo at a time. Each activation then owns all it
+# wrote, and the deactivation of each removes it, odd names included.
 stub_liza <<'EOF'
 echo hook >"$(git rev-parse --git-path hooks)/liza-test-hook"
 echo created >.claudeignore
 echo created >'odd [1]*.txt'
 settings "$hook"
 EOF
-worktree_pair() { # name: prints the main clone's path, after activating both
-  local main
-  main=$(stub_clone "$1")
-  git -C "$main" worktree add -q "$main-linked" 2>/dev/null
-  echo '{}' >"$main-linked/.claude/settings.local.json"
-  stub_init "$main" 2>/dev/null
-  stub_init "$main-linked" 2>/dev/null
-  echo "$main"
-}
-# shellcheck disable=SC2329 # run through check
-excluded() { # main-clone line
-  grep -qxF -- "$2" "$1/.git/info/exclude"
-}
-
-main=$(worktree_pair wt-first)
-check "both worktrees activate" \
-  test -L "$main/CLAUDE.local.md" -a -L "$main-linked/CLAUDE.local.md"
-check "an odd name gets an escaped exclude line" \
-  excluded "$main" '/odd \[1]\*.txt'
-check "and git shows neither worktree untracked files" \
+main=$(stub_clone wt-main)
+git -C "$main" worktree add -q "$main-linked" 2>/dev/null
+echo '{}' >"$main-linked/.claude/settings.local.json"
+stub_init "$main" 2>/dev/null
+stub_init "$main-linked" 2>"$stub_home/wt.err"
+refused_rc=$?
+check "init refuses a second worktree of an activated repo" \
+  test "$refused_rc" -ne 0 -a ! -L "$main-linked/CLAUDE.local.md"
+check "and names the active one" grep -qF "$main," "$stub_home/wt.err"
+check "an odd name gets one escaped exclude line" \
+  grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
+check "git status is clean in both worktrees" \
   test -z "$(git -C "$main" status --porcelain)$(git -C "$main-linked" \
     status --porcelain)"
-stub_deactivate "$main-linked" 2>/dev/null
-check "deactivating the second worktree keeps the shared hook" \
-  test -f "$main/.git/hooks/liza-test-hook"
-check "and the shared exclude lines" excluded "$main" /.claudeignore
-check "and removes its own files, even ones the exclude file hid" \
-  test ! -e "$main-linked/.claudeignore" -a ! -e "$main-linked/odd [1]*.txt"
-check "and leaves the first worktree's status clean" \
-  test -z "$(git -C "$main" status --porcelain)"
 stub_deactivate "$main" 2>/dev/null
-check "deactivating the first worktree last removes the hook" \
+check "deactivating removes the shared hook" \
   test ! -e "$main/.git/hooks/liza-test-hook"
 check "and the exclude lines" \
   bash -c "! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
-check "and its own files" \
+check "and the files, odd names included" \
   test ! -e "$main/.claudeignore" -a ! -e "$main/odd [1]*.txt"
-
-main=$(worktree_pair wt-second)
-stub_deactivate "$main" 2>"$stub_home/wt-second.err"
-check "deactivating the first worktree first keeps the shared hook" \
-  test -f "$main/.git/hooks/liza-test-hook"
-check "and names it" grep -q "shared with $main-linked" \
-  "$stub_home/wt-second.err"
-check "and leaves the second worktree's status clean" \
+stub_init "$main-linked" 2>/dev/null
+check "the other worktree then activates" test -L "$main-linked/CLAUDE.local.md"
+check "and its .claudeignore is excluded" \
   test -z "$(git -C "$main-linked" status --porcelain)"
 stub_deactivate "$main-linked" 2>/dev/null
-check "the second worktree then removes its own files" \
-  test ! -e "$main-linked/.claudeignore"
+check "and its deactivation leaves no hook or exclude line" \
+  bash -c "test ! -e '$main/.git/hooks/liza-test-hook' \
+    && ! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
+
+# Activation keeps the exclude file's last line whole, and records a file it
+# creates under a line that already hides it; a generated link goes too.
+edge_clone=$(stub_clone edge-clone)
+printf '/.claude/made.txt' >"$edge_clone/.git/info/exclude"
+stub_liza <<'EOF'
+echo made >.claude/made.txt
+ln -s .claude made-link
+settings "$hook"
+EOF
+stub_init "$edge_clone" 2>/dev/null
+check "an exclude file without a final newline keeps its last line" \
+  grep -qx /.claude/made.txt "$edge_clone/.git/info/exclude"
+check "and gets the new lines on their own" \
+  grep -qx /made-link "$edge_clone/.git/info/exclude"
+stub_deactivate "$edge_clone" 2>/dev/null
+check "deactivate removes a created file the exclude file hid" \
+  test ! -e "$edge_clone/.claude/made.txt"
+check "and a created link to a directory" test ! -L "$edge_clone/made-link"
 
 # --tools undoes the toolchain's registration, and only with --tools. The home
 # is laid out as claude-code leaves it: a stub claude logs its calls, and

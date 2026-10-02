@@ -86,3 +86,18 @@ exclude_line_path() { # line
   done
   printf '%s\n' "$path"
 }
+
+# Linked worktrees of a repo share its git hooks and exclude file, so only one
+# of them is activated at a time. Prints another worktree of the clone at $1
+# with an activation record; fails when there's none.
+other_activation() { # top
+  local wt
+  while IFS= read -r wt; do
+    [ "$wt" -ef "$1" ] && continue
+    [ -e "$(git -C "$wt" rev-parse --path-format=absolute \
+      --git-path liza/activation.json 2>/dev/null)" ] || continue
+    echo "$wt"
+    return 0
+  done < <(git -C "$1" worktree list --porcelain | sed -n 's/^worktree //p')
+  return 1
+}

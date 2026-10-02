@@ -30,6 +30,7 @@ Liza, pinned and digest-checked, with ripgrep, activated locally for each clone.
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
 - `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
+- Liza is active in one worktree of a repo at a time. To move it, run `liza-deactivate` in the active worktree, then `liza-activate` in the other. Run `liza-deactivate` before `git worktree remove`.
 - `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
 - If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.
 - Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`.
@@ -37,8 +38,6 @@ Liza, pinned and digest-checked, with ripgrep, activated locally for each clone.
 ## Undoing activation
 
 `liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A failed run keeps everything, and running it again finishes the job.
-
-Linked worktrees of a repo share Liza's git hooks and exclude lines. While another worktree is activated, `liza-deactivate` leaves those and names them, so deactivate the worktree you activated first last. Run `liza-deactivate` before `git worktree remove`.
 
 ## Removal
 

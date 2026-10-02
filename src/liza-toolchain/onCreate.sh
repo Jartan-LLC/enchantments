@@ -58,6 +58,7 @@ pin_record() { # pin
   echo "$1 $arch"
 }
 
+# Succeeds when the tool's recorded pin matches.
 pin_current() { # tool pin
   [ "$(cat "$pins/$1" 2>/dev/null)" = "$(pin_record "$2")" ]
 }

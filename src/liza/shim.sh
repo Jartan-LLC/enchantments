@@ -49,9 +49,30 @@ if ! mkdir "$lock" 2>/dev/null; then
   exit 1
 fi
 # Held until the record is written, so a deactivate or another init can't
-# interleave.
+# interleave. The repo's lock keeps two worktrees from activating at once.
+here=$(dirname "$(readlink -f "$0")")
+# shellcheck source=activation-lib.sh
+source "$here/activation-lib.sh"
+repo_lock="$(git -C "$top" rev-parse --path-format=absolute \
+  --git-common-dir)/liza-activation.lock"
+unlock() {
+  rmdir "$lock"
+  rmdir "$repo_lock" 2>/dev/null
+}
 trap 'rmdir "$lock"' EXIT
 trap 'exit 130' INT TERM
+if ! mkdir "$repo_lock" 2>/dev/null; then
+  echo "liza shim: another worktree's init holds $repo_lock; remove it if" \
+    "none is running." >&2
+  exit 1
+fi
+trap unlock EXIT
+# A repo's worktrees share its git hooks and exclude file.
+if active=$(other_activation "$top"); then
+  echo "liza shim: Liza is active in $active, another worktree of this" \
+    "repo; run liza-deactivate there first." >&2
+  exit 1
+fi
 if [ -e "$held_settings" ]; then
   echo "liza shim: $held_settings exists from an interrupted init; move it" \
     "back to settings.json (and any settings.local.json.liza-shim-backup back" \
@@ -64,9 +85,6 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-here=$(dirname "$(readlink -f "$0")")
-# shellcheck source=activation-lib.sh
-source "$here/activation-lib.sh"
 # What git shows untracked, and what an exclude line hides at the top level and
 # in .claude/, where init writes: either way, a file init creates there is its.
 # Activation manages the two settings files itself.
@@ -108,11 +126,10 @@ for path in "${saved[@]}"; do
 done
 candidates=()
 read_top_paths candidates "$top" < <({
-  git -C "$top" ls-files -z --others -- .claude ':(glob)*'
-  git -C "$top" ls-files -z --others --ignored --exclude-standard \
-    -- .claude ':(glob)*'
-} | sort -z -u \
-  | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json)
+  git -C "$top" ls-files -z --others --exclude-standard -- .claude ':(glob)*' \
+    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+  hidden_untracked
+} | sort -z -u)
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...
@@ -203,7 +220,7 @@ release() {
 [ -f "$local_settings" ] && cp -p "$local_settings" "$backup_settings"
 [ -f "$shared_settings" ] && mv "$shared_settings" "$held_settings"
 [ -f "$local_settings" ] && mv "$local_settings" "$shared_settings"
-trap 'release; restore_candidates; rmdir "$lock"' EXIT
+trap 'release; restore_candidates; unlock' EXIT
 
 # --- Run Liza's init ---
 # Liza reads the toolchain's LIZA_ENABLE_* gates at init
@@ -219,7 +236,7 @@ fi
 rc=$?
 
 release
-trap 'rmdir "$lock"' EXIT
+trap unlock EXIT
 if [ "$rc" -ne 0 ]; then
   restore_candidates
   exit "$rc"
@@ -290,6 +307,7 @@ for path in "${shown_after[@]}" "${hidden_after[@]}"; do
   [ -n "${was_untracked[$path]+set}" ] || created+=("$path")
 done
 # A line appended to a file without a final newline would join its last line.
+mkdir -p "$(dirname "$exclude_file")"
 [ -s "$exclude_file" ] && [ -n "$(tail -c 1 "$exclude_file")" ] \
   && echo >>"$exclude_file"
 for path in "${created[@]}"; do

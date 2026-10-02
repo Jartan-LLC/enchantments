@@ -7,6 +7,8 @@ steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 . "$steps_dir/record_failure.sh"
 # shellcheck source=claude_ready.sh
 . "$steps_dir/claude_ready.sh"
+# shellcheck source=activation-lib.sh
+. "$steps_dir/activation-lib.sh"
 # liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md here for
 # these steps: renaming one means releasing both Features together.
 toolchain=/usr/local/share/enchantments/liza-toolchain
@@ -110,6 +112,13 @@ unlink_global_skills() {
 # Activates the clone at $top through the shim, which keeps every write
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
+  local active
+  if active=$(other_activation "$top"); then
+    record_failure liza "Liza is active in $active, another worktree of" \
+      "this repo, so not in $top; run liza-deactivate there, then" \
+      "liza-activate here"
+    return
+  fi
   if ! (cd "$top" && bash "$steps_dir/shim.sh" init --claude --yes "$@" \
     </dev/null); then
     record_failure liza "liza init failed in $top, so Liza isn't active" \

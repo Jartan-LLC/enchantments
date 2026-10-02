@@ -1,10 +1,9 @@
 #!/bin/bash
 # liza-deactivate: undoes activation in this clone, from the record the shim
 # keeps: the settings entries and files activation added (a file edited since is
-# kept and named), its exclude lines and the contract link. Linked worktrees of
-# a repo share its git hooks and exclude file: while another is activated, those
-# stay, and are named. --tools instead removes the context7 registration
-# activation made with the toolchain. ~/.liza stays: it's this project's volume.
+# kept and named), its exclude lines and the contract link. --tools instead
+# removes the context7 registration activation made with the toolchain. ~/.liza
+# stays: it's this project's volume.
 # shellcheck source-path=SCRIPTDIR
 
 set -uo pipefail
@@ -12,8 +11,6 @@ set -uo pipefail
 here=$(dirname "$(readlink -f "$0")")
 top=$(git rev-parse --show-toplevel) || exit 1
 cd "$top" || exit 1
-# shellcheck source=activation-lib.sh
-source "$here/activation-lib.sh"
 # shellcheck source=activation-steps.sh
 source "$here/activation-steps.sh"
 failed=()
@@ -63,31 +60,9 @@ if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
 fi
 trap 'rmdir "$lock"' EXIT
 
-# Linked worktrees of a repo share the git dir's hooks and its exclude file.
-# Sets holder to another worktree with an activation record, which still uses
-# them; fails when there's none.
-common=$(git rev-parse --path-format=absolute --git-common-dir)
-hooks_dir=$(git_path "$top" hooks)
-other_activation() {
-  local wt
-  while IFS= read -r wt; do
-    [ "$wt" -ef "$top" ] && continue
-    [ -e "$(git -C "$wt" rev-parse --path-format=absolute \
-      --git-path liza/activation.json 2>/dev/null)" ] || continue
-    holder=$wt
-    return 0
-  done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
-  return 1
-}
-is_shared() { # path
-  [[ "$1" == "$hooks_dir"/* ]] \
-    || [[ "$1" == "$common"/* && "$1" != "$common"/worktrees/* ]]
-}
-
 drop_lines=() # exclude lines to remove
 kept=()       # files left for the user to check, with where their original is
 accounted=()  # originals the record lists
-shared=false  # whether the shared hooks and exclude lines stay
 if ! jq -e . "$record" >/dev/null 2>&1; then
   # No readable record: only the contract link and any saved originals can be
   # undone.
@@ -129,15 +104,10 @@ else
       fi
     fi
   done
-  other_activation && shared=true
   # A file activation created goes, unless it was edited since.
   mapfile -t recorded < <(record_query file_entries "$record")
   for entry in "${recorded[@]}"; do
     path=${entry% *}
-    if $shared && is_shared "$path"; then
-      kept+=("$path (shared with $holder)")
-      continue
-    fi
     now=$(fingerprint "$path")
     [ -n "$now" ] || continue
     if [ "$now" = "$entry" ]; then
@@ -184,8 +154,6 @@ fi
 
 # --- Clean up: what is left for the user, the contract link, emptied
 # settings and dirs ---
-$shared && [ ${#drop_lines[@]} -gt 0 ] \
-  && kept+=("its lines in $exclude_file (shared with $holder)")
 [ ${#kept[@]} -eq 0 ] \
   || echo "deactivate: left these for you to check: ${kept[*]}" >&2
 if [ -f "$local_settings" ] \
@@ -198,7 +166,7 @@ rmdir .claude/hooks .claude/skills 2>/dev/null
 
 # After a failure the exclude lines stay too, so what's left stays hidden until
 # a rerun.
-if [ ${#failed[@]} -eq 0 ] && ! $shared && [ -f "$exclude_file" ] \
+if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
   && [ ${#drop_lines[@]} -gt 0 ]; then
   # grep exits 1 when no line is left, and 2 when it couldn't read the file.
   grep -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") "$exclude_file" \
