@@ -745,6 +745,21 @@ CLAUDE_STUB_FAIL=1 tools 2>/dev/null
 tools_failed_rc=$?
 check "--tools fails when a removal fails" test "$tools_failed_rc" -ne 0
 rm -f "$tools_home/claude-calls"
+# Without claude-code, activation registered nothing, so --tools has nothing
+# to remove and records nothing.
+no_claude_dir="$stub_home/tools-liza-no-claude-code"
+cp -R "$tools_dir" "$no_claude_dir"
+claude_marker=/usr/local/share/enchantments/claude-code
+sed -i "s|$claude_marker|$stub_home/no-claude-code|" \
+  "$no_claude_dir/activation-steps.sh" "$no_claude_dir/claude_ready.sh"
+rm -f "$tools_home/.cache/enchantments/liza.failures"
+HOME="$tools_home" bash "$no_claude_dir/deactivate.sh" --tools
+no_claude_rc=$?
+check "--tools without claude-code succeeds" test "$no_claude_rc" -eq 0
+check "and leaves claude alone" test ! -e "$tools_home/claude-calls"
+check "and records nothing" \
+  test ! -e "$tools_home/.cache/enchantments/liza.failures"
+rm -f "$tools_home/claude-calls"
 
 mkdir .claude/.liza-shim.lock
 bash "$liza_dir/deactivate.sh" 2>/dev/null

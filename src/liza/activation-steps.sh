@@ -50,9 +50,10 @@ find_clone() {
 }
 
 # Removes context7's registration for the clone at $top, only when it's the one
-# activation makes: a context7 you registered yourself stays. liza-deactivate
-# --tools runs this alone.
+# activation makes: a context7 you registered yourself stays. Without
+# claude-code, none was made here. liza-deactivate --tools runs this alone.
 remove_context7() {
+  [ -d "$claude_code" ] || return 0
   claude_ready liza "context7's registration isn't checked" || return 1
   jq -e --arg p "$top" --arg c "$context7_command" \
     '.projects[$p].mcpServers.context7.command == $c' "$claude_json" \
@@ -64,10 +65,9 @@ remove_context7() {
   return 1
 }
 
-# Without the toolchain, removes the context7 registration it made. Without
-# claude-code, none was made here.
+# Without the toolchain, removes the context7 registration it made.
 remove_context7_without_toolchain() {
-  if [ ! -d "$liza_toolchain" ] && [ -d "$claude_code" ]; then
+  if [ ! -d "$liza_toolchain" ]; then
     remove_context7
   fi
 }
