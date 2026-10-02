@@ -73,8 +73,6 @@ jobs:
       - run: uv pip install -r docs/requirements.txt
       - run: sphinx-build -W -b html docs docs/_build/html
 
-  # All or nothing: consumer scenarios build their sibling Features from source, so a change
-  # to one Feature re-runs every Feature that composes it.
   features:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -86,35 +84,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-      # With no base (a manual run, a failed fetch) everything runs, rather than risk
-      # skipping a change.
       - id: emit
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
-        run: |
-          case "$EVENT" in
-            pull_request) base=HEAD^1 ;;
-            push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
-          esac
-          # The versions job reads the base from here, as a commit.
-          if [ -n "${base:-}" ]; then
-            base=$(git rev-parse "$base")
-          fi
-          ids=$(find src -mindepth 2 -maxdepth 2 -name devcontainer-feature.json -printf '%h\n' | cut -d/ -f2 | sort)
-          if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
-              || git diff --name-only "$base" HEAD | grep -qE '^(src/|lib/|test/|\.github/scripts/|package\.json$|package-lock\.json$|\.github/workflows/ci\.yml$|Makefile$)'; then
-            matrix=$({ printf '%s\n' "$ids"; echo _global; } | jq -Rnc '[inputs | select(. != "")] as $ids
-              | [$ids[] as $id | ("ubuntu-24.04", "ubuntu-24.04-arm") as $runner | {id: $id, runner: $runner}]')
-          else
-            matrix='[]'
-          fi
-          if [ "$EVENT" = schedule ] && [ -z "$ids" ]; then
-            echo "::error::no Features found under src"
-            exit 1
-          fi
-          echo "matrix=$matrix" >>"$GITHUB_OUTPUT"
-          echo "base=${base:-}" >>"$GITHUB_OUTPUT"
+        run: .github/scripts/emit-features.sh
 
   test:
     name: test (${{ matrix.id }}, ${{ matrix.runner }})
@@ -286,10 +260,7 @@ jobs:
             fi
           done
 
-  # The registry decides what's released: an id whose version isn't among the
-  # tags of its :1 yet. The bare ref would mean latest, and a deleted latest
-  # would keep an id pending forever. Any failed lookup, an outage included,
-  # lists the id; publishing skips a version that exists.
+  # The registry decides what's released (list-pending.sh).
   pending:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -298,7 +269,7 @@ jobs:
       contents: read
       packages: read
     outputs:
-      ids: ${{ steps.changelogs.outputs.ids }}
+      ids: ${{ steps.list.outputs.ids }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -308,35 +279,13 @@ jobs:
           node-version: lts/*
           package-manager-cache: false
       - run: npm ci --ignore-scripts
-      - id: query
+      - id: list
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          ids=()
-          for json in src/*/devcontainer-feature.json; do
-            id=${json#src/}
-            id=${id%%/*}
-            version=$(jq -r .version "$json")
-            if tags=$(node_modules/.bin/devcontainer features info tags \
-                "ghcr.io/jartan-llc/enchantments/$id:1" --output-format json) \
-              && jq -e --arg v "$version" '.publishedTags | index($v)' \
-                <<<"$tags" >/dev/null; then
-              continue
-            fi
-            ids+=("$id")
-          done
-          echo "ids=${ids[*]}" >>"$GITHUB_OUTPUT"
-      # Without the token: an invalid changelog stops the release here, so no
-      # repo script runs where packages: write is held.
-      - id: changelogs
-        env:
-          IDS: ${{ steps.query.outputs.ids }}
-        run: |
-          for id in $IDS; do
-            .github/scripts/check-changelog.sh --release "$id"
-          done
-          echo "Pending: ${IDS:-none}"
-          echo "ids=$IDS" >>"$GITHUB_OUTPUT"
+          ids=$(.github/scripts/list-pending.sh)
+          echo "Pending: ${ids:-none}"
+          echo "ids=$ids" >>"$GITHUB_OUTPUT"
 
   # Only a run that tested the full matrix publishes: test must have succeeded,
   # not been skipped. always() stops a skipped upstream job from skipping this.
@@ -367,8 +316,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: node_modules/.bin/devcontainer features publish -r ghcr.io -n jartan-llc/enchantments src
 
-  # Consumers pull anonymously, so each id's :1 must resolve without
-  # credentials. Red until every package is public.
+  # Red until every package is public.
   visibility:
     needs: [pending, publish]
     if: always() && !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -383,18 +331,4 @@ jobs:
           node-version: lts/*
           package-manager-cache: false
       - run: npm ci --ignore-scripts
-      - run: |
-          private=()
-          for json in src/*/devcontainer-feature.json; do
-            id=${json#src/}
-            id=${id%%/*}
-            if ! env -u GITHUB_TOKEN DOCKER_CONFIG="$(mktemp -d)" \
-              node_modules/.bin/devcontainer features info manifest \
-              "ghcr.io/jartan-llc/enchantments/$id:1" >/dev/null; then
-              private+=("$id")
-            fi
-          done
-          if [ "${#private[@]}" -gt 0 ]; then
-            echo "::error::not publicly readable at :1: ${private[*]}"
-            exit 1
-          fi
+      - run: .github/scripts/check-visibility.sh
