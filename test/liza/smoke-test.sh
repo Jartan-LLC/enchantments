@@ -610,6 +610,14 @@ check "init refuses a repo's own index hook" \
   test "$own_hook_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
 check "and names it" \
   grep -q "own post-commit git hook" "$stub_home/own-hook.err"
+# A dangling link at a hook's path counts as the repo's own: init fails on it.
+echo "export LIZA_ENABLE_STACKLIT='1'" >"$stub_home/.liza/toolchain/env.sh"
+ln -s /nonexistent "$refusals_clone/.git/hooks/post-commit"
+stub_init "$refusals_clone" 2>/dev/null
+dangling_rc=$?
+rm -f "$stub_home/.liza/toolchain/env.sh" \
+  "$refusals_clone/.git/hooks/post-commit"
+check "a dangling hook link refuses init" test "$dangling_rc" -eq 75
 # A hook Liza manages, or any hook with the gates off, lets init go ahead.
 stub_liza <<'EOF'
 settings "$hook"
@@ -669,13 +677,15 @@ stub_deactivate "$shown_clone" 2>"$stub_home/shown.err"
 check "edited local settings in an unignoring repo are kept" \
   jq -e '.permissions.allow == ["Bash(mine:*)"]' \
   "$shown_clone/.claude/settings.local.json"
-check "and named" grep -q "your own settings" "$stub_home/shown.err"
+check "and named, once" \
+  test "$(grep -o 'settings.local.json' "$stub_home/shown.err" | wc -l)" -eq 1
 
 # liza-activate without Liza installed says so.
 missing_dir="$stub_home/missing-liza"
 cp -R "$liza_dir" "$missing_dir"
-echo 'liza_bin=/nonexistent/liza' >>"$missing_dir/activation-steps.sh"
-bash "$missing_dir/activate.sh" 2>"$stub_home/missing.err"
+printf '%s\n' 'liza_bin=/nonexistent/liza' 'liza_volume_ready() { :; }' \
+  >>"$missing_dir/activation-steps.sh"
+HOME="$stub_home" bash "$missing_dir/activate.sh" 2>"$stub_home/missing.err"
 missing_rc=$?
 check "liza-activate without Liza installed fails" test "$missing_rc" -ne 0
 check "and says so" grep -q "isn't installed" "$stub_home/missing.err"
