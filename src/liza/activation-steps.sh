@@ -113,11 +113,14 @@ unlink_global_skills() {
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
   local refusal rc
-  refusal=$(mktemp) || return
+  refusal=$(mktemp) || {
+    record_failure liza "no temporary file, so Liza isn't activated in $top"
+    return
+  }
   (cd "$top" && LIZA_SHIM_REFUSAL=$refusal \
     bash "$steps_dir/shim.sh" init --claude --yes "$@" </dev/null)
   rc=$?
-  if [ "$rc" -eq 75 ]; then
+  if [ "$rc" -eq "$liza_refused" ]; then
     record_failure liza "Liza isn't activated in $top: $(cat "$refusal")"
   elif [ "$rc" -ne 0 ]; then
     record_failure liza "liza init failed in $top, so Liza isn't active" \

@@ -52,8 +52,8 @@ activated "$top" || contract_linked "$top" || finish
 
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
-  echo "deactivate: $lock is held by a running liza init; remove it if none" \
-    "is running." >&2
+  echo "deactivate: $lock is held by a running liza init; remove it with" \
+    "rmdir if none is running." >&2
   exit 1
 fi
 trap 'rmdir "$lock"' EXIT

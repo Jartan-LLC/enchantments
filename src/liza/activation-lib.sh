@@ -4,6 +4,9 @@
 
 # The contract, which activation links from the clone's CLAUDE.local.md.
 liza_contract="$HOME/.liza/CORE.md"
+# The shim's exit code when it refuses an init, which a caller reports as is.
+# shellcheck disable=SC2034 # read by the scripts that source this
+liza_refused=75
 
 # Prints "<path> <fingerprint>" for each existing file or symlink given, so
 # activation can record what it created and deactivation can tell whether it has

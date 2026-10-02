@@ -41,7 +41,7 @@ touch .claude/settings.json.liza-shim-held
 liza init --claude --yes </dev/null >/dev/null 2>&1
 held_rc=$?
 rm .claude/settings.json.liza-shim-held
-check "init refuses while a held settings file exists" test "$held_rc" -ne 0
+check "init refuses while a held settings file exists" test "$held_rc" -eq 75
 check "committed settings.json untouched after the refusal" \
   git diff --quiet -- .claude/settings.json
 
@@ -492,14 +492,18 @@ stub_init "$main-linked" 2>"$stub_home/wt.err"
 refused_rc=$?
 check "init refuses a second worktree of an activated repo" \
   test "$refused_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
-check "and leaves the repo lock free" test ! -e "$repo_lock"
+check "and leaves neither lock behind" \
+  test ! -e "$repo_lock" -a ! -e "$main-linked/.claude/.liza-shim.lock"
 # Activation at create records the refusal's own message.
 (cd "$main-linked" && HOME="$stub_home" bash -c \
   '. "$1/activation-steps.sh" && top=$PWD && activate_clone' _ "$liza_dir") \
   2>/dev/null
+recorded="$stub_home/.cache/enchantments/liza.failures"
 check "activation records the refusal" \
   grep -qF "Liza isn't activated in $main-linked: Liza is active in $main," \
-  "$stub_home/.cache/enchantments/liza.failures"
+  "$recorded"
+check "and not as a failed init" \
+  bash -c "! grep -q 'liza init failed' '$recorded'"
 check "and names the active one" grep -qF "$main," "$stub_home/wt.err"
 check "an odd name gets one escaped exclude line" \
   grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
@@ -555,6 +559,55 @@ stub_deactivate "$edge_clone" 2>/dev/null
 check "deactivate removes a created file the exclude file hid" \
   test ! -e "$edge_clone/.claude/made.txt"
 check "and a created link to a directory" test ! -L "$edge_clone/made-link"
+
+# The shim's own refusals and failures, each told apart by its exit code.
+refusals_clone=$(stub_clone refusals-clone)
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+mkdir "$refusals_clone/.claude/.liza-shim.lock"
+stub_init "$refusals_clone" 2>/dev/null
+clone_lock_rc=$?
+check "init refuses while the clone's own lock is held" \
+  test "$clone_lock_rc" -eq 75 -a -d "$refusals_clone/.claude/.liza-shim.lock"
+rmdir "$refusals_clone/.claude/.liza-shim.lock"
+old_git="$stub_home/old-git"
+mkdir -p "$old_git"
+cat >"$old_git/git" <<EOF
+#!/bin/sh
+case " \$* " in *" worktree list "*" -z "*) exit 129 ;; esac
+exec $(command -v git) "\$@"
+EOF
+chmod +x "$old_git/git"
+(PATH="$old_git:$PATH" stub_init "$refusals_clone") 2>"$stub_home/old-git.err"
+old_git_rc=$?
+check "init refuses git that can't list worktrees" \
+  test "$old_git_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
+check "and says git 2.36 is needed" grep -q "git 2.36" "$stub_home/old-git.err"
+echo 'exit 75' | stub_liza
+stub_init "$refusals_clone" 2>/dev/null
+init_75_rc=$?
+check "an init exiting with the refusal code fails with 1" \
+  test "$init_75_rc" -eq 1
+if [ "$(id -u)" != 0 ]; then
+  chmod a-w "$refusals_clone/.claude"
+  stub_init "$refusals_clone" 2>"$stub_home/no-lock.err"
+  no_lock_rc=$?
+  chmod u+w "$refusals_clone/.claude"
+  check "a lock that can't be created fails with 1" test "$no_lock_rc" -eq 1
+  check "and says so" grep -q "can't create" "$stub_home/no-lock.err"
+fi
+gone_wt="$refusals_clone-gone"
+git -C "$refusals_clone" worktree add -q --detach "$gone_wt" 2>/dev/null
+rm -rf "$gone_wt"
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+stub_init "$refusals_clone" 2>"$stub_home/gone.err"
+check "a worktree whose directory is gone doesn't stop init" \
+  test -L "$refusals_clone/CLAUDE.local.md"
+check "nor makes git print errors" \
+  bash -c "! grep -q fatal: '$stub_home/gone.err'"
 
 # --tools undoes the toolchain's registration, and only with --tools. The home
 # is laid out as claude-code leaves it: a stub claude logs its calls, and

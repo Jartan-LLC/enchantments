@@ -41,18 +41,17 @@ global_contract="$HOME/.claude/CLAUDE.md"
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
-core_contract=$liza_contract
 
-# Refuses this init with exit 75, which init itself never passes on, so a
-# caller can tell a refusal from a failure. The message also goes to the file
+# Refuses this init with $liza_refused, which never reports a failed init, so
+# a caller can tell the two apart. The message also goes to the file
 # $LIZA_SHIM_REFUSAL names, when set, for a caller that records it.
 refuse() { # message...
   echo "liza shim: $*" >&2
   [ -z "${LIZA_SHIM_REFUSAL:-}" ] || printf '%s\n' "$*" >"$LIZA_SHIM_REFUSAL"
-  exit 75
+  exit "$liza_refused"
 }
 
-# Takes a lock directory; refuses when another holder has it.
+# Takes a lock directory, or exits: refusing when another holder has it.
 take_lock() { # dir holder
   mkdir "$1" 2>/dev/null && return 0
   [ -d "$1" ] && refuse "$2 holds $1; remove it with rmdir if none is running."
@@ -65,6 +64,11 @@ take_lock() { # dir holder
 # already-swapped files. Held until the record is written, so a deactivate or
 # another init can't interleave. The repo's lock keeps two worktrees from
 # activating at once. Each is released only by the run that took it.
+# Checked before any git path is built: git paths need 2.31.
+old_git="git can't list this repo's worktrees, so another one's activation"
+old_git+=" can't be ruled out; Liza needs git 2.36 or later."
+git -C "$top" worktree list --porcelain -z >/dev/null 2>&1 \
+  || refuse "$old_git"
 lock="$claude_dir/.liza-shim.lock"
 repo_lock="$(git -C "$top" rev-parse --path-format=absolute \
   --git-common-dir)/liza-activation.lock"
@@ -76,15 +80,16 @@ unlock() {
 trap unlock EXIT
 trap 'exit 130' INT TERM
 mkdir -p "$claude_dir"
-take_lock "$lock" "another init" && have_lock=true
-take_lock "$repo_lock" "another worktree's init" && have_repo_lock=true
+take_lock "$lock" "another init"
+have_lock=true
+take_lock "$repo_lock" "another worktree's init"
+have_repo_lock=true
 # A repo's worktrees share its git hooks and exclude file.
 active=$(other_activation "$top")
 case $? in
   0) refuse "Liza is active in $active, another worktree of this repo; run" \
     "liza-deactivate there first." ;;
-  2) refuse "git can't list this repo's worktrees, so another one's" \
-    "activation can't be ruled out; Liza needs git 2.36 or later." ;;
+  2) refuse "$old_git" ;;
 esac
 if [ -e "$held_settings" ]; then
   refuse "$held_settings exists from an interrupted init; move it back to" \
@@ -245,7 +250,8 @@ fi
 
 "$real_liza" "$@"
 rc=$?
-[ "$rc" -eq 75 ] && rc=1 # 75 means refused
+# The refusal code is the shim's own: init failing with it is still a failure.
+[ "$rc" -eq "$liza_refused" ] && rc=1
 
 release
 trap unlock EXIT
@@ -282,7 +288,7 @@ fi
 # which loads the contract in every project sharing ~/.claude. Keep it in this
 # clone instead.
 if ! $had_global_contract \
-  && [ "$(readlink "$global_contract")" = "$core_contract" ]; then
+  && [ "$(readlink "$global_contract")" = "$liza_contract" ]; then
   rm -- "$global_contract"
 fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
@@ -290,7 +296,7 @@ fi
 # imports.
 contract="$top/CLAUDE.local.md"
 if [ -L "$contract" ] || [ ! -e "$contract" ]; then
-  ln -sfn "$core_contract" "$contract"
+  ln -sfn "$liza_contract" "$contract"
 else
   echo "Warning: $contract is your own file, so Liza's contract was not" \
     "linked there." >&2
