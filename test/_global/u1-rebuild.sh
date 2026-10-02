@@ -49,7 +49,8 @@ no_failures() {
 }
 clean() { test -z "$(git status --porcelain)"; }
 
-check "the five U1 Features are applied" \
+# U1: the Features meant for VS Code's defaultFeatures.
+check "exactly the U1 Features are applied" \
   test "$(cd /usr/local/share/enchantments && echo *)" \
   = "claude-code gh-config grimoire liza liza-toolchain"
 plugins='["claudivis@grimoire","gitwise@grimoire","praxis@grimoire",'
@@ -68,7 +69,10 @@ check "git status is clean" clean
 check "no failures recorded" no_failures
 
 if [ "$pass" = 2 ]; then
-  # A fresh container on the populated volumes.
+  # A fresh container on the populated volumes, whose pins all held.
+  check "nothing was reinstalled" \
+    test -z "$(find /mnt/enchantments/liza/bin /mnt/enchantments/liza/libexec \
+      -newer "$marker" ! -type d 2>/dev/null)"
   for tool in liza rg liza-activate liza-deactivate; do
     check "$tool is in ~/.local/bin" test -x ~/.local/bin/"$tool"
   done

@@ -74,16 +74,24 @@ fi
 
 # The wrappers and the rg link point through ~/.liza.
 $linked || exit 0
-# Wrappers, not links: the scripts find their helpers from their own path.
+# Wrappers, not links: the scripts find their helpers from their own path. A
+# link at the wrapper's path is replaced, never written through.
 write_wrapper() { # name script
-  printf '#!/bin/sh\nexec bash %s "$@"\n' "$here/$2" >"$HOME/.local/bin/$1" \
-    && chmod 755 "$HOME/.local/bin/$1"
+  local path=$HOME/.local/bin/$1
+  rm -f -- "$path" \
+    && printf '#!/bin/sh\nexec bash %s "$@"\n' "$here/$2" >"$path" \
+    && chmod 755 "$path"
+}
+# Only where no rg of your own is.
+link_rg() {
+  local path=$HOME/.local/bin/rg
+  [ -e "$path" ] || [ -L "$path" ] || ln -s "$HOME/.liza/bin/rg" "$path"
 }
 if ! { mkdir -p "$HOME/.local/bin" \
   && write_wrapper liza shim.sh \
   && write_wrapper liza-activate activate.sh \
   && write_wrapper liza-deactivate deactivate.sh \
-  && ln -sfn "$HOME/.liza/bin/rg" "$HOME/.local/bin/rg"; }; then
+  && link_rg; }; then
   record_failure "$id" "couldn't write liza, liza-activate, liza-deactivate" \
     "and rg into $HOME/.local/bin; $retry"
 fi

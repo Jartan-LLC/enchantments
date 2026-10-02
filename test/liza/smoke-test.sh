@@ -2,9 +2,9 @@
 # Runs in the liza Feature's toolchain scenario, from its fixture repo:
 # activates a throwaway clone of HEAD and checks that activation stays
 # local-scope and idempotent, that a failed init leaves the committed settings
-# alone, and that liza-deactivate undoes activation. --tools removes only the
-# context7 registration activation made; it leaves disabledMcpServers alone,
-# since the one-time claude-data cleanup alone removes the old switch-off.
+# alone, and that liza-deactivate undoes activation, including across linked
+# worktrees. --tools removes only the context7 registration activation made,
+# and leaves disabledMcpServers alone.
 
 set -uo pipefail
 
@@ -465,6 +465,37 @@ stub_deactivate "$interrupted_clone" 2>/dev/null
 check "deactivate saves originals left without a record" \
   test "$(cat "$interrupted_clone/.claude/keep/f.sh.pre-liza" 2>/dev/null)" \
   = "user file"
+
+# Linked worktrees share the git hooks and the exclude file: deactivating one
+# leaves what another activation still uses, and the last one removes it.
+main_clone=$(stub_clone wt-main)
+linked="$stub_home/wt-linked"
+git -C "$main_clone" worktree add -q "$linked" 2>/dev/null
+echo '{}' >"$linked/.claude/settings.local.json"
+stub_liza <<'EOF'
+echo hook >"$(git rev-parse --git-path hooks)/liza-test-hook"
+echo created >.claudeignore
+settings "$hook"
+EOF
+stub_init "$main_clone" 2>/dev/null
+stub_init "$linked" 2>/dev/null
+shared_hook="$main_clone/.git/hooks/liza-test-hook"
+main_exclude="$main_clone/.git/info/exclude"
+check "both worktrees activate" \
+  test -f "$shared_hook" -a -L "$main_clone/CLAUDE.local.md" \
+  -a -L "$linked/CLAUDE.local.md"
+stub_deactivate "$main_clone" 2>/dev/null
+check "deactivating one worktree keeps the hook the other uses" \
+  test -f "$shared_hook"
+check "and its exclude line" grep -qx /.claudeignore "$main_exclude"
+check "and leaves the other worktree's status clean" \
+  test -z "$(git -C "$linked" status --porcelain)"
+check "and removes its own created file" test ! -e "$main_clone/.claudeignore"
+stub_deactivate "$linked" 2>/dev/null
+check "deactivating the last worktree removes the hook" \
+  test ! -e "$shared_hook"
+check "and the exclude line" \
+  bash -c "! grep -qx /.claudeignore '$main_exclude'"
 
 # --tools undoes the toolchain's registration, and only with --tools. The home
 # is laid out as claude-code leaves it: a stub claude logs its calls, and

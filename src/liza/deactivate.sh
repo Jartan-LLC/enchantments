@@ -1,9 +1,10 @@
 #!/bin/bash
 # liza-deactivate: undoes activation in this clone, from the record the shim
 # keeps: the settings entries and files activation added (a file edited since is
-# kept and named), its exclude lines and the contract link. --tools instead
-# removes the context7 registration activation made with the toolchain. ~/.liza
-# stays: it's this project's volume.
+# kept and named), its exclude lines and the contract link. While another linked
+# worktree of the repo stays activated, the hooks and exclude lines they share
+# pass to its record instead. --tools instead removes the context7 registration
+# activation made with the toolchain. ~/.liza stays: it's this project's volume.
 # shellcheck source-path=SCRIPTDIR
 
 set -uo pipefail
@@ -11,10 +12,8 @@ set -uo pipefail
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
-# shellcheck source=record_failure.sh
-source "$here/record_failure.sh"
-# shellcheck source=claude_ready.sh
-source "$here/claude_ready.sh"
+# shellcheck source=activation-steps.sh
+source "$here/activation-steps.sh"
 top=$(git rev-parse --show-toplevel) || exit 1
 cd "$top" || exit 1
 failed=()
@@ -37,20 +36,9 @@ remove_created() {
   }
 }
 
-# --- --tools: remove the toolchain's context7 registration, nothing else ---
 if [ "${1:-}" = --tools ]; then
-  claude_ready liza "context7's registration isn't checked" || exit 1
-  # Only the registration activation writes: a context7 you registered yourself
-  # stays.
-  if jq -e --arg p "$top" --arg c "$HOME/.liza/bin/context7-mcp" \
-    '.projects[$p].mcpServers.context7.command == $c' "$claude_json" \
-    >/dev/null 2>&1 \
-    && ! "$claude_bin" mcp remove --scope local context7 >/dev/null; then
-    record_failure liza "removing context7's registration failed; retry" \
-      "from $top: liza-deactivate --tools"
-    exit 1
-  fi
-  exit 0
+  remove_context7
+  exit
 fi
 
 # --- Undo activation, from its record ---
@@ -75,9 +63,43 @@ if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
 fi
 trap 'rmdir "$lock"' EXIT
 
+# Hands the shared hooks and exclude lines to the first other activated
+# worktree, under its lock, and sets receiver to it. Fails when none is
+# activated.
+common=$(git rev-parse --path-format=absolute --git-common-dir)
+hand_over() {
+  local other wt
+  for other in "$common/liza/activation.json" \
+    "$common"/worktrees/*/liza/activation.json; do
+    [ "$other" -ef "$record" ] || [ ! -f "$other" ] && continue
+    if [ "$other" = "$common/liza/activation.json" ]; then
+      wt=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+    else
+      wt=$(dirname "$(cat "${other%/liza/activation.json}/gitdir")")
+    fi
+    [ -d "$wt/.claude" ] || continue # a worktree deleted but not pruned
+    mkdir "$wt/.claude/.liza-shim.lock" 2>/dev/null || {
+      failed+=("handing over to $wt, whose liza init holds its lock")
+      receiver=$wt
+      return 0
+    }
+    jq -L "$here" --slurpfile from "$record" --arg common "$common" \
+      'include "activation-record"; hand_over($from[0]; $common)' "$other" \
+      >"$other.tmp" && mv "$other.tmp" "$other" \
+      || failed+=("handing over to $wt")
+    rm -f "$other.tmp"
+    rmdir "$wt/.claude/.liza-shim.lock"
+    receiver=$wt
+    return 0
+  done
+  return 1
+}
+is_shared() { [[ "$1" == "$common"/* && "$1" != "$common"/worktrees/* ]]; }
+
 drop_lines=() # exclude lines to remove
 kept=()       # files left for the user to check, with where their original is
 accounted=()  # originals the record lists
+shared=false  # whether the shared hooks and exclude lines stay
 if ! jq -e . "$record" >/dev/null 2>&1; then
   # No readable record: only the contract link and any saved originals can be
   # undone.
@@ -97,8 +119,7 @@ else
   fi
   # A user file init overwrote or removed gets its original back, unless Liza's
   # version was edited since; then the original goes beside it.
-  mapfile -t overwritten \
-    < <(jq -r '(.overwritten // [])[] | "\(.path) \(.fp)"' "$record")
+  mapfile -t overwritten < <(record_query overwritten_entries "$record")
   for entry in "${overwritten[@]}"; do
     path=${entry% *}
     original="$record_dir/originals/${path#"$top"/}"
@@ -120,10 +141,16 @@ else
       fi
     fi
   done
+  if hand_over; then
+    shared=true
+    echo "deactivate: $receiver stays activated, so the git hooks and" \
+      "exclude lines it shares with this worktree stay too." >&2
+  fi
   # A file activation created goes, unless it was edited since.
-  mapfile -t recorded < <(jq -r '.files[] | "\(.path) \(.fp)"' "$record")
+  mapfile -t recorded < <(record_query file_entries "$record")
   for entry in "${recorded[@]}"; do
     path=${entry% *}
+    $shared && is_shared "$path" && continue
     now=$(fingerprint "$path")
     [ -n "$now" ] || continue
     if [ "$now" = "$entry" ]; then
@@ -134,16 +161,16 @@ else
   done
   # Liza's own exclude lines name files its tools generate after activation,
   # which go, edits included; one that existed before activation stays.
-  mapfile -t drop_lines < <(jq -r '.exclude_lines[]' "$record")
-  mapfile -t preexisting < <(jq -r '(.preexisting // [])[]' "$record")
+  mapfile -t drop_lines < <(record_query added_exclude_lines "$record")
+  mapfile -t preexisting < <(record_query preexisting_paths "$record")
   for line in "${drop_lines[@]}"; do
-    [[ "$line" == *[*?[]* ]] && continue
-    path="$top/${line#/}"
+    rel=$(exclude_line_path "$line") || continue
+    path="$top/$rel"
     printf '%s\n' "${recorded[@]}" | grep -q -F -- "$path " && continue
     printf '%s\n' "${preexisting[@]}" | grep -q -x -F -- "$path" && continue
     # The shim only saw the top level and .claude/ before init: elsewhere, the
     # file may be the user's.
-    if [[ "${line#/}" == */* && "${line#/}" != .claude/* ]]; then
+    if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
       [ -f "$path" ] && kept+=("$path")
       continue
     fi
@@ -182,11 +209,17 @@ rmdir .claude/hooks .claude/skills 2>/dev/null
 
 # After a failure the exclude lines stay too, so what's left stays hidden until
 # a rerun.
-if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
+if [ ${#failed[@]} -eq 0 ] && ! $shared && [ -f "$exclude_file" ] \
   && [ ${#drop_lines[@]} -gt 0 ]; then
+  # grep exits 1 when no line is left, and 2 when it couldn't read the file.
   grep -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") "$exclude_file" \
     >"$exclude_file.tmp"
-  mv "$exclude_file.tmp" "$exclude_file" || failed+=("exclude cleanup")
+  if [ $? -le 1 ] && mv "$exclude_file.tmp" "$exclude_file"; then
+    :
+  else
+    rm -f "$exclude_file.tmp"
+    failed+=("exclude cleanup")
+  fi
 fi
 # Only a complete undo drops the record and the originals; after a failure they
 # stay, and a rerun picks up where this one stopped.

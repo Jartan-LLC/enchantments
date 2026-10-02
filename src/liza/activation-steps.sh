@@ -43,11 +43,25 @@ find_clone() {
   return 1
 }
 
+# Removes context7's registration for the clone at $top, only when it's the one
+# activation makes: a context7 you registered yourself stays. liza-deactivate
+# --tools runs this alone.
+remove_context7() {
+  claude_ready liza "context7's registration isn't checked" || return 1
+  jq -e --arg p "$top" --arg c "$HOME/.liza/bin/context7-mcp" \
+    '.projects[$p].mcpServers.context7.command == $c' "$claude_json" \
+    >/dev/null 2>&1 || return 0
+  (cd "$top" && "$claude_bin" mcp remove --scope local context7 >/dev/null) \
+    && return 0
+  record_failure liza "removing context7's registration failed; retry from" \
+    "$top: liza-deactivate --tools"
+  return 1
+}
+
 # Without the toolchain, removes the context7 registration it made. Without
 # claude-code, none was made here.
 remove_toolchain_registration() {
-  [ -d "$toolchain" ] || [ ! -d "$claude_code" ] \
-    || bash "$steps_dir/deactivate.sh" --tools
+  [ -d "$toolchain" ] || [ ! -d "$claude_code" ] || remove_context7
 }
 
 # With the toolchain, writes its env.sh and profile hook. configure picks the
@@ -96,7 +110,8 @@ unlink_global_skills() {
 # Activates the clone at $top through the shim, which keeps every write
 # local to it. Arguments go to liza init.
 activate_clone() { # liza-init-args...
-  if ! bash "$steps_dir/shim.sh" init --claude --yes "$@" </dev/null; then
+  if ! (cd "$top" && bash "$steps_dir/shim.sh" init --claude --yes "$@" \
+    </dev/null); then
     record_failure liza "liza init failed in $top, so Liza isn't active" \
       "there; retry from it: liza-activate"
     return
@@ -104,9 +119,9 @@ activate_clone() { # liza-init-args...
   # Never replaced: a context7 you registered yourself stays.
   if [ -d "$toolchain" ] && [ -d "$claude_code" ] \
     && claude_ready liza "context7 isn't registered"; then
-    "$claude_bin" mcp get context7 >/dev/null 2>&1 \
+    (cd "$top" && { "$claude_bin" mcp get context7 >/dev/null 2>&1 \
       || "$claude_bin" mcp add --scope local context7 \
-        -- "$HOME/.liza/bin/context7-mcp" >/dev/null \
+        -- "$HOME/.liza/bin/context7-mcp" >/dev/null; }) \
       || record_failure liza "registering context7 failed; retry from $top:" \
         "liza-activate"
   fi

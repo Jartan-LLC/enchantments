@@ -64,41 +64,44 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-untracked_before=$(git -C "$top" ls-files --others --exclude-standard)
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
+untracked_before=()
+read_top_paths untracked_before "$top" \
+  < <(git -C "$top" ls-files -z --others --exclude-standard)
 git_dir=$(git -C "$top" rev-parse --absolute-git-dir)
 hooks_dir=$(git_path "$top" hooks)
 exclude_file=$(git_path "$top" info/exclude)
 record_dir=$(git_path "$top" liza)
 record="$record_dir/activation.json"
 recorded_files=()
-[ -f "$record" ] \
-  && mapfile -t recorded_files < <(jq -r '.files[].path' "$record" 2>/dev/null)
+[ -f "$record" ] && mapfile -t recorded_files \
+  < <(record_query recorded_paths "$record" 2>/dev/null)
 recorded_before=$(fingerprint "${recorded_files[@]}")
 git_before=$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)
 exclude_before=$(cat "$exclude_file" 2>/dev/null)
 pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 
-# --- Back up the user's files init may clobber --- Liza's init overwrites or
-# removes an untracked file of the user's at a path it writes to. Each such
-# candidate (file or symlink) is copied to originals/ first, and the copy stays
-# only if init changes the file. Liza's own files are skipped, and so is a file
-# an earlier activation already saved: that first copy is the user's.
+# --- Back up the user's files init may clobber ---
+# Liza's init overwrites or removes an untracked file of the user's at a path
+# it writes to. Each such candidate (file or symlink) is copied to originals/
+# first, and the copy stays only if init changes the file. Liza's own files
+# are skipped, and so is a file an earlier activation already saved: that
+# first copy is the user's.
 originals="$record_dir/originals"
-mapfile -t saved < <(jq -r '(.overwritten // [])[].path' "$record" 2>/dev/null)
+mapfile -t saved < <(record_query overwritten_paths "$record" 2>/dev/null)
 declare -A saved_before=()
 for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
-mapfile -t candidates < <({
-  git -C "$top" ls-files --others -- .claude ':(glob)*'
-  git -C "$top" ls-files --others --ignored --exclude-standard \
+candidates=()
+read_top_paths candidates "$top" < <({
+  git -C "$top" ls-files -z --others -- .claude ':(glob)*'
+  git -C "$top" ls-files -z --others --ignored --exclude-standard \
     -- .claude ':(glob)*'
-} | sort -u \
-  | grep -v -x -F -e .claude/settings.local.json -e .claude/settings.json \
-  | sed "s|^|$top/|")
+} | sort -z -u \
+  | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json)
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...
@@ -157,10 +160,10 @@ restore_candidates() {
   prune_originals "${kept[@]}"
 }
 
-# --- Swap the local settings in for init to merge into --- Liza always merges
-# into .claude/settings.json. Putting the local file in its place for the run
-# lets Liza's own merge write the local file, and the committed one is never
-# opened.
+# --- Swap the local settings in for init to merge into ---
+# Liza always merges into .claude/settings.json. Putting the local file in its
+# place for the run lets Liza's own merge write the local file, and the
+# committed one is never opened.
 restore_settings() {
   [ -f "$shared_settings" ] && mv -f "$shared_settings" "$local_settings"
   [ -f "$held_settings" ] && mv -f "$held_settings" "$shared_settings"
@@ -265,11 +268,17 @@ done
 
 # Whatever init just created that git would show (hooks, .claudeignore, skill
 # links) is this clone's activation, not project content: exclude it locally.
-mapfile -t created < <(comm -13 <(sort <<<"$untracked_before") \
-  <(git -C "$top" ls-files --others --exclude-standard | sort) \
-  | sed "s|^|$top/|")
+declare -A was_untracked=()
+for path in "${untracked_before[@]}"; do was_untracked[$path]=1; done
+untracked_after=()
+read_top_paths untracked_after "$top" \
+  < <(git -C "$top" ls-files -z --others --exclude-standard)
+created=()
+for path in "${untracked_after[@]}"; do
+  [ -n "${was_untracked[$path]+set}" ] || created+=("$path")
+done
 for path in "${created[@]}"; do
-  echo "/${path#"$top"/}"
+  exclude_line "${path#"$top"/}"
 done >>"$exclude_file"
 
 # --- Record what this activation changed, so deactivate.sh undoes exactly
@@ -299,8 +308,9 @@ exclude_added=$(comm -13 <(sort -u <<<"$exclude_before") \
   <(sort -u "$exclude_file"))
 preexisting=()
 while IFS= read -r line; do
-  [ -n "$line" ] && [ -n "${fp_before["$top/${line#/}"]+set}" ] \
-    && preexisting+=("$top/${line#/}")
+  [ -n "$line" ] && rel=$(exclude_line_path "$line") \
+    && [ -n "${fp_before["$top/$rel"]+set}" ] \
+    && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
 
 # Each fingerprint list is "<path> <fingerprint>" lines, taken before and after
@@ -308,8 +318,8 @@ done <<<"$exclude_added"
 # files, and the git dir's hooks and liza* files. activation-record.jq folds
 # them into the record.
 mkdir -p "$record_dir"
-[ -f "$record" ] || jq -n '{settings: [], files: [], overwritten: [],
-  exclude_lines: [], preexisting: []}' >"$record"
+[ -f "$record" ] \
+  || jq -n -L "$here" 'include "activation-record"; empty_record' >"$record"
 if ! { jq -L "$here" --slurpfile pre <(printf '%s' "$pre_settings") \
   --slurpfile post "$local_settings" \
   --arg created "$(fingerprint "${created[@]}")" \

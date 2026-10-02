@@ -52,15 +52,20 @@ pinned() { # name
   echo "${!name}"
 }
 
-# Runs an installer unless the tool's recorded pin already matches. A failure
-# is recorded and leaves the pin unrecorded. The architecture is part of the
-# record, since the volume outlives the image.
+# Succeeds when the tool's recorded pin matches. The architecture is part of
+# the record, since the volume outlives the image.
+pin_current() { # tool pin
+  [ "$(cat "$pins/$1" 2>/dev/null)" = "$2 $arch" ]
+}
+
+# Runs an installer unless the tool's pin is current. A failure is recorded and
+# leaves the pin unrecorded.
 install_pinned() { # tool pin installer...
-  local tool=$1 pin="$2 $arch"
-  [ "$(cat "$pins/$tool" 2>/dev/null)" = "$pin" ] && return 0
+  local tool=$1 pin=$2
+  pin_current "$tool" "$pin" && return 0
   echo "Installing $tool ($pin)..."
   if "${@:3}"; then
-    echo "$pin" >"$pins/$tool"
+    echo "$pin $arch" >"$pins/$tool"
   else
     record_failure "$id" "$tool install failed (download, digest mismatch" \
       "or build error); $retry"
@@ -68,22 +73,24 @@ install_pinned() { # tool pin installer...
   fi
 }
 
-# Installs a pinned release binary into bin.
-release_tool() { # tool repo tag-var prefix member
-  local tag=${!3}
+# Installs a release binary into bin, from its pins.sh entry: <prefix>_TAG and
+# the per-arch <prefix>_ASSET and <prefix>_SHA256.
+release_tool() { # tool repo prefix member
+  local tag=${3}_TAG
+  tag=${!tag}
   install_pinned "$1" "$tag" install_asset \
-    "https://github.com/$2/releases/download/$tag/$(pinned "${4}_ASSET")" \
-    "$(pinned "${4}_SHA256")" "$5" "$bin/$1"
+    "https://github.com/$2/releases/download/$tag/$(pinned "${3}_ASSET")" \
+    "$(pinned "${3}_SHA256")" "$4" "$bin/$1"
 }
 
 if command -v unzip >/dev/null; then
-  release_tool ast-grep ast-grep/ast-grep AST_GREP_TAG AST_GREP ast-grep
+  release_tool ast-grep ast-grep/ast-grep AST_GREP ast-grep
 else
   record_failure "$id" "ast-grep ships as a zip, and this image has no" \
     "unzip; install it, then $retry"
 fi
-release_tool yq mikefarah/yq YQ_TAG YQ ""
-release_tool rtk rtk-ai/rtk RTK_TAG RTK rtk
+release_tool yq mikefarah/yq YQ ""
+release_tool rtk rtk-ai/rtk RTK rtk
 # rtk's only arm64 build is glibc-linked. Without its pin, each create retries.
 if [ -e "$bin/rtk" ] && ! "$bin/rtk" --version >/dev/null 2>&1; then
   rm -f "$bin/rtk" "$pins/rtk"
@@ -92,7 +99,7 @@ if [ -e "$bin/rtk" ] && ! "$bin/rtk" --version >/dev/null 2>&1; then
     "still describes rtk, which this container lacks"
 fi
 # mdq publishes no arm64 Linux build, and nothing depends on it.
-[ "$arch" = X86_64 ] && release_tool mdq yshavit/mdq MDQ_TAG MDQ mdq
+[ "$arch" = X86_64 ] && release_tool mdq yshavit/mdq MDQ mdq
 
 # Built from source at a pinned commit, whose go.sum fixes the dependencies,
 # with a pinned Go fetched only when one is stale and deleted afterwards.
@@ -106,8 +113,7 @@ go_tools=(
 stale=()
 for entry in "${go_tools[@]}"; do
   read -r tool repo commit <<<"$entry"
-  [ "$(cat "$pins/$tool" 2>/dev/null)" = "$commit $arch" ] \
-    || stale+=("$entry")
+  pin_current "$tool" "$commit" || stale+=("$entry")
 done
 
 # shellcheck disable=SC2329 # run through install_pinned
@@ -189,6 +195,8 @@ semble_tool() {
   local model=https://huggingface.co/minishlab/potion-code-16M-v2/resolve
   [ -x "$lib/uv/uv" ] || return 1
   tmp=$(mktemp -d) || return 1
+  # No uv.toml or pyproject.toml of the workspace may steer this install.
+  local -x UV_NO_CONFIG=1
   UV_CACHE_DIR=$tmp UV_PYTHON_INSTALL_DIR=$lib/python \
     "$lib/uv/uv" venv -q --clear --managed-python --python 3.12 \
     "$lib/semble" \

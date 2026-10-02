@@ -15,7 +15,8 @@ check "semble's interpreter is in the volume" in_volume
 semble_answers() {
   # shellcheck source=/dev/null # written at create time
   (. ~/.liza/toolchain/env.sh \
-    && HF_HUB_OFFLINE=1 semble search python "$PWD" --content all >/dev/null)
+    && HF_HUB_OFFLINE=1 semble search python "$PWD" --content all \
+    | jq -e '.results | length > 0' >/dev/null)
 }
 check "semble answers from the local model" semble_answers
 check "no failures recorded" \

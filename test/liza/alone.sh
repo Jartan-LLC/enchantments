@@ -23,8 +23,8 @@ check "AGENT_TOOLS.md is the minimal one" \
 check "no rtk or bash-policy hook" no_rtk_or_bash_policy_hook
 check "no failures recorded" \
   test -z "$(ls "$reports"/*.failures* 2>/dev/null)"
-# The onCreateCommand registered context7 before activation: step 1 removes
-# only the registration step 5 writes.
+# The onCreateCommand registered context7 before activation, and activation's
+# cleanup removes only a registration it made.
 check "a context7 Liza didn't register survives" \
   bash -c 'claude mcp get context7 >/dev/null'
 # shellcheck disable=SC2016 # a jq program

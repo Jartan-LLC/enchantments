@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source-path=SCRIPTDIR
 set -e
 # shellcheck source=/dev/null # the CLI adds it at test time
 source dev-container-features-test-lib
@@ -22,7 +23,8 @@ no_hook() { ! hook "$1"; } # command-substring
 semble_answers() {
   # shellcheck source=/dev/null # written at create time
   (. ~/.liza/toolchain/env.sh \
-    && HF_HUB_OFFLINE=1 semble search fixture "$PWD" --content all >/dev/null)
+    && HF_HUB_OFFLINE=1 semble search fixture "$PWD" --content all \
+    | jq -e '.results | length > 0' >/dev/null)
 }
 for tool in ast-grep yq stacklit scip-search functional-clusters mdtoc \
   bash-policy scip-python scip-typescript semble rg; do
@@ -34,7 +36,7 @@ check "semble answers from the local model" semble_answers
 check "no Node, Go or uv lands on PATH" \
   bash -c '! command -v node && ! command -v go && ! command -v uv'
 check "bash-policy's hook is in the local settings" hook bash-policy
-# The onCreateCommand registered context7 before activation: step 5 keeps it.
+# The onCreateCommand registered context7 before activation, which keeps it.
 # shellcheck disable=SC2016 # a jq program
 check "a context7 registered before activation is kept" \
   jq -e --arg p "$PWD" '.projects[$p].mcpServers.context7.command == "true"' \
@@ -57,5 +59,23 @@ else
   check "no failures recorded" \
     test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 fi
+
+# shellcheck source=../../src/liza-toolchain/fetch_verified.sh
+. /usr/local/share/enchantments/liza-toolchain/fetch_verified.sh
+# shellcheck source=../../src/liza-toolchain/install_asset.sh
+. /usr/local/share/enchantments/liza-toolchain/install_asset.sh
+payload=$(mktemp) && echo payload >"$payload"
+dest=$(mktemp -u)
+refuses_wrong_digest() {
+  ! install_asset "file://$payload" "$(printf '0%.0s' {1..64})" "" "$dest" \
+    && [ ! -e "$dest" ]
+}
+installs_right_digest() {
+  install_asset "file://$payload" "$(sha256sum "$payload" | cut -c1-64)" "" \
+    "$dest" && [ -x "$dest" ] && cmp -s "$payload" "$dest"
+}
+check "install_asset refuses a wrong digest and installs nothing" \
+  refuses_wrong_digest
+check "install_asset installs on the right digest" installs_right_digest
 
 reportResults

@@ -77,3 +77,28 @@ def record_activation($pre; $post; $created; $recorded_before; $recorded_after;
       + [$git_after | _entries | .[] | select(_listed($gb) | not)] | unique_by(.path))
   | .exclude_lines = (.exclude_lines + ($exclude_added | split("\n") | map(select(. != ""))) | unique)
   | .preexisting = ((.preexisting // []) + ($preexisting | split("\n") | map(select(. != ""))) | unique);
+
+def empty_record:
+  {settings: [], files: [], overwritten: [], exclude_lines: [], preexisting: []};
+
+# Readers, one line per value.
+def recorded_paths: .files[].path;
+def file_entries: .files[] | "\(.path) \(.fp)";
+def overwritten_paths: (.overwritten // [])[].path;
+def overwritten_entries: (.overwritten // [])[] | "\(.path) \(.fp)";
+def added_exclude_lines: .exclude_lines[];
+def preexisting_paths: (.preexisting // [])[];
+
+# Linked worktrees share the git dir's hooks and its exclude file, which only
+# one activation record lists. A path under $common (the common git dir) but
+# not under one worktree's own git dir there is shared.
+def shared_path($common):
+  startswith($common + "/") and (startswith($common + "/worktrees/") | not);
+def shared_entries($common): [.files[] | select(.path | shared_path($common))];
+
+# Folds $from's shared files and its exclude lines into the record (the input),
+# when $from's worktree deactivates while this one stays active.
+def hand_over($from; $common):
+  .files = (.files + ($from | shared_entries($common)) | unique_by(.path))
+  | .exclude_lines = (.exclude_lines + $from.exclude_lines | unique)
+  | .preexisting = ((.preexisting // []) + ($from.preexisting // []) | unique);
