@@ -31,5 +31,5 @@
 
    If no run after the merge has the id on its `Pending:` line, treat the name as taken: add
    the Feature to no project, delete the package and republish.
-8. **Confirm the package is public** in its GitHub settings; if it's private, make it public.
+8. **Check that the package is public;** if it isn't, make it public in its GitHub settings.
    CI's `visibility` job fails while any package is private.
