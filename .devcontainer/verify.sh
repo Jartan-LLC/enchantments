@@ -1,32 +1,47 @@
 #!/bin/bash
-# Checks that post-create.sh left this container as ACTIVATE_LIZA and INSTALL_LIZA_TOOLS
-# say; post-create itself only warns. CI runs it in a fresh container.
+# Checks that the Features and post-create.sh set this container up; both only report
+# their failures. CI runs it in a fresh container. A Feature's checks run only when its
+# image marker exists, so removing its entry keeps this passing.
 
 set -uo pipefail
 failures=0
 check() {  # description  command...
     if "${@:2}" >/dev/null 2>&1 </dev/null; then echo "ok    $1"; else echo "FAIL  $1"; failures=$((failures + 1)); fi
 }
+has() { test -d "/usr/local/share/enchantments/$1"; }  # id
 
-check "Claude Code CLI runs" claude --version
+# A declared Feature without its marker would skip its checks instead of failing them.
+while read -r id; do
+    check "$id applied" has "$id"
+done < <(grep -o 'ghcr\.io/jartan-llc/enchantments/[a-z0-9-]*' .devcontainer/devcontainer.json | sed 's|.*/||')
+# Covers every Feature hook, grimoire's plugin install included. CI's gh isn't logged in,
+# which gh-config records.
+check "no Feature hook failed" bash -c '! ls ~/.cache/enchantments/*.failures* 2>/dev/null | grep -vF /gh-config.failures'
 check "pre-commit hook wired" test -f "$(git rev-parse --git-path hooks)/pre-commit"
-if [ "${ACTIVATE_LIZA:-false}" = true ]; then
+check "core.hooksPath unset" test -z "$(git config core.hooksPath)"
+if has claude-code; then
+    check "Claude Code CLI runs" claude --version
+fi
+if has gh-config; then
+    check "gh config is the gh-config mount" test "$(readlink -f "$HOME/.config/gh")" = /mnt/enchantments/gh-config
+    check "gh-config mount owned by $(id -un)" test "$(stat -c %U /mnt/enchantments/gh-config)" = "$(id -un)"
+fi
+if has liza; then
     check "Liza activated and recorded" test -L CLAUDE.local.md -a -f "$(git rev-parse --git-path liza)/activation.json"
+    check "ripgrep runs" "$HOME/.local/bin/rg" --version
 else
     check "Liza not activated" test ! -e CLAUDE.local.md
 fi
-if [ "${INSTALL_LIZA_TOOLS:-false}" = true ]; then
+if has liza && has liza-toolchain; then
     # shellcheck disable=SC2016 # $t expands in the inner bash
-    check "Liza toolchain installed" bash -c 'cd ~/.liza/bin && for t in rg ast-grep yq rtk stacklit scip-search \
+    check "Liza toolchain installed" bash -c 'cd ~/.liza/bin && for t in ast-grep yq rtk stacklit scip-search \
         functional-clusters mdtoc bash-policy semble; do [ -x "$t" ] || exit 1; done'
     # mdq publishes no arm64 Linux build.
     [ "$(uname -m)" = x86_64 ] && check "mdq installed" test -x ~/.liza/bin/mdq
-    check "context7 registered" claude mcp get context7
-else
+    has claude-code && check "context7 registered" claude mcp get context7
+fi
+if has codebase-memory-mcp && has claude-code; then
     check "codebase-memory-mcp registered" claude mcp get codebase-memory-mcp
 fi
-check "gh config is a mount" mountpoint -q "$HOME/.config/gh"
-check "gh config owned by vscode" test "$(stat -c %U "$HOME/.config/gh")" = vscode
-check "gh config parent owned by vscode" test "$(stat -c %U "$HOME/.config")" = vscode
 check "git status clean" test -z "$(git status --porcelain)"
 exit $((failures > 0))

@@ -99,6 +99,10 @@ updates:
       day: "monday"
     commit-message:
       prefix: "chore(deps)"
+    # A major moves by hand, with VS Code's defaultFeatures, so the keys stay identical.
+    ignore:
+      - dependency-name: "ghcr.io/jartan-llc/enchantments/*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types:
