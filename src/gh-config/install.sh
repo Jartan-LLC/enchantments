@@ -24,3 +24,4 @@ if ! { mkdir -p "$dest" && cp "$here"/*.sh "$dest"/ \
   rm -rf "$dest"
 fi
 exit 0
+# throwaway: checks the version check
