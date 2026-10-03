@@ -1,8 +1,9 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Tests the release scripts in .github/scripts against throwaway git repos
-# built from this checkout's src/, with a stub devcontainer CLI for the
-# registry. Prints one line per case and exits non-zero if any fails.
+# Tests the CI scripts in .github/scripts, and lib/fetch_verified.sh, against
+# throwaway git repos built from this checkout, with stub devcontainer,
+# docker and curl CLIs. Prints one line per case and exits non-zero if any
+# fails.
 set -uo pipefail
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 root=$(mktemp -d)
@@ -10,8 +11,8 @@ trap 'rm -rf "$root"' EXIT
 # shellcheck source=test_lib.sh
 . "$repo/.github/scripts/test_lib.sh"
 
-# A repo whose base commit copies src/ and the scripts; the change commit
-# follows. Leaves the shell in it, with $base set.
+# A repo whose base commit copies src/, test/ and the scripts; the change
+# commit follows. Leaves the shell in it, with $base set.
 new_repo() {
   cd "$(mktemp -d "$root/repo.XXXX")" || exit 1
   git init -q
@@ -298,7 +299,7 @@ expect_runs() { # name want scenario...
 }
 all=$'rc=0\none\ntwo-rebuild\ntwo-rebuild'
 expect_runs "test-features.sh runs each scenario, a rebuild twice" "$all"
-expect_runs "test-features.sh with an empty scenario runs each" "$all" ""
+expect_runs "test-features.sh with an empty scenario name runs each" "$all" ""
 expect_runs "test-features.sh with a scenario runs only it" $'rc=0\none' one
 expect_runs "test-features.sh with a rebuild scenario runs it twice" \
   $'rc=0\ntwo-rebuild\ntwo-rebuild' two-rebuild

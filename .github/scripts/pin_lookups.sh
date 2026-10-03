@@ -406,11 +406,12 @@ node_sums() ( # version
   keys=https://raw.githubusercontent.com/nodejs/release-keys
   keys+=/$NODE_KEYS_COMMIT/gpg-only-active-keys/pubring.kbx
   sums=https://nodejs.org/dist/$1/SHASUMS256.txt
-  {
-    fetch -o "$tmp/keys.kbx" "$keys" \
-      && [ "$(sha256sum <"$tmp/keys.kbx" | cut -d' ' -f1)" = "$NODE_KEYS_SUM" ]
-  } || {
-    fail_lookup "can't read Node's pinned release keys"
+  fetch -o "$tmp/keys.kbx" "$keys" || {
+    fail_lookup "can't download Node's pinned release keys"
+    exit 1
+  }
+  [ "$(sha256sum <"$tmp/keys.kbx" | cut -d' ' -f1)" = "$NODE_KEYS_SUM" ] || {
+    fail_lookup "Node's release keys don't match NODE_KEYS_SUM"
     exit 1
   }
   { fetch -o "$tmp/sums" "$sums" && fetch -o "$tmp/sums.sig" "$sums.sig"; } \

@@ -433,9 +433,9 @@ expect "an unreadable date fails the lookup" 1 "can't read org/m's head" \
   hf_lookup
 
 # node: the newest LTS release past the cooldown, from a SHASUMS256.txt
-# signed by a pinned release key. Throwaway keys: in the pinned keyring, a
-# good one, one revoked after signing, one expired and one expired and
-# revoked (both made and used in 2020); and one outside it.
+# signed by a pinned release key. Throwaway keys, all in the pinned keyring
+# but stranger: revoked is revoked after signing, and expired and lapsed are
+# made and used in 2020, lapsed then revoked.
 node_sums_url=https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
 sign_sums() { # key [gpg option] (sums on stdin): serves them, signed
   serve "$node_sums_url"
@@ -458,8 +458,8 @@ for k in expired lapsed; do
 done
 if ! gpg --list-secret-keys pinned@test stranger@test revoked@test \
   expired@test lapsed@test >/dev/null 2>&1; then
-  # gpg-agent's socket lives in GNUPGHOME, so a long TMPDIR breaks it.
-  echo "FAIL can't make gpg test keys in $GNUPGHOME"
+  echo "FAIL can't make gpg test keys in $GNUPGHOME: is gpg installed, and" \
+    "the path short enough for gpg-agent's socket?"
   exit 1
 fi
 node_sums_good | sign_sums revoked
@@ -537,7 +537,13 @@ repinned_lookup() {
   node_lookup
 }
 expect "release keys that don't match their pin fail" 1 \
-  "can't read Node's pinned release keys" repinned_lookup
+  "don't match NODE_KEYS_SUM" repinned_lookup
+keys_fixture=$(fixture \
+  "$keys_url/$NODE_KEYS_COMMIT/gpg-only-active-keys/pubring.kbx")
+mv "$keys_fixture" "$root/keys.served"
+expect "release keys that can't be downloaded fail" 1 \
+  "can't download Node's pinned release keys" node_lookup
+mv "$root/keys.served" "$keys_fixture"
 echo "$ones  node-v20.2.0-linux-x64.tar.gz" | sign_sums pinned
 expect "a digest missing from SHASUMS256.txt fails" 1 "no sha256 for" \
   node_lookup

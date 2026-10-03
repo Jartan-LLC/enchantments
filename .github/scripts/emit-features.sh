@@ -3,8 +3,8 @@
 # Writes the test matrix and the base commit to $GITHUB_OUTPUT. The matrix is
 # every Feature, and each _global scenario, on both architectures, all or
 # nothing: consumer scenarios build sibling Features from source, so one
-# Feature's change re-runs every Feature that composes it. _global's
-# scenarios get a job each, as one job running them all is the longest.
+# Feature's change re-runs every Feature that composes it. _global gets a
+# job per scenario, so its long scenarios run side by side.
 # With no base (a manual run, a failed fetch) everything runs, rather than
 # risk skipping a change. EVENT and BEFORE carry github.event_name and
 # github.event.before.
@@ -35,6 +35,7 @@ if [ -n "${base:-}" ]; then
 fi
 if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
   || grep -qE "$tested" <<<"$changed"; then
+  # test-features.sh's own check can't run once _global has no jobs.
   if ! jq -e 'length > 0' test/_global/scenarios.json >/dev/null; then
     echo "::error file=test/_global/scenarios.json::no scenarios"
     exit 1
