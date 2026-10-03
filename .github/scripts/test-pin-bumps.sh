@@ -1034,10 +1034,11 @@ git -C "$seed" push -q origin HEAD:main
 expect "a malformed pins.sh fails a real run" 1 "malformed # pin header" bump
 expect "and is reported against it" 0 \
   "$(printf 'pins\tzzz\tfail')" cat "$root/report"
+# An unknown kind: its lookup fails, which a real run doesn't fail on.
 echo '# pin nosuch zzz-tool' >"$seed/src/zzz/pins.sh"
 commit_seed "fix zzz"
 git -C "$seed" push -q origin HEAD:main
-expect "once it reads, the run passes" 0 "" bump
+expect "once its headers parse, the run no longer fails" 0 "" bump
 expect "and reports it clean" 0 \
   "$(printf 'pins\tzzz\tok')" cat "$root/report"
 
@@ -1132,9 +1133,10 @@ expect "a refused push opens an issue" 0 "create pin-bumps: liza push refused" \
 expect_not "a clean lookup of another tool leaves it open" close \
   issues "lookup${tab}go${tab}ok"
 expect "a clean push closes it" 0 "close 2" issues "push${tab}liza${tab}ok"
-expect "an unreadable pins.sh opens an issue" 0 \
-  "create pin-bumps: zzz pins.sh unreadable" \
+expect "an invalid pin header opens an issue" 0 \
+  "create pin-bumps: zzz pin headers invalid" \
   issues "pins${tab}zzz${tab}fail${tab}no # pin header"
+expect "with its reason" 0 "no # pin header" cat "$ISSUES.body"
 expect "a run that reads it closes it" 0 "close 3" \
   issues "pins${tab}zzz${tab}ok"
 

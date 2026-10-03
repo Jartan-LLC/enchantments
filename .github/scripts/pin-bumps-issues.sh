@@ -1,9 +1,9 @@
 #!/bin/bash
 # Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report,
 # whose rows pin-bumps.sh's header gives: one issue per tool whose lookup
-# failed, and one per Feature whose pins.sh couldn't be read or whose branch
-# couldn't be pushed. Each is updated rather than duplicated, and closed by
-# the first run that reports that tool or Feature clean. Needs
+# failed, and one per Feature whose # pin headers are invalid or whose
+# branch couldn't be pushed. Each is updated rather than duplicated, and
+# closed by the first run that reports that tool or Feature clean. Needs
 # GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN with issues write.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}
@@ -20,7 +20,7 @@ open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
 title() { # lookup|pins|push tool|id
   case $1 in
     lookup) echo "pin-bumps: $2 lookup failing" ;;
-    pins) echo "pin-bumps: $2 pins.sh unreadable" ;;
+    pins) echo "pin-bumps: $2 pin headers invalid" ;;
     push) echo "pin-bumps: $2 push refused" ;;
   esac
 }
@@ -75,7 +75,7 @@ while IFS=$'\t' read -r what name state reason; do
       ;;
     pins/fail)
       {
-        echo "\`pin-bumps.yml\` couldn't read \`src/$name/pins.sh\`'s pin list:"
+        echo "\`src/$name/pins.sh\` has a malformed \`# pin\` header, or none:"
         echo
         quoted "$reason"
         echo

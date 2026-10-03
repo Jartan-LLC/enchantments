@@ -76,13 +76,15 @@ nothing merges it automatically.
   The Feature's PR stays as it is until a run succeeds, which closes the issue. CI's
   `pin-lookups` job runs the lookups, without downloading assets or model files, on each
   PR that changes a `pins.sh`, a lock or its input, the pin-bump scripts or `ci.yml`.
-- **A `pin-bumps: <id> pins.sh unreadable` issue** means a run couldn't read that
-  Feature's `# pin` headers, so it looked none of its pins up, and every run fails until
-  they're fixed. The first run after that closes the issue.
+- **A `pin-bumps: <id> pin headers invalid` issue** means that Feature's `pins.sh` has
+  a malformed `# pin` header, or none, so every run fails. Fix it; the next run closes
+  the issue.
 - **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
   usually because main has workflow changes the workflow can't push. Rebase the branch by
   hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
   closes the issue.
+- **An issue for a Feature or pin since removed** stays open, since no run reports on
+  it again. Close it by hand.
 
 ### The pin-bump App
 
