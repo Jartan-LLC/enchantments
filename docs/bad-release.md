@@ -39,9 +39,11 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    volume=claude-data`, and likewise for the others), since the shared volume carries
    whatever the bad code planted. Don't start or attach to them again: their `postStart`
    and `postAttach` hooks re-run from the image metadata. From a clean host, or the GitHub
-   web UI (Settings → Applications), revoke the gh token. Also revoke Claude sessions and
-   any MCP keys at their issuers. Re-authenticate only on that clean host, which is enough
-   to review and approve the fix.
+   web UI (Settings → Applications), revoke the gh token. In the pin-bump App's settings,
+   under Private keys, generate a new key, keep it on the clean host, and delete every
+   older one: GitHub won't delete an App's only key. Also revoke Claude sessions and any
+   MCP keys at their issuers. Re-authenticate only on that clean host, which is enough to
+   review and approve the fix.
 2. **Audit GitHub for footholds** the token could have left.
    - In the Jartan-LLC audit log (web UI, owners only), review the exposure window and
      undo what it shows: deploy keys, collaborators and invites, webhooks, rulesets,
@@ -72,6 +74,13 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      # ["JartanFTW"]
      ```
 
+   - Check that only main can use the `pin-bumps` environment:
+
+     ```bash
+     gh api repos/Jartan-LLC/enchantments/environments/pin-bumps/deployment-branch-policies --jq '[.branch_policies[].name]'
+     # ["main"]
+     ```
+
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
      approved `publish` runs.
@@ -91,11 +100,15 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:<bad-version>`
    fails where the bad release added a semver tag, and that `:1` still resolves to the fix.
    Past 5,000 downloads, only GitHub Support can remove a version.
-5. **Rebuild clean:** remove every container step 1 stopped, then the `claude-data`,
-   `gh-config` and all `liza-*` volumes, not only the dangling ones. Rebuild the Docker
-   host, and rotate every credential it held or forwarded into containers, including
-   MCP-server keys and tokens stored in `claude-data`. Re-clone workspaces from their
-   remotes instead of reopening the old clones, because hooks may have planted
-   `.git/config`, `.git/hooks` or `.devcontainer/` changes. Only then rebuild the
-   containers and log in inside them again. Containers go first, so new credentials never
-   land in a volume a compromised container still mounts.
+5. **Rebuild clean:**
+   - Remove every container step 1 stopped, then the `claude-data`, `gh-config` and all
+     `liza-*` volumes, not only the dangling ones. Do this first, so new credentials never
+     land in a volume a compromised container still mounts.
+   - Rebuild the Docker host, and rotate every credential it held or forwarded into
+     containers, including MCP-server keys and tokens stored in `claude-data`.
+   - From the clean host, replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY`
+     secret with the key step 1 generated
+     ([The pin-bump App](releasing.md#the-pin-bump-app)), then delete that key's file.
+   - Re-clone workspaces from their remotes instead of reopening the old clones, because
+     hooks may have planted `.git/config`, `.git/hooks` or `.devcontainer/` changes.
+   - Only then rebuild the containers and log in inside them again.

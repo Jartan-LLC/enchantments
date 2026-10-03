@@ -138,6 +138,27 @@ jobs:
         with:
           persist-credentials: false
       - run: .github/scripts/test-scripts.sh
+      - run: .github/scripts/test-pin-bumps.sh
+
+  # Live lookups, only on PRs that change what they read: an upstream that
+  # breaks a lookup on its own would otherwise block every PR and release,
+  # and its pin-bumps issue already flags it.
+  pin-lookups:
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.pins == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: ci/requirements.txt
+          enable-cache: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/pin-bumps.sh --dry-run
 
   vendor-drift:
     runs-on: ubuntu-24.04
@@ -184,6 +205,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       devcontainer: ${{ steps.diff.outputs.devcontainer }}
+      pins: ${{ steps.diff.outputs.pins }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -200,11 +222,20 @@ jobs:
             pull_request) base=HEAD^1 ;;
             push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
           esac
+          changed=$([ -z "${base:-}" ] || git diff --name-only "$base" HEAD)
           # Everything the dev container build reads, post-create's installs included.
           if [ -z "${base:-}" ] \
-              || git diff --name-only "$base" HEAD | grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$' \
-                -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$'; then
+              || grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$' \
+                -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$' <<<"$changed"; then
             echo devcontainer=true >>"$GITHUB_OUTPUT"
+          fi
+          # A pins.sh, a lock or its input, the code that looks them up, the uv
+          # that compiles a lock, or this file.
+          if [ -z "${base:-}" ] \
+              || grep -q -e '^src/[^/]*/pins\.sh$' -e '^src/[^/]*/[^/]*\.in$' -e '^src/[^/]*/[^/]*-requirements\.txt$' \
+                -e '^\.github/scripts/pin' -e '^\.github/scripts/feature_ids\.sh$' -e '^ci/requirements\.txt$' \
+                -e '^\.github/workflows/ci\.yml$' <<<"$changed"; then
+            echo pins=true >>"$GITHUB_OUTPUT"
           fi
 
   devcontainer:
@@ -234,12 +265,12 @@ jobs:
 
   check:
     if: always()
-    needs: [lint, docs, features, test, versions, scripts, vendor-drift, readme-drift, changes, devcontainer]
+    needs: [lint, docs, features, test, versions, scripts, pin-lookups, vendor-drift, readme-drift, changes, devcontainer]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - run: |
-          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.versions.result }}" "${{ needs.scripts.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.devcontainer.result }}")
+          results=("${{ needs.lint.result }}" "${{ needs.docs.result }}" "${{ needs.features.result }}" "${{ needs.test.result }}" "${{ needs.versions.result }}" "${{ needs.scripts.result }}" "${{ needs.pin-lookups.result }}" "${{ needs.vendor-drift.result }}" "${{ needs.readme-drift.result }}" "${{ needs.changes.result }}" "${{ needs.devcontainer.result }}")
           for r in "${results[@]}"; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "Check failed: $r"

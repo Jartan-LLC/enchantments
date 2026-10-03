@@ -7,31 +7,8 @@ set -uo pipefail
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 root=$(mktemp -d)
 trap 'rm -rf "$root"' EXIT
-passed=0
-failed=0
-
-pass() { # name
-  echo "ok   $1"
-  passed=$((passed + 1))
-}
-fail() { # name detail
-  echo "FAIL $1: $2"
-  failed=$((failed + 1))
-}
-# Runs a command and checks its exit status, and that its output contains
-# want (when given).
-expect() { # name status want command...
-  local name=$1 status=$2 want=$3 out rc
-  shift 3
-  out=$("$@" 2>&1)
-  rc=$?
-  if [ "$rc" -eq "$status" ] && { [ -z "$want" ] \
-    || grep -qF -- "$want" <<<"$out"; }; then
-    pass "$name"
-  else
-    fail "$name" "exit $rc, want $status '$want': $out"
-  fi
-}
+# shellcheck source=test_lib.sh
+. "$repo/.github/scripts/test_lib.sh"
 
 # A repo whose base commit copies src/ and the scripts; the change commit
 # follows. Leaves the shell in it, with $base set.
@@ -343,5 +320,4 @@ sed -i '/"manifest grimoire"/d' node_modules/.bin/devcontainer
 expect "check-visibility passes when every Feature is public" 0 "" \
   .github/scripts/check-visibility.sh
 
-echo "$passed passed, $failed failed"
-[ "$failed" -eq 0 ]
+summary
