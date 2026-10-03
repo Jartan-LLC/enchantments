@@ -23,9 +23,9 @@ colorama==0.4.6 ; sys_platform == 'win32' \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via tqdm
-filelock==4.0.3 \
-    --hash=sha256:30cd166e2aee2c7534ce2c33c6367c4cd051b8368e20e2c4eb0c34f699bacfab \
-    --hash=sha256:87296d60478e14204fd9406e79831400fef76693bae2895deec236c98e87a8aa
+filelock==4.0.4 \
+    --hash=sha256:0df72be195ca7892216d16f2edce8d9b93a571f02402972020a8cff84c594c7b \
+    --hash=sha256:90999ed63a26ccf86b93b959ab10cf1017f422d816be454ed54cbed263e71ab5
     # via huggingface-hub
 fsspec==2026.9.0 \
     --hash=sha256:0f08147951c8cb31d844c3547d631053b127863b60be04cf06e121333ee0e2fe \
@@ -428,7 +428,7 @@ safetensors==0.8.0 \
 semble==0.6.1 \
     --hash=sha256:d0045f1516d0f05d739631985f33e2c234eab9ea99f32d6223184827a143428d \
     --hash=sha256:fea96cf60d93555966d57f26604b8ef935bf3f876757568cec9fe655dd651256
-    # via -r req.in
+    # via -r src/liza-toolchain/semble.in
 semble-grammars==0.1.2 \
     --hash=sha256:078ae79ad15442a2922dae46620f778fa237b191ac06e9c29832f079915d4d39 \
     --hash=sha256:52fe698f1d2489e6ad3e6462c9322e77796769b203f74a294f801e5a8bd10f19 \
@@ -513,9 +513,9 @@ typing-extensions==4.16.0 \
     # via
     #   anyio
     #   huggingface-hub
-vicinity==0.4.5 \
-    --hash=sha256:058a7a49574db894a981084428ec2dacbd483df99acd4544660e262721265ae3 \
-    --hash=sha256:d90f82d0ca430ff815ea43daeb100d6cf53a1afba1ca958d6c9a710bc3d1a779
+vicinity==0.4.6 \
+    --hash=sha256:8612a49bf4190bccb58bb3a0c0d34c316653c6fffc01221827032e638da576a6 \
+    --hash=sha256:ce3e33dab3e6f3f028dcfb8414836d19f600f570d5c0cce720ead088a0343cad
     # via semble
 wcwidth==0.9.1 \
     --hash=sha256:03cfca3dcbffa86564290fe3c9978a6191ba003e8ced7f7dbda315fcb3fbe725 \

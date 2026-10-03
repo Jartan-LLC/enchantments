@@ -1,6 +1,6 @@
 {
   "id": "liza-toolchain",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Liza toolchain",
   "description": "Liza's agent toolchain, every tool pinned and verified, installed into the liza Feature's volume.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza-toolchain",
