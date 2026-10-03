@@ -98,14 +98,15 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:<bad-version>`
    fails where the bad release added a semver tag, and that `:1` still resolves to the fix.
    Past 5,000 downloads, only GitHub Support can remove a version.
-5. **Rebuild clean:** remove every container step 1 stopped, then the `claude-data`,
-   `gh-config` and all `liza-*` volumes, not only the dangling ones. Rebuild the Docker
-   host, and rotate every credential it held or forwarded into containers, including
-   MCP-server keys and tokens stored in `claude-data`. From the clean host, generate a
-   new private key for the pin-bump App, delete every old one, and replace the
-   `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY` secret
-   ([The pin-bump App](releasing.md#the-pin-bump-app)). Re-clone workspaces from their
-   remotes instead of reopening the old clones, because hooks may have planted
-   `.git/config`, `.git/hooks` or `.devcontainer/` changes. Only then rebuild the
-   containers and log in inside them again. Containers go first, so new credentials never
-   land in a volume a compromised container still mounts.
+5. **Rebuild clean:**
+   - Remove every container step 1 stopped, then the `claude-data`, `gh-config` and all
+     `liza-*` volumes, not only the dangling ones.
+   - Rebuild the Docker host, and rotate every credential it held or forwarded into
+     containers, including MCP-server keys and tokens stored in `claude-data`.
+   - From the clean host, generate a new private key for the pin-bump App, delete every
+     old one, and replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY` secret
+     ([The pin-bump App](releasing.md#the-pin-bump-app)).
+   - Re-clone workspaces from their remotes instead of reopening the old clones, because
+     hooks may have planted `.git/config`, `.git/hooks` or `.devcontainer/` changes.
+   - Only then rebuild the containers and log in inside them again. Containers go first,
+     so new credentials never land in a volume a compromised container still mounts.

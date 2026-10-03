@@ -28,8 +28,11 @@ jobs:
       contents: read # checkout
       issues: write # the tracking issues, with GITHUB_TOKEN
     steps:
+      # main itself, not the triggering commit: a queued run then runs the same
+      # scripts as the main it works on.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
           persist-credentials: false
           fetch-depth: 0
 

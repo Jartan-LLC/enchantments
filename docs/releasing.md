@@ -55,20 +55,26 @@ automatically, and fail the version check. Push a commit to the PR's branch that
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
 days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's minor
-version and adds its changelog entry. Merge it as above; nothing merges it automatically.
+version and adds its changelog entry. Merge it as in [Releasing a change](#releasing-a-change);
+nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
-  `Excluded:` list, and a newer version is proposed again. Delete an entry from the open
-  PR's `Excluded:` line to allow that version again.
+  `Excluded:` list, and a newer version is proposed again.
+- **To allow a skipped version again,** delete it from the `Excluded:` line of the
+  Feature's most recent pin-bump PR, open or closed. If that PR was closed unmerged, also
+  delete it from the hidden `pin-bumps held:` line in the PR's body.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops rebuilding it and lists newer versions in the
   PR body instead.
 - **For a Liza bump,** push the steps in [Updating pins](#updating-pins) onto
-  `pin-bumps/liza`.
+  `pin-bumps/liza`. If a `pin-bumps/liza-toolchain` PR merges first, raise
+  `liza-toolchain`'s version on `pin-bumps/liza` again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   The Feature's PR stays as it is until a run succeeds, which closes the issue.
-- **A `pin-bumps: <id> push refused` issue** means main has workflow changes the
-  workflow can't push onto the branch. Rebase the branch by hand, as the issue says.
+- **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
+  usually because main has workflow changes the workflow can't push. Rebase the branch by
+  hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
+  closes the issue.
 
 ### The pin-bump App
 
@@ -85,16 +91,16 @@ token start no CI. To set it up, or to replace it:
 ## Updating pins
 
 Each Feature's pins live in `src/<id>/pins.sh`, one `# pin <kind> <tool>` header per pin.
-To update one by hand, pick a release at least 7 days old, then release the change as
-above.
+To update one by hand, pick a release at least 7 days old, then release the change as in
+[Releasing a change](#releasing-a-change).
 
 | Pin | Where | To update |
 |---|---|---|
 | `asset`: liza, ripgrep, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
-| `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it |
-| `node` | the version and each arch's sha256 | the newest LTS, with digests from its `SHASUMS256.txt` |
+| `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it; Hugging Face dates a revision only by its commit, which the uploader sets, accepted since the model is data files and your merge and approval gate it |
+| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt`; nodejs.org dates a release by its files' timestamps, accepted for the same reason |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
 | `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | the command in its header |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
