@@ -14,8 +14,8 @@
 # A lookup that can't tell whether a newer pin exists prints its reason on
 # stderr and returns 1, so an outage never reads as "nothing newer". Every
 # candidate is at least COOLDOWN_DAYS old by the date its upstream reports:
-# a server's timestamp, except hf-model's and node's (docs/releasing.md,
-# Updating pins). The caller sets CUTOFF (epoch seconds), and calls each
+# a server's timestamp, except hf-model's and node's (see those
+# lookups). The caller sets CUTOFF (epoch seconds), and calls each
 # lookup where set -e is off, checking its status itself. DRY_RUN=1
 # downloads no release asset or model file. Needs pins_lib.sh.
 
@@ -333,7 +333,9 @@ lookup_hf_model() { # file tool
     fail_lookup "can't read $model's head"
     return 1
   }
-  # Hugging Face dates a revision only by its commit, which the pusher sets.
+  # Hugging Face dates a revision only by its commit, which the pusher sets;
+  # accepted, since the model is data files and a bump still needs your
+  # merge and ghcr approval.
   if [ "$sha" = "$revision" ] || [ "$when" -gt "$CUTOFF" ]; then
     return 0
   fi
@@ -407,8 +409,8 @@ lookup_node() { # file tool
     fail_lookup "can't read nodejs.org's LTS releases"
     return 1
   }
-  # nodejs.org dates a release by its files' timestamps; accepted
-  # (docs/releasing.md, Updating pins).
+  # nodejs.org dates a release only by its files' timestamps; accepted,
+  # since a bump still needs your merge and ghcr approval.
   {
     cand=$(while read -r at v; do
       when=$(epoch "$at") || exit 1

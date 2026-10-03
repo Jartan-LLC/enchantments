@@ -85,7 +85,8 @@ report_push() { # id ok|refused [reason]
 # Prints the value of a lookup output's first "<field> " line.
 field() { sed -n "s/^$2 //p" "$1" | sed -n 1p; }
 
-# Prints the "From" side of a bump: what moves, for a lock, else the pin.
+# Prints a bump's From cell: a lock's moved requirements at their old
+# versions, else the pin's current value.
 shown_from() { # output
   local from
   from=$(field "$1" from)
@@ -95,8 +96,8 @@ shown_from() { # output
 # --- Lookups ------------------------------------------------------------------
 
 # Looks one pin up into an output file, whose first line names the tool,
-# then reports and prints it. Fails when the lookup did. The lookup reads
-# nothing: stdin is the caller's list of pins.
+# then reports and prints it. Fails when the lookup did. Its stdin is
+# /dev/null, since the caller's loop reads the pin list from stdin.
 look_up_pin() { # id kind tool output
   local id=$1 kind=$2 tool=$3 out=$4 err=$4.err reason
   local lookup=lookup_${2//-/_}
@@ -156,7 +157,7 @@ print_pin() { # id kind output
     line+=", up to date"
   fi
   echo "$line"
-  [ -z "$release" ] || echo "    newest aged release: $release"
+  [ -z "$release" ] || echo "    newest release past the cooldown: $release"
   sed -n -e 's/^change /    /p' -e 's/^note /    note: /p' "$out"
 }
 
@@ -216,12 +217,13 @@ pr_body() { # id excluded-file output...
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
     "approve the \`ghcr\` deployment. To skip these versions for good, close" \
-    "this PR unmerged; a newer version is proposed again. Commits you push" \
-    "here stop the rebuilds until it's closed."
+    "this PR unmerged; newer versions are still proposed. Once you push a" \
+    "commit here, the workflow stops updating this branch, and lists newer" \
+    "versions in this description instead."
   if [ "$id" = liza ]; then
     echo
-    echo "A Liza bump needs the hand steps in \`docs/releasing.md\`" \
-      "(Updating pins): push them onto this branch."
+    echo "A Liza bump also needs the hand steps in \`docs/releasing.md\`" \
+      "(Updating pins), committed on this branch."
   fi
   echo
   excluded_line "${excluded_keys[@]}"

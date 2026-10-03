@@ -1,9 +1,9 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Tests pin-bumps.sh's helpers and lookups offline: the lookups run against
-# stub gh, curl and uv commands that serve fixtures. Every real pins.sh is
-# also checked against the format the lookups parse. Prints one line per case
-# and exits non-zero if any fails.
+# Tests the pin-bump scripts offline: the helpers, each lookup, the PR flow
+# and the tracking issues, against stub gh, curl and uv commands that serve
+# fixtures, and a local bare remote. Every real pins.sh is also checked
+# against the format the lookups parse.
 set -uo pipefail
 scripts=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$scripts/../.." && pwd)
@@ -56,7 +56,6 @@ pins_well_formed() { # file
       *) return 1 ;;
     esac
     [ -n "$prefix" ] || return 1
-    # Every digest under the pin is a sha256.
     while IFS='=' read -r name value; do
       case $name in *_SHA256_*) valid sha256 "$value" || return 1 ;; esac
     done < <(pin_vars "$file" "$tool")
@@ -158,8 +157,8 @@ expect "body_excluded reads a CRLF body's last key" 0 b@v2 \
   body_excluded "$crlf"
 expect "body_held reads a CRLF body" 0 c@v3 body_held "$crlf"
 marked=$'Intro\nExcluded: none\n<!-- pin-bumps held: a@v1 -->\n'
-# shellcheck disable=SC2016 # Markdown backticks
-marked+='Not applied: `b@v2`, since this branch has commits from someone else.'
+marked+="Not applied: \`b@v2\`, since this branch has commits the"
+marked+=" workflow didn't make."
 expect_not "body_without_markers drops the held line" "held:" \
   body_without_markers "$marked"
 expect_not "and the Not applied line" "Not applied" \

@@ -2,7 +2,7 @@ name: Pin bumps
 
 # Proposes newer upstream pins as one PR per Feature (docs/releasing.md,
 # "Pin-bump PRs"). Its PRs come from a GitHub App, since PRs opened with
-# GITHUB_TOKEN start no CI; nothing here merges them.
+# GITHUB_TOKEN start no CI.
 on:
   schedule:
     - cron: "40 4 * * *" # daily, 04:40 UTC (offset from ci.yml and scorecard)
@@ -36,8 +36,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # Pinned by version-file, as in ci.yml. No cache: nothing another job
-      # wrote may reach the job holding the App token.
+      # No cache: nothing another job wrote may reach the job holding the App
+      # token.
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version-file: ci/requirements.txt

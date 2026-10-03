@@ -140,11 +140,9 @@ jobs:
       - run: .github/scripts/test-scripts.sh
       - run: .github/scripts/test-pin-bumps.sh
 
-  # Looks every pins.sh pin up against its live upstream, as pin-bumps.yml
-  # does, without its App token or downloads; red when any lookup fails. Only
-  # on a PR that changes what the lookups read (the `changes` job's pins
-  # output): an upstream that breaks a lookup on its own would otherwise block
-  # every PR and release, and its pin-bumps issue already flags it.
+  # Live lookups, only on PRs that change what they read: an upstream that
+  # breaks a lookup on its own would otherwise block every PR and release,
+  # and its pin-bumps issue already flags it.
   pin-lookups:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.pins == 'true'

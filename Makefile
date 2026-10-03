@@ -61,7 +61,7 @@ readmes:  ## Regenerate each Feature's README from its devcontainer-feature.json
 docs: readmes  ## Regenerate the Feature READMEs, then build the docs site, warnings-as-errors
 	sphinx-build -W -b html docs docs/_build/html
 
-test:  ## Test the CI scripts against throwaway repos, and pin-bumps offline
+test:  ## Test the CI scripts, pin-bumps included, offline against throwaway repos and stubs
 	.github/scripts/test-scripts.sh
 	.github/scripts/test-pin-bumps.sh
 

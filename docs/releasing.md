@@ -59,30 +59,31 @@ version and adds its changelog entry. Merge it as in [Releasing a change](#relea
 nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
-  `Excluded:` list, and a newer version is proposed again.
+  `Excluded:` list, and newer versions are still proposed.
 - **To allow a skipped version again,** delete it from the `Excluded:` line of the
   Feature's most recent pin-bump PR, open or closed. If that PR was closed unmerged, also
-  delete it from the hidden `pin-bumps held:` line in the PR's body.
+  delete it from the `<!-- pin-bumps held: … -->` comment in the PR's body, which shows
+  when you edit the body.
 - **A PR the workflow closes,** with `Closed: nothing newer.` in its body, had nothing
   left to propose. Unlike your close, it excludes nothing.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
-  workflow didn't make, the workflow stops rebuilding it and lists newer versions in the
-  PR body instead.
-- **For a Liza bump,** push the steps in [Updating pins](#updating-pins) onto
+  workflow didn't make, the workflow stops updating it, and lists newer versions on a
+  `Not applied:` line in the PR body instead.
+- **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
   `pin-bumps/liza`, with `liza-toolchain`'s version raise and changelog entry; the PR has
   already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, raise
   `liza-toolchain`'s version on `pin-bumps/liza` again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
-  The Feature's PR stays as it is until a run succeeds, which closes the issue. CI's
-  `pin-lookups` job runs the lookups, without downloading assets or model files, on each
-  PR that changes a `pins.sh`, a lock or its input, the pin-bump scripts or `ci.yml`.
+  Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
+  it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
+  `pin-lookups` job.
 - **A `pin-bumps: <id> pin headers invalid` issue** means that Feature's `pins.sh` has
   a malformed `# pin` header, or none, so every run fails. Fix it; the next run closes
   the issue.
 - **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
-  usually because main has workflow changes the workflow can't push. Rebase the branch by
-  hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
-  closes the issue.
+  usually because main has `.github/workflows/` changes, which the workflow's App can't
+  push. Rebase the branch by hand, as the issue says. The next run that pushes the
+  branch, or finds nothing to push, closes the issue.
 - **An issue for a Feature or pin since removed** stays open, since no run reports on
   it again. Close it by hand.
 
@@ -113,10 +114,10 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | `asset`: liza, ripgrep, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
-| `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it; Hugging Face dates a revision only by its commit, which the uploader sets, accepted since the model is data files and your merge and approval gate it |
-| `node` | the version and each arch's sha256 | the newest LTS (a new major arrives as an ordinary pin-bump PR), with digests from its published `SHASUMS256.txt`; nodejs.org dates a release by its files' timestamps, accepted since your merge and the `ghcr` approval gate it |
+| `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it |
+| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt` |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
-| `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | the command in its header |
+| `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | run the command in its header, then restore the header lines uv replaces |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |

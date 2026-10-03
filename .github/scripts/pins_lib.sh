@@ -6,7 +6,7 @@
 # --- pins.sh ------------------------------------------------------------------
 
 # Prints "<kind> <tool>" for each "# pin <kind> <tool> ..." header, in order.
-# Fails on a "# pin" line without both, which would otherwise go unlooked-up.
+# Fails on a "# pin" line missing either, so no pin is silently skipped.
 pin_list() { # file
   awk '$1 == "#" && $2 == "pin" {
       if (NF < 4) bad = 1
@@ -66,7 +66,8 @@ pin_set() { # file name value
 
 # --- Upstream values ----------------------------------------------------------
 
-# Succeeds when an upstream value fits its pattern; nothing else is written.
+# Succeeds when an upstream value fits its pattern; pins.sh gets only values
+# that pass.
 valid() { # version|name|commit|sha256 value
   case $1 in
     version | name) [[ $2 =~ ^[A-Za-z0-9._+-]+$ ]] ;;
@@ -162,11 +163,10 @@ excluded_line() { echo "Excluded: $(key_list "$@")"; }
 closed_line() { echo "Closed: nothing newer."; }
 held_line() { echo "<!-- pin-bumps held: $* -->"; }
 not_applied_line() { # keys...
-  echo "Not applied: $(key_list "$@"), since this branch has commits from" \
-    "someone else."
+  echo "Not applied: $(key_list "$@"), since this branch has commits the" \
+    "workflow didn't make."
 }
 
-# Prints the body with CRLF line endings made LF.
 body_lf() { tr -d '\r' <<<"$1"; }
 
 body_excluded() { # body
@@ -185,7 +185,6 @@ body_held() { # body
   done
 }
 
-# Prints the body without its Not applied line.
 body_without_not_applied() { # body
   body_lf "$1" | grep -v '^Not applied: ' || true
 }

@@ -66,8 +66,9 @@ while IFS=$'\t' read -r what name state reason; do
         echo
         quoted "$reason"
         echo
-        echo "Its Feature's pin-bump PR stays as it is until a run looks it" \
-          "up again; that run closes this issue."
+        echo "Fix the cause above if it's in the tool's \`pins.sh\` entry or" \
+          "\`.github/scripts/pin_lookups.sh\`; an upstream outage clears by" \
+          "itself. The next run that looks it up closes this issue."
         echo
         echo "Last failure: $RUN_URL"
       } >"$body"
@@ -75,12 +76,13 @@ while IFS=$'\t' read -r what name state reason; do
       ;;
     pins/fail)
       {
-        echo "\`src/$name/pins.sh\` has a malformed \`# pin\` header, or none:"
+        echo "\`pin-bumps.yml\` found a problem in" \
+          "\`src/$name/pins.sh\`'s \`# pin\` headers:"
         echo
         quoted "$reason"
         echo
-        echo "None of the Feature's pins are looked up, and each run fails," \
-          "until it's fixed; the first run after that closes this issue."
+        echo "Fix it; the next run closes this issue. Until then, none of" \
+          "the Feature's pins are looked up, and every run fails."
         echo
         echo "Last failure: $RUN_URL"
       } >"$body"
@@ -92,9 +94,9 @@ while IFS=$'\t' read -r what name state reason; do
         echo
         quoted "$reason"
         echo
-        echo "Usually main has workflow changes the workflow's GitHub App," \
-          "which has no \`workflows\` permission, can't push. Rebase the" \
-          "branch by hand:"
+        echo "This usually means main has changes under" \
+          "\`.github/workflows/\`, which the workflow's GitHub App has no" \
+          "permission to push. Rebase the branch by hand:"
         echo
         echo '```bash'
         echo "git fetch origin"
@@ -103,7 +105,7 @@ while IFS=$'\t' read -r what name state reason; do
         echo "git push --force-with-lease"
         echo '```'
         echo
-        echo "The next run that pushes the branch, or leaves it as it is," \
+        echo "The next run that pushes the branch, or finds nothing to push," \
           "closes this issue."
         echo
         echo "Last refusal: $RUN_URL"
