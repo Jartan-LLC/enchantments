@@ -75,9 +75,20 @@ valid() { # version|name|commit|sha256 value
 # leading v. An rc, nightly or other label never counts as a release.
 numeric_version() { [[ $1 =~ ^v?[0-9]+(\.[0-9]+)+$ ]]; }
 
-# Succeeds when version a is later than b; a leading v is ignored.
+# Prints a version that sort -V orders as PEP 440 does: a leading v goes,
+# and a pre-release (a, b, rc) or dev release is marked to sort before its
+# release, which "~" does for sort -V.
+version_key() { # version
+  sed -E -e 's/^v//' -e 's/([0-9])[.-]?(dev)/\1~~\2/' \
+    -e 's/([0-9])[.-]?(a|alpha|b|beta|c|rc|pre|preview)([0-9])/\1~\2\3/' \
+    <<<"$1"
+}
+
+# Succeeds when version a is later than b.
 version_gt() { # a b
-  local a=${1#v} b=${2#v}
+  local a b
+  a=$(version_key "$1")
+  b=$(version_key "$2")
   [ "$a" != "$b" ] && printf '%s\n%s\n' "$b" "$a" | sort -V -C
 }
 
@@ -141,6 +152,7 @@ key_list() { # keys...
 }
 
 excluded_line() { echo "Excluded: $(key_list "$@")"; }
+closed_line() { echo "Closed: nothing newer."; }
 held_line() { echo "<!-- pin-bumps held: $* -->"; }
 not_applied_line() { # keys...
   echo "Not applied: $(key_list "$@"), since this branch has commits from" \
@@ -164,6 +176,11 @@ body_held() { # body
     | tr ' ' '\n' | while read -r key; do
     if key_ok "$key"; then echo "$key"; fi
   done
+}
+
+# Prints the body without its Not applied line.
+body_without_not_applied() { # body
+  body_lf "$1" | grep -v '^Not applied: ' || true
 }
 
 # Prints the body without its held and Not applied lines.

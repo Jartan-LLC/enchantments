@@ -7,13 +7,16 @@
 #   key <tool>@<value>               (the version, for Excluded: lists)
 #   set <NAME> <value>               (each pins.sh value to write)
 #   lock <path> <file>               (uv-lock: the regenerated lock)
+#   from <text>                      (uv-lock: what moves, shown as From)
 #   change <text>                    (uv-lock: each requirement that moved)
 #   note <text>                      (why a newer version isn't offered)
 # A lookup that can't tell whether a newer pin exists prints its reason on
 # stderr and returns 1, so an outage never reads as "nothing newer". Every
-# candidate is at least COOLDOWN_DAYS old by a server-side date: the caller
-# sets CUTOFF (epoch seconds). DRY_RUN=1 downloads no release asset or model
-# file. Needs pins_lib.sh.
+# candidate is at least COOLDOWN_DAYS old by the date its upstream reports:
+# a server's timestamp, except hf-model's and node's (docs/releasing.md,
+# Updating pins). The caller sets CUTOFF (epoch seconds), and calls each
+# lookup where set -e is off, checking its status itself. DRY_RUN=1
+# downloads no release asset or model file. Needs pins_lib.sh.
 
 lookup_fail() { # reason...
   echo "$*" >&2
@@ -95,8 +98,8 @@ aged_branch_head() { # repo
         return 1
       }
     if [ "$when" -gt "$CUTOFF" ] || ! valid commit "$after"; then continue; fi
-    status=$(compare_status "$1" "$after" "$branch")
-    rc=$?
+    rc=0
+    status=$(compare_status "$1" "$after" "$branch") || rc=$?
     # A 404 is a commit force-pushed away and since collected.
     case $rc in 1) continue ;; 2) return 1 ;; esac
     case $status in identical | ahead) echo "$after" && return 0 ;; esac
@@ -250,12 +253,12 @@ lookup_tag_commit() { # file tool
         return 1
       }
     # A tag on a commit not yet in an aged push waits for one.
-    status=$(compare_status "$repo" "$sha" "$head")
-    rc=$?
+    rc=0
+    status=$(compare_status "$repo" "$sha" "$head") || rc=$?
     [ "$rc" != 2 ] || return 1
     case $status in identical | ahead) ;; *) continue ;; esac
-    status=$(compare_status "$repo" "$commit" "$sha")
-    rc=$?
+    rc=0
+    status=$(compare_status "$repo" "$commit" "$sha") || rc=$?
     [ "$rc" != 1 ] || lookup_fail "$repo doesn't have the pinned commit"
     [ "$rc" = 0 ] || return 1
     # identical: the newer tag is on the pinned commit.
@@ -288,8 +291,8 @@ lookup_branch_commit() { # file tool
   echo "current ${commit:0:12}"
   head=$(aged_branch_head "$repo") || return 1
   [ "$head" != "$commit" ] || return 0
-  status=$(compare_status "$repo" "$commit" "$head")
-  rc=$?
+  rc=0
+  status=$(compare_status "$repo" "$commit" "$head") || rc=$?
   [ "$rc" != 1 ] || lookup_fail "$repo doesn't have the pinned commit"
   [ "$rc" = 0 ] || return 1
   case $status in
@@ -317,6 +320,8 @@ lookup_hf_model() { # file tool
   prefix=$(pin_prefix "$file" "$tool" _REVISION)
   revision=$(pin_get "$file" "${prefix}_REVISION")
   need "${tool}'s revision" "$revision" || return 1
+  need "${tool}'s files" "$(pin_arches "$file" "$tool" "${prefix}_FILE")" \
+    || return 1
   echo "current ${revision:0:12}"
   api=https://huggingface.co/api/models/$model
   {
@@ -390,6 +395,8 @@ lookup_node() { # file tool
   prefix=$(pin_prefix "$file" "$tool" _VERSION)
   version=$(pin_get "$file" "${prefix}_VERSION")
   need "node's version" "$version" || return 1
+  need "node's digests" "$(pin_arches "$file" "$tool" "${prefix}_SHA256")" \
+    || return 1
   echo "current $version"
   {
     index=$(fetch https://nodejs.org/dist/index.json) \
@@ -437,6 +444,8 @@ lookup_go() { # file tool
   prefix=$(pin_prefix "$file" "$tool" _VERSION)
   version=$(pin_get "$file" "${prefix}_VERSION")
   need "go's version" "$version" || return 1
+  need "go's digests" "$(pin_arches "$file" "$tool" "${prefix}_SHA256")" \
+    || return 1
   echo "current $version"
   {
     json=$(fetch 'https://go.dev/dl/?mode=json&include=all') \
@@ -491,7 +500,19 @@ lock_pins() { # file
       END { if (NR) print line }'
 }
 
-max_version() { tr + '\n' <<<"$1" | sort -V | tail -n 1; }
+comma_list() { # items...
+  local IFS=,
+  local list="$*"
+  echo "${list//,/, }"
+}
+
+max_version() { # versions joined by +
+  local v best=''
+  for v in ${1//+/ }; do
+    if [ -z "$best" ] || version_gt "$v" "$best"; then best=$v; fi
+  done
+  echo "$best"
+}
 
 # Regenerates the lock from its input with the cutoff, and offers it only when
 # a requirement moved up and none moved down, so a fix that landed inside the
@@ -499,7 +520,7 @@ max_version() { tr + '\n' <<<"$1" | sort -V | tail -n 1; }
 lookup_uv_lock() { # file tool
   local file=$1 tool=$2 dir lock input new before name old version up=0
   local down='' old_max new_max
-  local -a changes=()
+  local -a changes=() from=() to=()
   dir=$(dirname "$file")
   {
     lock=$dir/$(pin_attr "$file" "$tool" lock) \
@@ -536,6 +557,8 @@ lookup_uv_lock() { # file tool
         down+=" $name"
       fi
       changes+=("$name: $old → $version")
+      from+=("$name==$old")
+      to+=("$name==$version")
     fi
   done < <(LC_ALL=C join -a1 -a2 -e - -o 0,1.2,2.2 <(lock_pins "$lock") \
     <(lock_pins "$new"))
@@ -546,8 +569,8 @@ lookup_uv_lock() { # file tool
     rm -f "$new"
     return 0
   fi
-  version=$(lock_pins "$new" | awk -v t="$tool" '$1 == t { print $2 }')
-  echo "candidate $tool==$version, ${#changes[@]} requirements moved"
+  echo "from $(comma_list "${from[@]}")"
+  echo "candidate $(comma_list "${to[@]}")"
   echo "key $tool@lock-$(lock_pins "$new" | sha256sum | cut -c1-12)"
   echo "lock $lock $new"
   printf 'change %s\n' "${changes[@]}"

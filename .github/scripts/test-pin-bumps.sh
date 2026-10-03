@@ -205,6 +205,7 @@ STUB
 cat >"$root/bin/curl" <<'STUB'
 #!/bin/bash
 # Stub curl: prints a URL's fixture, its headers with -I, or writes it with -o.
+echo "$*" >>"$FIXTURES/curl-args"
 out='' url='' head=''
 while [ "$#" -gt 0 ]; do
   case $1 in
@@ -224,12 +225,15 @@ cat >"$root/bin/uv" <<'STUB'
 # the flags that keep the lock hashed, built from wheels and inside the
 # cooldown.
 args=" $* "
-for flag in --universal --generate-hashes --no-build --no-header --upgrade \
-  "--exclude-newer $UV_CUTOFF"; do
+for flag in --universal --generate-hashes --no-build --no-header --upgrade; do
   [[ $args == *" $flag "* ]] || { echo "stub uv: no $flag" >&2 && exit 3; }
 done
+[ ! -f "$FIXTURES/uv-fails" ] || exit 1
 while [ "$#" -gt 0 ]; do
-  [ "$1" = -o ] && cp "$FIXTURES/lock" "$2"
+  case $1 in
+    --exclude-newer) echo "$2" >"$FIXTURES/uv-cutoff" ;;
+    -o) cp "$FIXTURES/lock" "$2" ;;
+  esac
   shift
 done
 STUB
@@ -522,6 +526,113 @@ expect "and says why" 0 "note keeps the committed lock: it would move anyio" \
 locked semble==1.0.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y"
 expect_not "an unchanged lock isn't" candidate uv_lock
 
+# --- Outages, hostile values and other lookup edges ---------------------------
+
+expect "a lookup fetches over HTTPS only, bounded in time and size" 0 "" \
+  grep -q -e '-fsSL --proto =https --proto-redir =https --max-time' \
+  "$fixtures/curl-args"
+expect "with a size cap" 0 "--max-filesize" cat "$fixtures/curl-args"
+
+expect "version_gt ranks a release candidate below its release" 1 "" \
+  version_gt 1.0rc1 1.0
+expect "and a dev release below an alpha" 0 "" version_gt 1.0a1 1.0.dev1
+expect "and a post release above its release" 0 "" version_gt 1.0.post1 1.0
+
+# A 502 on the newest aged push must fail, not fall back to an older one.
+serve 'repos/example/tool/activity?ref=main&per_page=100' <<EOF
+[{"activity_type": "push", "timestamp": "$old", "after": "$c5"},
+ {"activity_type": "push", "timestamp": "$old", "after": "$c3"}]
+EOF
+echo 'HTTP 502' | serve "repos/example/tool/compare/$c5...main"
+expect "an outage on the newest aged push fails the lookup" 1 \
+  "can't compare" branch
+branch_quiet() { branch 2>/dev/null || true; }
+expect_not "with nothing to write" "set TOOL" branch_quiet
+echo 'HTTP 404' | serve "repos/example/tool/compare/$c5...main"
+cp "$pins" "$root/at-head.sh"
+pin_set "$root/at-head.sh" TOOL_COMMIT "$c3"
+expect_not "a pin already at the aged head stays quiet" candidate \
+  lookup_branch_commit "$root/at-head.sh" tool
+
+# A 502 on a tag's compare must fail, not fall back to an older tag.
+echo "{\"object\": {\"type\": \"commit\", \"sha\": \"$t2\"}}" \
+  | serve repos/example/tagged/git/ref/tags/v1.2.0
+echo 'HTTP 502' | serve "repos/example/tagged/compare/$t2...$t2"
+# The older tag is good, so falling back to it would print a candidate.
+echo '{"status": "ahead"}' | serve "repos/example/tagged/compare/$cur...$t1"
+expect "an outage on a tag's compare fails the lookup" 1 "can't compare" \
+  tag_lookup
+tag_quiet() { tag_lookup 2>/dev/null || true; }
+expect_not "rather than fall back to an older tag" candidate tag_quiet
+
+# Hostile upstream values never reach pins.sh.
+hostile_sha="$(printf 'z%.0s' {1..64})"
+release v1.3.0 "$old" "$hostile_sha" \
+  | serve repos/example/demo/releases/tags/v1.3.0
+releases "$(listed "v1.3.0'" false false "$old")" \
+  "$(listed v1.3.0 false false "$old")" \
+  | serve 'repos/example/demo/releases?per_page=100'
+expect "a malformed digest from GitHub fails the lookup" 1 "malformed" \
+  dry_asset
+release v1.3.0 "$old" "$sha_a" | serve repos/example/demo/releases/tags/v1.3.0
+expect_not "and a tag with a quote is never considered" "v1.3.0'" asset
+echo "{\"object\": {\"type\": \"commit\", \"sha\": \"../$t2\"}}" \
+  | serve repos/example/tagged/git/ref/tags/v1.2.0
+expect "a malformed commit behind a tag fails the lookup" 1 \
+  "can't resolve" tag_lookup
+hf_head "$r2" 2026-08-10T00:00:00.000Z
+echo "[{\"path\": \"config.json\", \"oid\": \"x\"},
+  {\"path\": \"w.safetensors\", \"lfs\": {\"oid\": \"$hostile_sha\"}}]" \
+  | serve "$hf/tree/$r2"
+expect "a malformed model digest fails the lookup" 1 "malformed" hf_lookup
+serve https://nodejs.org/dist/index.json <<'EOF'
+[{"version": "v20.2.0", "date": "2026-08-01", "lts": "Iron"}]
+EOF
+{
+  echo "$hostile_sha  node-v20.2.0-linux-x64.tar.gz"
+  echo "$twos  node-v20.2.0-linux-arm64.tar.gz"
+} | serve https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
+expect "a malformed Node digest fails the lookup" 1 "no sha256" node_lookup
+
+cp "$pins" "$root/odd.sh"
+pin_set "$root/odd.sh" DEMO_ASSET_X86_64 'demo {version}.tar.gz'
+expect "a template that expands to a bad name fails the lookup" 1 \
+  "to a bad name" lookup_asset "$root/odd.sh" demo
+
+# The model's date check: a head older than the pin isn't proposed.
+echo "[{\"path\": \"config.json\", \"oid\": \"x\"},
+  {\"path\": \"w.safetensors\", \"lfs\": {\"oid\": \"$lfs\"}}]" \
+  | serve "$hf/tree/$r2"
+echo '{"lastModified": "2026-08-20T00:00:00.000Z"}' \
+  | serve "$hf/revision/$r1"
+expect_not "a model head older than the pinned revision waits" candidate \
+  hf_lookup
+
+# A pin missing its digests fails rather than bumping only the version.
+for kind in node go; do
+  upper=$(tr '[:lower:]' '[:upper:]' <<<"$kind")
+  {
+    echo "# pin $kind $kind"
+    echo "${upper}_VERSION='v1.0.0'"
+  } >"$root/bare-$kind.sh"
+  expect "a $kind pin without digests fails" 1 "no $kind's digests" \
+    "lookup_$kind" "$root/bare-$kind.sh" "$kind"
+done
+
+# uv-lock: the compile runs with the cutoff, and a failed compile fails.
+locked semble==1.1.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y"
+uv_lock >/dev/null
+expect "the lock compiles up to the cutoff" 0 "$UV_CUTOFF" \
+  cat "$fixtures/uv-cutoff"
+touch "$fixtures/uv-fails"
+expect "a failed compile fails the lookup" 1 "uv pip compile failed" uv_lock
+rm "$fixtures/uv-fails"
+
+# Every real tool name is unique, since issues are titled by tool.
+expect "no two pins share a tool name" 0 "" test -z "$(for f in \
+  "$repo"/src/*/pins.sh; do pin_list "$f"; done | awk '{ print $2 }' \
+  | sort | uniq -d)"
+
 # --- End to end, against a local remote and a stub GitHub ---------------------
 
 # The remote is a bare repo. The stub gh keeps pull requests in $PRS, serves
@@ -551,6 +662,11 @@ pulls=repos/example/repo/pulls
 case "$method $path" in
   "GET users/"*) echo '{"id": 42}' | out ;;
   "GET $pulls?head=example:pin-bumps/demo&state=all&per_page=100")
+    # A competing push, once, after the script's fetch and before its push.
+    if [ -f "${RACE:-}" ]; then
+      rm "$RACE"
+      git -C "$HAND" push -q origin HEAD:pin-bumps/demo
+    fi
     jq reverse "$PRS" | out
     ;;
   "GET $pulls?"*) echo "stub gh: unexpected query $path" >&2 && exit 1 ;;
@@ -609,8 +725,13 @@ git clone -q "$origin" "$run"
 # The tool's newest aged commit, dated from now: the script sets its own
 # cutoff.
 aged_at=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
+recent_at=$(date -u -d '3 days ago' +%Y-%m-%dT%H:%M:%SZ)
+# A push 3 days old comes first, so a run that ignored its cooldown would
+# propose c1.
 tool_head() { # commit
-  echo "[{\"activity_type\": \"push\", \"timestamp\": \"$aged_at\",
+  echo "[{\"activity_type\": \"push\", \"timestamp\": \"$recent_at\",
+    \"after\": \"$c1\"},
+    {\"activity_type\": \"push\", \"timestamp\": \"$aged_at\",
     \"after\": \"$1\"}]" \
     | serve 'repos/example/tool/activity?ref=main&per_page=100'
   echo '{"status": "ahead"}' | serve "repos/example/tool/compare/$1...main"
@@ -645,7 +766,16 @@ release_checks() {
   (cd "$clone" && "$scripts/check-versions.sh" "$(git rev-parse origin/main)")
 }
 
+dry() {
+  (cd "$run" && PATH=$root/e2e-bin:$PATH GITHUB_REPOSITORY=example/repo \
+    "$scripts/pin-bumps.sh" --dry-run)
+}
 tool_head "$c3"
+expect "a dry run shows the candidate past the cooldown" 0 \
+  "demo tool (branch-commit): aaaaaaaaaaaa -> 333333333333" dry
+expect "and opens no PR" 0 "" test "$(pr_count)" = 0
+expect "and pushes no branch" 1 "" \
+  git -C "$origin" rev-parse -q --verify pin-bumps/demo
 expect "a newer pin opens a PR" 0 "demo: opened #1" bump
 expect "the branch holds the new pin" 0 "TOOL_COMMIT='$c3'" remote_file pins.sh
 expect "the branch raises the minor version" 0 '"version": "1.1.0"' \
@@ -680,6 +810,10 @@ tool_head "$c4"
 expect "a newer version updates the open PR" 0 "demo: updated #1" bump
 expect "with the new version held" 0 "held: tool@$c4" pr 1 body
 expect "and no second PR" 0 "" test "$(pr_count)" = 1
+set_pr 1 '.title = "edited"'
+expect "a drifted title is put back" 0 "demo: updated #1" bump
+expect "to the workflow's" 0 "chore(demo): bump pinned tools" pr 1 title
+expect_not "and an unchanged PR isn't touched" "updated" bump
 
 # A failed lookup leaves the branch and PR alone.
 head=$(git -C "$origin" rev-parse pin-bumps/demo)
@@ -775,6 +909,22 @@ expect "a Feature that moved on main moves its branch" 0 \
 expect "onto main" 0 "" parent_is main
 expect "and still passes the version check" 0 "" release_checks
 
+# A merged PR excludes nothing it held.
+set_pr 4 '.state = "closed" | .merged_at = "2026-10-03T00:00:00Z"'
+expect "after a merged PR its versions can be proposed again" 0 \
+  "demo: opened #5" bump
+expect "and the exclusions carry on" 0 "Excluded: \`tool@$c4\`" pr 5 body
+
+# A branch left over from a closed PR is rebuilt on main.
+set_pr 5 '.state = "closed"'
+echo 'name: y' >"$seed/.github/workflows/y.yml"
+commit_seed workflow2
+git -C "$seed" push -q origin HEAD:main
+c8=$(commit_of 8)
+tool_head "$c8"
+expect "a newer version after a close opens a PR" 0 "demo: opened #6" bump
+expect "rebuilt on main, past the workflow change" 0 "" parent_is main
+
 # One Feature's error fails the run only after the others had their turn.
 mkdir -p "$seed/src/aaa"
 cp "$seed/src/demo/devcontainer-feature.json" "$seed/src/demo/CHANGELOG.md" \
@@ -787,6 +937,65 @@ expect "a Feature that errors fails the run" 0 "" test "$aaa_rc" = 1
 expect "naming it" 0 "::error::aaa" echo "$aaa_out"
 expect "after the next Feature had its turn" 0 "demo: pin-bumps/demo" \
   echo "$aaa_out"
+
+# A push landing between the script's fetch and its own loses nothing: the
+# lease refuses the script's.
+git -C "$seed" rm -q -r src/aaa
+commit_seed "drop aaa"
+git -C "$seed" push -q origin HEAD:main
+git -C "$hand" fetch -q origin
+git -C "$hand" reset -q --hard origin/pin-bumps/demo
+echo race >"$hand/src/demo/RACE.md"
+git -C "$hand" add -A
+# The App's own identity, so the script rebuilds rather than defers.
+git -C "$hand" -c user.name='pinbot[bot]' \
+  -c user.email='42+pinbot[bot]@users.noreply.github.com' commit -qm race
+export RACE=$root/race HAND=$hand
+touch "$RACE"
+c9=$(commit_of 9)
+tool_head "$c9"
+race_head=$(git -C "$hand" rev-parse HEAD)
+expect "a push racing another is refused" 0 "push refused" bump
+expect "and the other push stands" 0 "" branch_is "$race_head"
+
+# --- The lock write path, end to end ------------------------------------------
+
+# A Feature whose only pin is a uv lock, on a remote of its own.
+export ORIGIN=$root/lock-origin.git PRS=$root/lock-prs.json
+echo '[]' >"$PRS"
+lockseed=$root/lockseed
+git init -q -b main "$lockseed"
+mkdir -p "$lockseed/src/demo"
+printf '{\n  "id": "demo",\n  "version": "1.0.0"\n}\n' \
+  >"$lockseed/src/demo/devcontainer-feature.json"
+printf '## 1.0.0\n\n- First release.\n' >"$lockseed/src/demo/CHANGELOG.md"
+{
+  echo '# pin uv-lock semble lock=lock.txt input=semble.in'
+  echo "SEMBLE_REQUIREMENTS='lock.txt'"
+} >"$lockseed/src/demo/pins.sh"
+echo semble >"$lockseed/src/demo/semble.in"
+printf '# Regenerate with the documented command.\nsemble==1.0.0 \\\n' \
+  >"$lockseed/src/demo/lock.txt"
+git -C "$lockseed" add -A
+git -C "$lockseed" -c user.name=t -c user.email=t@t commit -qm seed
+git clone -q --bare "$lockseed" "$ORIGIN"
+lockrun=$root/lockrun
+git clone -q "$ORIGIN" "$lockrun"
+locked semble==1.1.0
+lock_bump() {
+  (cd "$lockrun" && PATH=$root/e2e-bin:$PATH GH_TOKEN=token \
+    APP_SLUG=pinbot GITHUB_REPOSITORY=example/repo "$scripts/pin-bumps.sh")
+}
+lock_file() { git -C "$ORIGIN" show "pin-bumps/demo:src/demo/$1"; }
+expect "a newer lock opens a PR" 0 "demo: opened #1" lock_bump
+expect "the lock keeps its header" 0 "" \
+  test "$(lock_file lock.txt | sed -n 1p)" \
+  = "# Regenerate with the documented command."
+expect "under it, the regenerated lock" 0 "semble==1.1.0" lock_file lock.txt
+expect "the changelog lists what moved" 0 "  - semble: 1.0.0 → 1.1.0" \
+  lock_file CHANGELOG.md
+expect "the compile ran with the run's cutoff" 0 \
+  "$(date -u -d '7 days ago' +%Y-%m-%d)" cat "$fixtures/uv-cutoff"
 
 # --- Tracking issues ----------------------------------------------------------
 
@@ -847,5 +1056,10 @@ expect "upstream text in an issue sits in a code block" 0 '```text' \
   cat "$ISSUES.body"
 # shellcheck disable=SC2016 # Markdown backticks
 expect_not "without its backticks" '`@someone`' cat "$ISSUES.body"
+long=$(printf 'x%.0s' {1..400})
+issues "$(printf 'lookup\tzz\tfail\t%s\001bell' "$long")" >/dev/null
+expect "an issue quotes at most 300 characters" 0 "" \
+  test "$(sed -n '/^```text$/{n;p}' "$ISSUES.body" | wc -c)" -le 301
+expect_not "and no control characters" $'\001' cat "$ISSUES.body"
 
 summary

@@ -1,8 +1,9 @@
 #!/bin/bash
-# Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report:
-# one per tool whose lookup failed, and one per Feature whose branch couldn't
-# be pushed. Each is updated rather than duplicated, and closed by the first
-# run that reports that tool or Feature clean. Needs GH_TOKEN with issues
+# Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report
+# (its header gives the rows): one per tool whose lookup failed, and one per
+# Feature whose branch couldn't be pushed. Each is updated rather than
+# duplicated, and closed by the first run that reports that tool or Feature
+# clean. Needs GH_TOKEN with issues
 # write, GITHUB_REPOSITORY and RUN_URL.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}

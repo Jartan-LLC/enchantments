@@ -63,14 +63,18 @@ nothing merges it automatically.
 - **To allow a skipped version again,** delete it from the `Excluded:` line of the
   Feature's most recent pin-bump PR, open or closed. If that PR was closed unmerged, also
   delete it from the hidden `pin-bumps held:` line in the PR's body.
+- **A PR the workflow closes,** with `Closed: nothing newer.` in its body, had nothing
+  left to propose. Unlike your close, it excludes nothing.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops rebuilding it and lists newer versions in the
   PR body instead.
 - **For a Liza bump,** push the steps in [Updating pins](#updating-pins) onto
-  `pin-bumps/liza`. If a `pin-bumps/liza-toolchain` PR merges first, raise
+  `pin-bumps/liza`, with `liza-toolchain`'s version raise and changelog entry; the PR has
+  already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, raise
   `liza-toolchain`'s version on `pin-bumps/liza` again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
-  The Feature's PR stays as it is until a run succeeds, which closes the issue.
+  The Feature's PR stays as it is until a run succeeds, which closes the issue. CI's
+  `pin-lookups` job runs the same lookups, and stays red meanwhile.
 - **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
   usually because main has workflow changes the workflow can't push. Rebase the branch by
   hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
@@ -84,9 +88,9 @@ token start no CI. To set it up, or to replace it:
 1. Create a GitHub App in Jartan-LLC with repository permissions **Contents: Read and
    write** and **Pull requests: Read and write**, and no webhook. Install it only on
    enchantments.
-2. In enchantments' `pin-bumps` environment, which allows only `main`, set the variable
-   `PIN_BUMPS_CLIENT_ID` to the App's Client ID, and the secret `PIN_BUMPS_PRIVATE_KEY` to
-   a private key generated for it.
+2. Create enchantments' `pin-bumps` environment, with its deployment branches limited to
+   `main`. Set its variable `PIN_BUMPS_CLIENT_ID` to the App's Client ID, and its secret
+   `PIN_BUMPS_PRIVATE_KEY` to a private key generated for the App.
 
 ## Updating pins
 
@@ -100,15 +104,15 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
 | `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it; Hugging Face dates a revision only by its commit, which the uploader sets, accepted since the model is data files and your merge and approval gate it |
-| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt`; nodejs.org dates a release by its files' timestamps, accepted for the same reason |
+| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt`; nodejs.org dates a release by its files' timestamps, accepted since your merge and the `ghcr` approval gate it |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
 | `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | the command in its header |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
 
-For a Liza release, in the same PR, raise the versions of both `liza` and `liza-toolchain`,
-and:
+For a Liza release, in the same PR, raise the versions of both `liza` and `liza-toolchain`
+(a pin-bump PR has already raised `liza`'s), and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;

@@ -3,11 +3,15 @@
 # Proposes newer upstream pins, from each src/<id>/pins.sh, as one PR per
 # Feature on the branch pin-bumps/<id> (docs/releasing.md, "Pin-bump PRs").
 # --dry-run only prints each pin's current value and any newer candidate,
-# and changes nothing. Otherwise it needs GH_TOKEN (the App's), APP_SLUG and
-# GITHUB_REPOSITORY, works on origin/main, and writes a report for
-# pin-bumps-issues.sh. Run from the repository root.
+# changes nothing, and exits 1 if any lookup failed. Otherwise it needs
+# GH_TOKEN (the App's), APP_SLUG and GITHUB_REPOSITORY, works on origin/main,
+# and writes a report for pin-bumps-issues.sh, one tab-separated row each:
+#   lookup <tool> ok|fail [reason]
+#   push   <id>   ok|refused [reason]
+# "push ok" means the branch needs no maintainer: pushed, already up to date,
+# left to its hand edits, or its PR closed. Run from the repository root.
 set -euo pipefail
-# So an error inside $(...) stops the Feature too, as in build_commit.
+# An error inside $(...) stops the Feature too; build_commit runs in one.
 shopt -s inherit_errexit
 here=$(dirname "$0")
 # shellcheck source=pins_lib.sh
@@ -32,7 +36,8 @@ done
 CUTOFF=$(date -u -d "$COOLDOWN_DAYS days ago" +%s)
 export DRY_RUN=$dry_run CUTOFF COOLDOWN_DAYS
 : >"$report"
-# Every temp file, the lookups' included, goes and is removed with the run's.
+# TMPDIR points into the run's directory, so every temp file, the lookups'
+# included, is removed with it.
 work=$(mktemp -d)
 export TMPDIR=$work
 if [ "$dry_run" = 1 ]; then
@@ -63,18 +68,52 @@ git_authed() {
     GIT_CONFIG_VALUE_0="$auth" git "$@"
 }
 
-report_row() { # lookup|push tool|id ok|fail|refused [reason]
-  printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:-}" >>"$report"
+# The report's two row kinds; the header above gives their vocabulary.
+report_lookup() { # tool ok|fail [reason]
+  printf 'lookup\t%s\t%s\t%s\n' "$1" "$2" "${3:-}" >>"$report"
+}
+report_push() { # id ok|refused [reason]
+  printf 'push\t%s\t%s\t%s\n' "$1" "$2" "${3:-}" >>"$report"
 }
 
 # Prints the value of a lookup output's first "<field> " line.
 field() { sed -n "s/^$2 //p" "$1" | sed -n 1p; }
 
-print_pin() { # id kind tool output
+# Prints the "From" side of a bump: what moves, for a lock, else the pin.
+shown_from() { # output
+  local from
+  from=$(field "$1" from)
+  echo "${from:-$(field "$1" current)}"
+}
+
+# --- Lookups ------------------------------------------------------------------
+
+# Looks one pin up into $work/<id>/<tool>.out, whose first line names the
+# tool, then reports and prints it. Fails when the lookup did.
+lookup_pin() { # id kind tool
+  local id=$1 kind=$2 tool=$3 out=$work/$1/$3.out err=$work/$1/$3.err reason
+  local lookup=lookup_${2//-/_}
+  echo "tool $tool" >"$out"
+  if declare -F "$lookup" >/dev/null; then
+    "$lookup" "src/$id/pins.sh" "$tool" >>"$out" 2>"$err" </dev/null \
+      && { report_lookup "$tool" ok && print_pin "$id" "$kind" "$out"; } \
+      && return 0
+  else
+    echo "unknown pin kind $kind" >"$err"
+  fi
+  reason=$(tail -n 1 "$err")
+  reason=${reason:-no reason given}
+  echo "$id $tool ($kind): lookup failed: $reason"
+  report_lookup "$tool" fail "$reason"
+  return 1
+}
+
+# Prints one pin's line for the log: current value, and any candidate.
+print_pin() { # id kind output
   local line candidate release
-  candidate=$(field "$4" candidate)
-  release=$(field "$4" release)
-  line="$1 $3 ($2): $(field "$4" current)"
+  candidate=$(field "$3" candidate)
+  release=$(field "$3" release)
+  line="$1 $(field "$3" tool) ($2): $(shown_from "$3")"
   if [ -n "$candidate" ]; then
     line+=" -> $candidate"
   else
@@ -82,7 +121,7 @@ print_pin() { # id kind tool output
   fi
   echo "$line"
   [ -z "$release" ] || echo "    newest aged release: $release"
-  sed -n -e 's/^change /    /p' -e 's/^note /    note: /p' "$4"
+  sed -n -e 's/^change /    /p' -e 's/^note /    note: /p' "$3"
 }
 
 # --- Pull requests ------------------------------------------------------------
@@ -121,17 +160,20 @@ exclusions() { # prs-json
   } | sort -u
 }
 
-pr_body() { # id output...
+# Prints a pin-bump PR's body: the bumps, how to act on them, and the
+# Excluded: and held lines.
+pr_body() { # id excluded-file output...
   local id=$1 out
-  local -a held=() excluded=()
-  shift
+  local -a held=() excluded_keys=()
+  mapfile -t excluded_keys <"$2"
+  shift 2
   echo "Raises \`$id\`'s pins to upstream releases at least $COOLDOWN_DAYS" \
     "days old."
   echo
   echo "| Pin | From | To |"
   echo "|---|---|---|"
   for out in "$@"; do
-    echo "| \`$(basename "$out" .out)\` | $(field "$out" current) |" \
+    echo "| \`$(field "$out" tool)\` | $(shown_from "$out") |" \
       "$(field "$out" candidate) |"
     held+=("$(field "$out" key)")
   done
@@ -146,8 +188,7 @@ pr_body() { # id output...
       "(Updating pins): push them onto this branch."
   fi
   echo
-  mapfile -t excluded <"$work/excluded"
-  excluded_line "${excluded[@]}"
+  excluded_line "${excluded_keys[@]}"
   held_line "${held[@]}"
 }
 
@@ -156,7 +197,7 @@ note_not_applied() { # number body keys...
   local number=$1 body new
   body=$(body_lf "$2")
   shift 2
-  new=$(grep -v '^Not applied: ' <<<"$body" || true)
+  new=$(body_without_not_applied "$body")
   [ "$#" = 0 ] || new+=$'\n'"$(not_applied_line "$@")"
   [ "$new" = "$body" ] \
     || pulls_api PATCH "pulls/$number" "{body: \$b}" --arg b "$new" >/dev/null
@@ -166,23 +207,26 @@ note_not_applied() { # number body keys...
 # excludes nothing: only a maintainer's close does.
 close_pr() { # number body
   local body
-  body="$(body_without_markers "$2")"$'\n\n'"Closed: nothing newer."
+  body="$(body_without_markers "$2")"$'\n\n'"$(closed_line)"
   pulls_api PATCH "pulls/$1" "{body: \$b, state: \"closed\"}" --arg b "$body" \
     >/dev/null
 }
 
-upsert_pr() { # id number body output...
-  local id=$1 number=$2 body=$3 title="chore($1): bump pinned tools"
-  shift 3
-  pr_body "$id" "$@" >"$work/body"
+# Opens the Feature's PR, or brings an open one's title and body up to date.
+upsert_pr() { # id number title body excluded-file output...
+  local id=$1 number=$2 title=$3 body=$4 want="chore($1): bump pinned tools"
+  local excluded_file=$5
+  shift 5
+  pr_body "$id" "$excluded_file" "$@" >"$work/body"
   if [ -z "$number" ]; then
     number=$(pulls_api POST pulls \
       "{title: \$t, head: \$h, base: \"main\", body: \$b}" \
-      --arg t "$title" --arg h "pin-bumps/$id" --rawfile b "$work/body")
+      --arg t "$want" --arg h "pin-bumps/$id" --rawfile b "$work/body")
     echo "$id: opened #$number"
-  elif [ "$(cat "$work/body")" != "$(body_lf "$body")" ]; then
+  elif [ "$title" != "$want" ] \
+    || [ "$(cat "$work/body")" != "$(body_lf "$body")" ]; then
     pulls_api PATCH "pulls/$number" "{title: \$t, body: \$b}" \
-      --arg t "$title" --rawfile b "$work/body" >/dev/null
+      --arg t "$want" --rawfile b "$work/body" >/dev/null
     echo "$id: updated #$number"
   fi
 }
@@ -220,8 +264,8 @@ build_commit() { # id parent output...
           ;;
       esac
     done <"$out"
-    printf -- "- \`%s\`: %s → %s\n" "$(basename "$out" .out)" \
-      "$(field "$out" current)" "$(field "$out" candidate)" >>"$work/entry"
+    printf -- "- \`%s\`: %s → %s\n" "$(field "$out" tool)" \
+      "$(shown_from "$out")" "$(field "$out" candidate)" >>"$work/entry"
     sed -n 's/^change \(.*\)/  - \1/p' "$out" >>"$work/entry"
   done
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
@@ -239,9 +283,10 @@ build_commit() { # id parent output...
 }
 
 # Pushes the commit unless the branch already holds its tree on its parent.
-# A refused push leaves the branch and PR as they are, and is reported for a
-# maintainer; the usual cause is main's workflow changes, which the App, with
-# no workflows permission, can't push.
+# Returns 1 when the push was refused, which it has already reported: the
+# branch and PR then stay as they are, for a maintainer. The usual cause is
+# main's workflow changes, which the App, with no workflows permission, can't
+# push.
 push_branch() { # id remote parent commit
   local id=$1 remote=$2 parent=$3 commit=$4 out reason
   if [ -n "$remote" ] && [ "$(git rev-parse "$remote^")" = "$parent" ] \
@@ -259,25 +304,30 @@ push_branch() { # id remote parent commit
   reason=$(grep -m 1 -i -e refusing -e rejected <<<"$out" \
     || tail -n 1 <<<"$out")
   echo "$id: push refused: $reason"
-  report_row push "$id" refused "$reason"
+  report_push "$id" refused "$reason"
   return 1
 }
 
+# Brings a Feature's branch and PR in line with its newer pins (the outputs
+# with a candidate). Defers to hand edits, closes the PR when nothing is
+# newer, or rebuilds, pushes and opens or updates the PR. Reports the push
+# unless push_branch already did.
 update_feature() { # id output...
-  local id=$1 prs open number='' body='' remote parent commit out key held
-  local authors
+  local id=$1 prs open number='' title='' body='' remote parent commit out
+  local key held authors excluded_file=$work/excluded-$1
   local -a keep=() fresh=()
   shift
   prs=$(feature_prs "$id")
   open=$(jq -c '[.[] | select(.state == "open")] | last // empty' <<<"$prs")
   if [ -n "$open" ]; then
     number=$(jq -r .number <<<"$open")
+    title=$(jq -r '.title // ""' <<<"$open")
     body=$(jq -r '.body // ""' <<<"$open")
   fi
-  exclusions "$prs" >"$work/excluded"
+  exclusions "$prs" >"$excluded_file"
   for out in "$@"; do
     key=$(field "$out" key)
-    if ! grep -qxF "$key" "$work/excluded"; then keep+=("$out"); fi
+    if ! grep -qxF "$key" "$excluded_file"; then keep+=("$out"); fi
   done
 
   # Hand edits win: list what's newer than the branch holds, and leave it.
@@ -292,7 +342,7 @@ update_feature() { # id output...
         if ! grep -qxF "$key" <<<"$held"; then fresh+=("$key"); fi
       done
       note_not_applied "$number" "$body" "${fresh[@]}"
-      report_row push "$id" ok
+      report_push "$id" ok
       return 0
     fi
   fi
@@ -302,7 +352,7 @@ update_feature() { # id output...
       close_pr "$number" "$body"
       echo "$id: closed #$number, nothing newer"
     fi
-    report_row push "$id" ok
+    report_push "$id" ok
     return 0
   fi
 
@@ -311,60 +361,58 @@ update_feature() { # id output...
   parent=$(choose_parent "$id" "$number" "$remote")
   commit=$(build_commit "$id" "$parent" "${keep[@]}")
   push_branch "$id" "$remote" "$parent" "$commit" || return 0
-  upsert_pr "$id" "$number" "$body" "${keep[@]}"
-  report_row push "$id" ok
+  upsert_pr "$id" "$number" "$title" "$body" "$excluded_file" \
+    "${keep[@]}"
+  report_push "$id" ok
 }
 
 # --- The run ------------------------------------------------------------------
 
-if [ "$dry_run" = 0 ]; then
-  setup_app
-  git_authed fetch -q --prune origin \
-    '+refs/heads/main:refs/remotes/origin/main' \
-    '+refs/heads/pin-bumps/*:refs/remotes/origin/pin-bumps/*'
-  git checkout -q --detach origin/main
-fi
-
-status=0
-for id in $(feature_ids); do
-  pins=src/$id/pins.sh
-  [ -f "$pins" ] || continue
-  mkdir -p "$work/$id"
-  failed=0
-  outputs=()
-  while read -r kind tool; do
-    out=$work/$id/$tool.out
-    lookup=lookup_${kind//-/_}
-    if ! declare -F "$lookup" >/dev/null; then
-      echo "unknown pin kind $kind" >"$work/$id/$tool.err"
-      false
-    else
-      "$lookup" "$pins" "$tool" >"$out" 2>"$work/$id/$tool.err" </dev/null
-    fi || {
-      failed=1
-      reason=$(tail -n 1 "$work/$id/$tool.err")
-      echo "$id $tool ($kind): lookup failed: ${reason:-no reason given}"
-      report_row lookup "$tool" fail "${reason:-no reason given}"
-      continue
-    }
-    report_row lookup "$tool" ok
-    print_pin "$id" "$kind" "$tool" "$out"
-    [ -z "$(field "$out" candidate)" ] || outputs+=("$out")
-  done < <(pin_list "$pins")
-  # A failed lookup leaves the Feature's branch and PR as they are.
-  [ "$dry_run" = 0 ] && [ "$failed" = 0 ] || continue
-  # Each Feature in a subshell with set -e of its own: an error fails the
-  # run, but only after every Feature had its turn.
-  set +e
-  (
-    set -e
-    update_feature "$id" "${outputs[@]}"
-  )
-  rc=$?
-  set -e
-  if [ "$rc" != 0 ]; then
-    echo "::error::$id: pin bumps failed (exit $rc)"
-    status=1
+main() {
+  local id kind tool failed any_failed=0 rc status=0
+  local -a ids outputs
+  [ -d src ] || { echo "run from the repository root" >&2 && return 2; }
+  if [ "$dry_run" = 0 ]; then
+    setup_app
+    git_authed fetch -q --prune origin \
+      '+refs/heads/main:refs/remotes/origin/main' \
+      '+refs/heads/pin-bumps/*:refs/remotes/origin/pin-bumps/*'
+    git checkout -q --detach origin/main
   fi
-done
-exit "$status"
+  mapfile -t ids < <(feature_ids)
+  for id in "${ids[@]}"; do
+    [ -f "src/$id/pins.sh" ] || continue
+    mkdir -p "$work/$id"
+    failed=0
+    outputs=()
+    while read -r kind tool; do
+      if lookup_pin "$id" "$kind" "$tool"; then
+        [ -z "$(field "$work/$id/$tool.out" candidate)" ] \
+          || outputs+=("$work/$id/$tool.out")
+      else
+        failed=1
+        any_failed=1
+      fi
+    done < <(pin_list "src/$id/pins.sh")
+    # A failed lookup leaves the Feature's branch and PR as they are.
+    [ "$dry_run" = 0 ] && [ "$failed" = 0 ] || continue
+    # Each Feature in a subshell with set -e of its own: an error fails the
+    # run, but only after every Feature had its turn.
+    set +e
+    (
+      set -e
+      update_feature "$id" "${outputs[@]}"
+    )
+    rc=$?
+    set -e
+    if [ "$rc" != 0 ]; then
+      echo "::error::$id: pin bumps failed (exit $rc)"
+      status=1
+    fi
+  done
+  # A dry run is CI's check that every lookup still works.
+  [ "$dry_run" = 0 ] || [ "$any_failed" = 0 ] || status=1
+  return "$status"
+}
+
+main
