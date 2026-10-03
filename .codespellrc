@@ -1,5 +1,4 @@
 [codespell]
 # Skip generated/legal/vendored text. Add false positives via:
 #   ignore-words-list = word1,word2
-ignore-words-list = fpr
 skip = ./.git,./.venv,./node_modules,./dist,./build,./docs/_build,*.lock,*-lock.json,LICENSE*

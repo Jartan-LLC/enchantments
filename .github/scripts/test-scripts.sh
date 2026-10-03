@@ -237,6 +237,15 @@ else
   fail "PR, docs change" "$out"
 fi
 
+new_repo
+echo '{}' >test/_global/scenarios.json
+commit
+if grep -qx rc=1 <<<"$(emit schedule)"; then
+  pass "_global without scenarios fails"
+else
+  fail "_global without scenarios" "$(emit schedule)"
+fi
+
 # grep -q exits at its first match; piped, a long git diff would die of
 # SIGPIPE, which pipefail would read as no match.
 new_repo
@@ -297,6 +306,37 @@ expect_runs "test-features.sh with an unknown scenario runs none" \
   $'rc=1\n' nope
 expect "test-features.sh names the unknown scenario" 1 \
   "no scenario named nope" features_test nope
+
+# --- lib/fetch_verified.sh, against a stub curl ---
+
+# The stub rejects --retry-all-errors when OLD_CURL is set, as curl before
+# 7.71 does, and logs each download's flags.
+stubs=$(mktemp -d "$root/curl.XXXX")
+cat >"$stubs/curl" <<'EOF'
+#!/bin/bash
+if [ "$2" = --version ]; then
+  [ -z "${OLD_CURL:-}" ]
+  exit
+fi
+echo "$*" >>"$STUB_LOG"
+exit 22
+EOF
+chmod +x "$stubs/curl"
+retry_flags() { # old (non-empty for an old curl)
+  : >"$STUB_LOG"
+  (
+    # shellcheck source=../../lib/fetch_verified.sh
+    . "$repo/lib/fetch_verified.sh"
+    PATH=$stubs:$PATH OLD_CURL=$1 fetch_verified https://x 00 "$root/dest"
+  )
+  grep -c -- --retry-all-errors "$STUB_LOG"
+}
+if [ "$(retry_flags '')" = 1 ] && [ "$(retry_flags old)" = 0 ] \
+  && grep -q -- '--retry 3' "$STUB_LOG"; then
+  pass "fetch_verified retries every error where curl can"
+else
+  fail "fetch_verified's retries" "$(cat "$STUB_LOG")"
+fi
 
 # --- check-pending.sh and check-visibility.sh, against a stub CLI ---
 

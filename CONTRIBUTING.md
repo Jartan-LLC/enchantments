@@ -12,6 +12,7 @@ the pre-commit hook; rerun it after dependencies change.
 
 Requires Python 3.12+, [uv](https://docs.astral.sh/uv/getting-started/installation/) and
 Node.js: `make install` installs the pinned devcontainer CLI, and `make docs` runs it.
+`make test` also needs gpg.
 `make lint` runs the [pre-commit](https://pre-commit.com/) hooks; some need
 Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has both.
 

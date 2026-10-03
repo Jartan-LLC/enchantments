@@ -418,17 +418,27 @@ node_sums() ( # version
       fail_lookup "can't read Node $1's SHASUMS256.txt or its signature"
       exit 1
     }
-  # gpg exits 0 for a good signature from a revoked key, so read its status.
-  status=$(GNUPGHOME=$tmp gpg --batch --no-default-keyring \
-    --keyring "$tmp/keys.kbx" --trust-model always --status-fd 1 \
-    --verify "$tmp/sums.sig" "$tmp/sums" 2>/dev/null) || true
+  gpg_keys() { GNUPGHOME=$tmp gpg --batch --no-default-keyring \
+    --keyring "$tmp/keys.kbx" --trust-model always "$@" 2>/dev/null; }
+  status=$(gpg_keys --status-fd 1 --verify "$tmp/sums.sig" "$tmp/sums") \
+    || true
   case $status in
-    *'[GNUPG:] REVKEYSIG '*) why='is signed by a revoked release key' ;;
     *'[GNUPG:] VALIDSIG '*) why='' ;;
     *'[GNUPG:] BADSIG '*) why="doesn't match its signature" ;;
     *'[GNUPG:] NO_PUBKEY '*) why="isn't signed by a pinned release key" ;;
     *) why="has a signature gpg couldn't check" ;;
   esac
+  # gpg passes a good signature from a revoked key, and calls one from a
+  # revoked, expired key merely expired: ask for the key's own validity.
+  if [ -z "$why" ]; then
+    signer=$(awk '$2 == "VALIDSIG" { print $NF }' <<<"$status")
+    validity=$(gpg_keys --with-colons --list-keys "$signer" \
+      | awk -F: '$1 == "pub" { print $2 }')
+    case $validity in
+      r) why='is signed by a revoked release key' ;;
+      '') why="has a signature gpg couldn't check" ;;
+    esac
+  fi
   if [ -n "$why" ]; then
     fail_lookup "Node $1's SHASUMS256.txt $why"
     exit 1

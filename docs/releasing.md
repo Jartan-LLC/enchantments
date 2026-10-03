@@ -76,7 +76,9 @@ nothing merges it automatically.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
-  `pin-lookups` job.
+  `pin-lookups` job. A `node` lookup that says a release doesn't match its signature,
+  or is signed by a revoked key, means don't pin that release; the issue closes once a
+  newer one verifies.
 - **A `pin-bumps: <id> pin headers invalid` issue** means that Feature's `pins.sh` has
   a malformed `# pin` header, or none, so every run fails. Fix it; the next run closes
   the issue.

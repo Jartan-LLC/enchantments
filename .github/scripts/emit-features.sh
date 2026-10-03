@@ -35,6 +35,10 @@ if [ -n "${base:-}" ]; then
 fi
 if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
   || grep -qE "$tested" <<<"$changed"; then
+  if ! jq -e 'length > 0' test/_global/scenarios.json >/dev/null; then
+    echo "::error file=test/_global/scenarios.json::no scenarios"
+    exit 1
+  fi
   matrix=$(printf '%s\n' "$ids" \
     | jq -Rnc --slurpfile g test/_global/scenarios.json '
       [inputs | select(. != "") | {id: .}]

@@ -433,12 +433,13 @@ expect "an unreadable date fails the lookup" 1 "can't read org/m's head" \
   hf_lookup
 
 # node: the newest LTS release past the cooldown, from a SHASUMS256.txt
-# signed by a pinned release key. Throwaway keys: two in the pinned keyring,
-# one of them revoked after signing, and one outside it.
+# signed by a pinned release key. Throwaway keys: in the pinned keyring, a
+# good one, one revoked after signing, one expired and one expired and
+# revoked (both made and used in 2020); and one outside it.
 node_sums_url=https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
-sign_sums() { # key (sums on stdin): serves them with its signature
+sign_sums() { # key [gpg option] (sums on stdin): serves them, signed
   serve "$node_sums_url"
-  gpg --batch --yes --local-user "$1@test" --detach-sign -o - \
+  gpg --batch --yes ${2:+"$2"} --local-user "$1@test" --detach-sign -o - \
     "$(fixture "$node_sums_url")" 2>/dev/null | serve "$node_sums_url.sig"
 }
 node_sums_good() {
@@ -451,19 +452,30 @@ for k in pinned stranger revoked; do
   gpg --batch --quiet --passphrase '' --quick-gen-key "$k@test" ed25519 \
     sign never 2>/dev/null
 done
+for k in expired lapsed; do
+  gpg --batch --quiet --passphrase '' --faked-system-time=20200101T000000! \
+    --quick-gen-key "$k@test" ed25519 sign 1d 2>/dev/null
+done
 if ! gpg --list-secret-keys pinned@test stranger@test revoked@test \
-  >/dev/null 2>&1; then
+  expired@test lapsed@test >/dev/null 2>&1; then
   # gpg-agent's socket lives in GNUPGHOME, so a long TMPDIR breaks it.
   echo "FAIL can't make gpg test keys in $GNUPGHOME"
   exit 1
 fi
 node_sums_good | sign_sums revoked
 cp "$(fixture "$node_sums_url.sig")" "$root/revoked.sig"
-revoked=$(gpg --with-colons --list-keys revoked@test \
-  | awk -F: '/^fpr/ { print $10; exit }')
-sed 's/^:-----/-----/' "$GNUPGHOME/openpgp-revocs.d/$revoked.rev" \
-  | gpg --batch --quiet --import 2>/dev/null
-gpg --batch --export pinned@test revoked@test >"$root/pinned.pub"
+for k in expired lapsed; do
+  node_sums_good | sign_sums "$k" --faked-system-time=20200101T120000!
+  cp "$(fixture "$node_sums_url.sig")" "$root/$k.sig"
+done
+for k in revoked lapsed; do
+  fp=$(gpg --with-colons --list-keys "$k@test" \
+    | awk -F: '/^fpr/ { print $10; exit }') # codespell:ignore fpr
+  sed 's/^:-----/-----/' "$GNUPGHOME/openpgp-revocs.d/$fp.rev" \
+    | gpg --batch --quiet --import 2>/dev/null
+done
+gpg --batch --export pinned@test revoked@test expired@test lapsed@test \
+  >"$root/pinned.pub"
 gpg --batch --quiet --no-default-keyring --keyring "$root/keys.kbx" \
   --import "$root/pinned.pub" 2>/dev/null
 NODE_KEYS_SUM=$(sha256sum <"$root/keys.kbx" | cut -d' ' -f1)
@@ -499,6 +511,12 @@ node_sums_good | serve "$node_sums_url"
 serve "$node_sums_url.sig" <"$root/revoked.sig"
 expect "SHASUMS256.txt signed by a since-revoked key fails" 1 \
   "signed by a revoked release key" node_lookup
+serve "$node_sums_url.sig" <"$root/lapsed.sig"
+expect "SHASUMS256.txt signed by a revoked, expired key fails" 1 \
+  "signed by a revoked release key" node_lookup
+serve "$node_sums_url.sig" <"$root/expired.sig"
+expect "SHASUMS256.txt signed by a since-expired key passes" 0 \
+  "candidate v20.2.0" node_lookup
 node_sums_good | sign_sums pinned
 mkdir "$root/nogpg"
 printf '#!/bin/sh\nexit 2\n' >"$root/nogpg/gpg"
