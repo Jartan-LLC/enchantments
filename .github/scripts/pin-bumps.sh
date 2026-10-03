@@ -5,10 +5,10 @@
 # --dry-run only prints each pin's current value and any newer candidate,
 # changes nothing, and exits 1 if any lookup failed. Otherwise it needs
 # GH_TOKEN (the App's), APP_SLUG and GITHUB_REPOSITORY, works on origin/main,
-# exits 1 only when a Feature's update errors (a failed lookup is reported,
-# not fatal), and writes a report for pin-bumps-issues.sh, one tab-separated
-# row each:
-#   lookup <tool> ok|fail [reason]
+# exits 1 when a Feature's update errors or its pins.sh can't be read (a
+# failed lookup is reported, not fatal), and writes a report for
+# pin-bumps-issues.sh, one tab-separated row each:
+#   lookup <tool>|<id>/pins.sh ok|fail [reason]
 #   push   <id>   ok|refused [reason]
 # "push ok" means the branch needs no maintainer: pushed, already up to date,
 # left to its hand edits, or its PR closed. Run from the repository root.
@@ -93,7 +93,7 @@ shown_from() { # output
 # Looks one pin up into an output file, whose first line names the tool,
 # then reports and prints it. Fails when the lookup did. The lookup reads
 # nothing: stdin is the caller's list of pins.
-lookup_pin() { # id kind tool output
+look_up_pin() { # id kind tool output
   local id=$1 kind=$2 tool=$3 out=$4 err=$4.err reason
   local lookup=lookup_${2//-/_}
   echo "tool $tool" >"$out"
@@ -112,22 +112,25 @@ lookup_pin() { # id kind tool output
 }
 
 # Looks every pin of a Feature up, and prints the outputs that hold a
-# candidate. Fails when a lookup failed or the pin list can't be read.
-lookup_feature() { # id
-  local id=$1 kind tool out pinned failed=0
-  pinned=$(pin_list "src/$id/pins.sh") || {
-    echo "$id: src/$id/pins.sh has a malformed # pin header" >&2
-    return 1
-  }
-  [ -n "$pinned" ] || {
-    echo "$id: src/$id/pins.sh has no # pin header" >&2
-    return 1
-  }
+# candidate. Returns 1 when a lookup failed, and 2, reported against
+# <id>/pins.sh, when the pin list can't be read.
+look_up_feature() { # id
+  local id=$1 kind tool out pinned reason='' failed=0
+  if ! pinned=$(pin_list "src/$id/pins.sh"); then
+    reason="src/$id/pins.sh has a malformed # pin header"
+  elif [ -z "$pinned" ]; then
+    reason="src/$id/pins.sh has no # pin header"
+  fi
+  if [ -n "$reason" ]; then
+    echo "$id: $reason" >&2
+    report_lookup "$id/pins.sh" fail "$reason"
+    return 2
+  fi
   mkdir -p "$work/$id"
   while read -r kind tool; do
     [ -n "$kind" ] || continue
     out=$work/$id/$tool.out
-    if lookup_pin "$id" "$kind" "$tool" "$out" >&2; then
+    if look_up_pin "$id" "$kind" "$tool" "$out" >&2; then
       [ -z "$(field "$out" candidate)" ] || echo "$out"
     else
       failed=1
@@ -311,8 +314,9 @@ build_commit() { # id parent output...
 }
 
 # Pushes the commit unless the branch already holds its tree on its parent.
-# Returns 3 when the push was refused, which it has already reported: the
-# branch and PR then stay as they are, for a maintainer. The usual cause is
+# Fails when the push was refused, which it reports and marks in
+# $work/<id>.refused: the branch and PR then stay as they are, for a
+# maintainer. The usual cause is
 # main's workflow changes, which the App, with no workflows permission, can't
 # push.
 push_branch() { # id remote parent commit
@@ -333,13 +337,14 @@ push_branch() { # id remote parent commit
     || tail -n 1 <<<"$out")
   echo "$id: push refused: $reason"
   report_push "$id" refused "$reason"
-  return 3
+  touch "$work/$id.refused"
+  return 1
 }
 
 # Brings a Feature's branch and PR in line with its newer pins (the outputs
 # with a candidate). Defers to hand edits, closes the PR when nothing is
-# newer, or rebuilds, pushes and opens or updates the PR. Returns 3 when the
-# push was refused (and reported); the caller reports every other outcome.
+# newer, or rebuilds, pushes and opens or updates the PR. A refused push is
+# reported and marked by push_branch; the caller reports every other outcome.
 update_feature() { # id output...
   local id=$1 prs open number='' title='' body='' remote parent commit out
   local key held authors excluded_file=$work/excluded-$1
@@ -386,7 +391,7 @@ update_feature() { # id output...
     || true)
   parent=$(choose_parent "$id" "$number" "$remote")
   commit=$(build_commit "$id" "$parent" "${keep[@]}")
-  push_branch "$id" "$remote" "$parent" "$commit" || return
+  push_branch "$id" "$remote" "$parent" "$commit" || return 0
   upsert_pr "$id" "$number" "$title" "$body" "$excluded_file" \
     "${keep[@]}"
 }
@@ -405,12 +410,16 @@ main() {
     git checkout -q --detach origin/main
   fi
   ids_found=$(feature_ids)
+  [ -n "$ids_found" ] || { echo "no Features under src" >&2 && return 1; }
   mapfile -t ids <<<"$ids_found"
   for id in "${ids[@]}"; do
-    [ -n "$id" ] && [ -f "src/$id/pins.sh" ] || continue
+    [ -f "src/$id/pins.sh" ] || continue
     # A failed lookup leaves the Feature's branch and PR as they are.
-    if ! found=$(lookup_feature "$id"); then
+    rc=0
+    found=$(look_up_feature "$id") || rc=$?
+    if [ "$rc" != 0 ]; then
       any_failed=1
+      [ "$rc" != 2 ] || status=1
       continue
     fi
     [ "$dry_run" = 0 ] || continue
@@ -424,14 +433,12 @@ main() {
     )
     rc=$?
     set -e
-    case $rc in
-      0) report_push "$id" ok ;;
-      3) ;; # refused, and reported
-      *)
-        echo "::error::$id: pin bumps failed (exit $rc)"
-        status=1
-        ;;
-    esac
+    if [ "$rc" != 0 ]; then
+      echo "::error::$id: pin bumps failed (exit $rc)"
+      status=1
+    elif [ ! -e "$work/$id.refused" ]; then
+      report_push "$id" ok
+    fi
   done
   # A dry run is CI's check that every lookup still works.
   [ "$dry_run" = 0 ] || [ "$any_failed" = 0 ] || status=1

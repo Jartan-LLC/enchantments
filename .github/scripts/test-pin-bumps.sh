@@ -641,7 +641,7 @@ printf '%s \\\n' "torch==2.1.0 ; x" "torch==2.1.0+cpu ; y" \
 locked semble==1.0.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
   "torch==2.2.0 ; x" "torch==2.2.0+cpu ; y"
 expect "a local version moving up is offered" 0 \
-  "change torch: 2.1.0|2.1.0+cpu → 2.2.0|2.2.0+cpu" uv_lock
+  "change torch: 2.1.0/2.1.0+cpu → 2.2.0/2.2.0+cpu" uv_lock
 locked semble==1.1.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
   "torch==2.1.0 ; x" "torch==2.1.0+cpu ; y"
 uv_lock >/dev/null
@@ -674,6 +674,12 @@ expect "a dry run with a failed lookup exits 1" 1 "lookup failed" \
     "GONE_COMMIT='$cur'")"
 expect "an unknown pin kind fails the dry run" 1 "unknown pin kind weird" \
   dry_in "$(dry_repo '# pin weird odd')"
+expect "a kind named after a helper is unknown too" 1 "unknown pin kind pin" \
+  dry_in "$(dry_repo '# pin pin odd')"
+empty=$(mktemp -d "$root/empty.XXXX")
+mkdir -p "$empty/src"
+expect "a run that finds no Features fails" 1 "no Features under src" \
+  dry_in "$empty"
 expect "a malformed header fails the dry run" 1 "malformed # pin header" \
   dry_in "$(dry_repo '# pin asset')"
 expect "a pins.sh with no pins fails the dry run" 1 "has no # pin header" \
@@ -947,6 +953,8 @@ c7=$(commit_of 7)
 tool_head "$c7"
 expect "a rejected push is reported" 0 "push refused: remote: refusing" bump
 expect "in the report" 0 "$(printf 'push\tdemo\trefused')" cat "$root/report"
+expect_not "with no ok row to close its issue" "$(printf 'push\tdemo\tok')" \
+  cat "$root/report"
 expect "the branch stays" 0 "" branch_is "$head"
 expect "and the PR" 0 "" test "$(pr 4 body)" = "$body_before"
 rm "$origin/hooks/pre-receive"
@@ -1008,6 +1016,19 @@ tool_head "$c9"
 race_head=$(git -C "$hand" rev-parse HEAD)
 expect "a push racing another is refused" 0 "push refused" bump
 expect "and the other push stands" 0 "" branch_is "$race_head"
+expect_not "and the report has no ok row for it" \
+  "$(printf 'push\tdemo\tok')" cat "$root/report"
+
+# A pins.sh whose pin list can't be read is reported, and fails the run.
+mkdir -p "$seed/src/zzz"
+cp "$seed/src/demo/devcontainer-feature.json" "$seed/src/demo/CHANGELOG.md" \
+  "$seed/src/zzz/"
+echo '# pin asset' >"$seed/src/zzz/pins.sh"
+commit_seed zzz
+git -C "$seed" push -q origin HEAD:main
+expect "a malformed pins.sh fails a real run" 1 "malformed # pin header" bump
+expect "and is reported against it" 0 \
+  "$(printf 'lookup\tzzz/pins.sh\tfail')" cat "$root/report"
 
 # --- The lock write path, end to end ------------------------------------------
 
@@ -1115,5 +1136,7 @@ expect_not "and no control characters" $'\001' cat "$ISSUES.body"
 expect_not "of any kind" $'\033' cat "$ISSUES.body"
 expect "an unknown report row fails" 1 "unknown report row" \
   issues "$(printf 'lookup\tzz\tmaybe')"
+expect "an unknown row kind fails even when ok" 1 "unknown report row" \
+  issues "$(printf 'bogus\tzz\tok')"
 
 summary

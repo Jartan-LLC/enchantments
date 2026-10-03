@@ -510,7 +510,9 @@ comma_list() { # items...
 
 max_version() { # versions joined by |
   local v best=''
-  for v in ${1//|/ }; do
+  local -a vs
+  IFS='|' read -ra vs <<<"$1"
+  for v in "${vs[@]}"; do
     if [ -z "$best" ] || version_gt "$v" "$best"; then best=$v; fi
   done
   echo "$best"
@@ -558,9 +560,10 @@ lookup_uv_lock() { # file tool
       elif version_gt "$old_max" "$new_max"; then
         down+=" $name"
       fi
-      changes+=("$name: $old → $version")
-      from+=("$name==$old")
-      to+=("$name==$version")
+      # Shown with "/" between a name's versions: "|" would split a table cell.
+      changes+=("$name: ${old//|/\/} → ${version//|/\/}")
+      from+=("$name==${old//|/\/}")
+      to+=("$name==${version//|/\/}")
     fi
   done < <(LC_ALL=C join -a1 -a2 -e - -o 0,1.2,2.2 <(lock_pins "$lock") \
     <(lock_pins "$new"))

@@ -141,9 +141,10 @@ jobs:
       - run: .github/scripts/test-pin-bumps.sh
 
   # Looks every pins.sh pin up against its live upstream, as pin-bumps.yml
-  # does, without its App token; red when any lookup fails. Only on a PR that
-  # changes them: an upstream that breaks a lookup on its own would otherwise
-  # block every PR and release, and its pin-bumps issue already flags it.
+  # does, without its App token or downloads; red when any lookup fails. Only
+  # on a PR that changes what the lookups read (the `changes` job's pins
+  # output): an upstream that breaks a lookup on its own would otherwise block
+  # every PR and release, and its pin-bumps issue already flags it.
   pin-lookups:
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.pins == 'true'
@@ -230,9 +231,11 @@ jobs:
                 -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$' <<<"$changed"; then
             echo devcontainer=true >>"$GITHUB_OUTPUT"
           fi
-          # The pins, a lock's input and the code that looks them up.
+          # A pins.sh, a lock or its input, the code that looks them up, the uv
+          # that compiles a lock, or this file.
           if [ -z "${base:-}" ] \
-              || grep -q -e '^src/[^/]*/pins\.sh$' -e '^src/[^/]*/[^/]*\.in$' -e '^\.github/scripts/pin' \
+              || grep -q -e '^src/[^/]*/pins\.sh$' -e '^src/[^/]*/[^/]*\.in$' -e '^src/[^/]*/[^/]*-requirements\.txt$' \
+                -e '^\.github/scripts/pin' -e '^\.github/scripts/feature_ids\.sh$' -e '^ci/requirements\.txt$' \
                 -e '^\.github/workflows/ci\.yml$' <<<"$changed"; then
             echo pins=true >>"$GITHUB_OUTPUT"
           fi
