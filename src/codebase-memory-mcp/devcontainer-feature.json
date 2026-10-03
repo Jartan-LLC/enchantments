@@ -1,6 +1,6 @@
 {
   "id": "codebase-memory-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "codebase-memory-mcp",
   "description": "The codebase-memory-mcp code graph, installed from a pinned, digest-checked release and registered as an MCP server.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/codebase-memory-mcp",

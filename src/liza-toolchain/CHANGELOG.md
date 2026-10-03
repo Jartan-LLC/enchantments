@@ -1,3 +1,7 @@
+## 1.1.1
+
+- Downloads also retry when the connection is reset.
+
 ## 1.1.0
 
 - `uv`: 0.12.18 → 0.12.19
