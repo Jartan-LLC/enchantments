@@ -17,7 +17,7 @@ new_repo() {
   git init -q
   git config user.email test@example.com
   git config user.name test
-  cp -R "$repo/src" .
+  cp -R "$repo/src" "$repo/test" .
   mkdir -p .github lib && cp -R "$repo/.github/scripts" .github/
   echo x >lib/keep
   git add -A && git commit -qm base
@@ -210,6 +210,24 @@ if grep -qF "$full" <<<"$out" && grep -qx "base=" <<<"$out"; then
 else
   fail "schedule" "$out"
 fi
+out=$(emit pull_request)
+matrix_jq() { # filter
+  sed -n 's/^matrix=//p' <<<"$out" | jq -c "$1"
+}
+want=$(jq -c '[keys[] as $s | ("ubuntu-24.04", "ubuntu-24.04-arm") as $r
+  | {id: "_global", scenario: $s, runner: $r}] | sort' \
+  test/_global/scenarios.json)
+if [ "$(matrix_jq '[.[] | select(.id == "_global")] | sort')" = "$want" ]; then
+  pass "each _global scenario is a job on each runner"
+else
+  fail "_global jobs" "$out"
+fi
+if [ "$(matrix_jq '[.[] | select(.id != "_global") | has("scenario")]
+  | length > 0 and all(. == false)')" = true ]; then
+  pass "a Feature's jobs name no scenario"
+else
+  fail "Feature jobs" "$out"
+fi
 
 new_pushed_repo README.md
 out=$(emit pull_request)
@@ -240,6 +258,45 @@ if [ "$runs" -eq 5 ]; then
 else
   fail "long diff" "$runs/5 runs"
 fi
+
+# --- test-features.sh, against stub devcontainer and docker CLIs ---
+
+new_repo
+mkdir -p node_modules/.bin stubs test/fixture
+cat >node_modules/.bin/devcontainer <<'EOF'
+#!/bin/bash
+echo "$*" >>"$STUB_LOG"
+EOF
+echo '#!/bin/bash' >stubs/docker
+chmod +x node_modules/.bin/devcontainer stubs/docker
+echo '{"one": {}, "two-rebuild": {}}' >test/fixture/scenarios.json
+export STUB_LOG=$PWD/stub.log
+features_test() { # scenario...
+  CI=true PATH=$PWD/stubs:$PATH .github/scripts/test-features.sh fixture "$@"
+}
+# Checks the exit status, then the scenarios the CLI ran, one line per run.
+expect_runs() { # name want scenario...
+  local name=$1 want=$2 out
+  shift 2
+  : >"$STUB_LOG"
+  features_test "$@" >/dev/null 2>&1
+  out="rc=$?"$'\n'$(sed -n 's/.* --filter \([^ ]*\) .*/\1/p' "$STUB_LOG")
+  if [ "$out" = "$want" ]; then
+    pass "$name"
+  else
+    fail "$name" "$out"
+  fi
+}
+all=$'rc=0\none\ntwo-rebuild\ntwo-rebuild'
+expect_runs "test-features.sh runs each scenario, a rebuild twice" "$all"
+expect_runs "test-features.sh with an empty scenario runs each" "$all" ""
+expect_runs "test-features.sh with a scenario runs only it" $'rc=0\none' one
+expect_runs "test-features.sh with a rebuild scenario runs it twice" \
+  $'rc=0\ntwo-rebuild\ntwo-rebuild' two-rebuild
+expect_runs "test-features.sh with an unknown scenario runs none" \
+  $'rc=1\n' nope
+expect "test-features.sh names the unknown scenario" 1 \
+  "no scenario named nope" features_test nope
 
 # --- check-pending.sh and check-visibility.sh, against a stub CLI ---
 

@@ -1,11 +1,12 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
 # Writes the test matrix and the base commit to $GITHUB_OUTPUT. The matrix is
-# every Feature and _global on both architectures, all or nothing: consumer
-# scenarios build sibling Features from source, so one Feature's change re-runs
-# every Feature that composes it. With no base (a manual run, a failed fetch)
-# everything runs, rather than risk skipping a change. EVENT and BEFORE carry
-# github.event_name and github.event.before.
+# every Feature, and each _global scenario, on both architectures, all or
+# nothing: consumer scenarios build sibling Features from source, so one
+# Feature's change re-runs every Feature that composes it. _global's
+# scenarios, the slowest, get a job each. With no base (a manual run, a
+# failed fetch) everything runs, rather than risk skipping a change. EVENT and
+# BEFORE carry github.event_name and github.event.before.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
@@ -33,12 +34,12 @@ if [ -n "${base:-}" ]; then
 fi
 if [ "$EVENT" = schedule ] || [ -z "${base:-}" ] \
   || grep -qE "$tested" <<<"$changed"; then
-  matrix=$({
-    printf '%s\n' "$ids"
-    echo _global
-  } | jq -Rnc '[inputs | select(. != "")] as $ids
-    | [$ids[] as $id | ("ubuntu-24.04", "ubuntu-24.04-arm") as $runner
-      | {id: $id, runner: $runner}]')
+  matrix=$(printf '%s\n' "$ids" \
+    | jq -Rnc --slurpfile g test/_global/scenarios.json '
+      [inputs | select(. != "") | {id: .}]
+        + [$g[0] | keys[] | {id: "_global", scenario: .}]
+      | [.[] as $e | ("ubuntu-24.04", "ubuntu-24.04-arm") as $runner
+        | $e + {runner: $runner}]')
 else
   matrix='[]'
 fi
