@@ -13,12 +13,3 @@ updating that branch.
 - **Pays it back:** re-enabling the schedule
   ([A disabled schedule](docs/releasing.md#a-disabled-schedule)), and merging or closing a
   hand-edited PR whose body lists `Not applied:` versions.
-
-## Node's checksums are unverified
-
-The `node` pin's digests come from nodejs.org's `SHASUMS256.txt` as published; its
-signature isn't checked, so the digests rest on HTTPS and on your review of each bump.
-
-- **Pays it back:** verifying `SHASUMS256.txt.sig` against Node's release keys in the
-  lookup ([#14](https://github.com/Jartan-LLC/enchantments/issues/14)); at once if
-  nodejs.org's files are ever found altered.
