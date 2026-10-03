@@ -50,10 +50,43 @@ Dependabot's updates to `src/liza-toolchain/npm/package-lock.json` aren't merged
 automatically, and fail the version check. Push a commit to the PR's branch that raises
 `liza-toolchain`'s version and adds its entry, then merge it.
 
+## Pin-bump PRs
+
+`pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
+when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
+days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's minor
+version and adds its changelog entry. Merge it as above; nothing merges it automatically.
+
+- **To skip a version,** close the PR unmerged. Its versions go on the next PR's
+  `Excluded:` list, and a newer version is proposed again. Delete an entry from the open
+  PR's `Excluded:` line to allow that version again.
+- **To change a PR,** push commits to its branch. Once the branch has a commit the
+  workflow didn't make, the workflow stops rebuilding it and lists newer versions in the
+  PR body instead.
+- **For a Liza bump,** push the steps in [Updating pins](#updating-pins) onto
+  `pin-bumps/liza`.
+- **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
+  The Feature's PR stays as it is until a run succeeds, which closes the issue.
+- **A `pin-bumps: <id> push refused` issue** means main has workflow changes the
+  workflow can't push onto the branch. Rebase the branch by hand, as the issue says.
+
+### The pin-bump App
+
+The workflow pushes and opens PRs as a GitHub App, since PRs opened with the workflow's own
+token start no CI. To set it up, or to replace it:
+
+1. Create a GitHub App in Jartan-LLC with repository permissions **Contents: Read and
+   write** and **Pull requests: Read and write**, and no webhook. Install it only on
+   enchantments.
+2. In enchantments' `pin-bumps` environment, which allows only `main`, set the variable
+   `PIN_BUMPS_CLIENT_ID` to the App's Client ID, and the secret `PIN_BUMPS_PRIVATE_KEY` to
+   a private key generated for it.
+
 ## Updating pins
 
 Each Feature's pins live in `src/<id>/pins.sh`, one `# pin <kind> <tool>` header per pin.
-Pick a release at least 7 days old, then release the change as above.
+To update one by hand, pick a release at least 7 days old, then release the change as
+above.
 
 | Pin | Where | To update |
 |---|---|---|
@@ -85,4 +118,5 @@ Liza's own `liza toolchain install` isn't used: it fetches unpinned installers.
 ## A disabled schedule
 
 GitHub disables a public repo's scheduled workflows after 60 days without activity. If
-`gh workflow list --all` shows `ci.yml` disabled, run `gh workflow enable ci.yml`.
+`gh workflow list --all` shows `ci.yml` or `pin-bumps.yml` disabled, run
+`gh workflow enable <file>`.

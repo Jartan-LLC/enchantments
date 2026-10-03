@@ -138,6 +138,7 @@ jobs:
         with:
           persist-credentials: false
       - run: .github/scripts/test-scripts.sh
+      - run: .github/scripts/test-pin-bumps.sh
 
   vendor-drift:
     runs-on: ubuntu-24.04

@@ -1,0 +1,62 @@
+name: Pin bumps
+
+# Proposes newer upstream pins as one PR per Feature (docs/releasing.md,
+# "Pin-bump PRs"). Its PRs come from a GitHub App, since PRs opened with
+# GITHUB_TOKEN start no CI; nothing here merges them.
+on:
+  schedule:
+    - cron: "40 4 * * *" # daily, 04:40 UTC (offset from ci.yml and scorecard)
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["src/**"]
+
+permissions: {}
+
+# One run at a time: two would race on the same branches, PRs and issues.
+concurrency:
+  group: pin-bumps
+  cancel-in-progress: false
+
+jobs:
+  pin-bumps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Holds the App's client ID and key, released only to main.
+    environment: pin-bumps
+    permissions:
+      contents: read # checkout
+      issues: write # the tracking issues, with GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Pinned by version-file, as in ci.yml. No cache: nothing another job
+      # wrote may reach the job holding the App token.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version-file: ci/requirements.txt
+          enable-cache: false
+
+      - id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.PIN_BUMPS_CLIENT_ID }}
+          private-key: ${{ secrets.PIN_BUMPS_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - id: bump
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        run: .github/scripts/pin-bumps.sh --report "$RUNNER_TEMP/pin-bumps.tsv"
+
+      # Even after a failed run: the report holds what it got through.
+      - if: always() && steps.bump.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: .github/scripts/pin-bumps-issues.sh "$RUNNER_TEMP/pin-bumps.tsv"

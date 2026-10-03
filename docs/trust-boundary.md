@@ -22,6 +22,10 @@ and CI's tests catch broken releases; they don't stop someone who holds your gh 
   without a rebuild.
 - **Write access to enchantments.** Any workflow on a branch can ask for permission to
   publish, and an admin can bypass or change the `ghcr` approval.
+- **The pin-bump App's key.** It can push, and merge any change outside
+  `.github/workflows/` once `check` passes, since main needs no approving review. Only
+  main's runs can use it, through the `pin-bumps` environment, and a release still waits
+  for your `ghcr` approval.
 - **Auto-merged dependency bumps.** Minor and patch updates to what `publish` runs (the
   devcontainer CLI and the job's actions) merge automatically after Dependabot's 7-day
   wait, or at once for a security fix, and ship with the next release you approve.

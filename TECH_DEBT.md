@@ -4,9 +4,10 @@ Deliberate shortcuts, each with what pays it back.
 
 ## Pin staleness
 
-The pins in each `pins.sh` are updated by hand ([Updating pins](docs/releasing.md#updating-pins)),
-and a pin that falls behind upstream still passes its checksum, so nothing flags it.
-Dependabot keeps the toolchain's npm lock current, and its security alerts cover the semble
-lock.
+`pin-bumps.yml` proposes every `pins.sh` pin's newer releases, and Dependabot keeps the
+toolchain's npm lock current. A pin still falls behind while its lookup keeps failing, or
+while the workflow's schedule is disabled, and it still passes its checksum, so nothing
+else flags it.
 
-- **Pays it back:** a scheduled workflow that opens a PR for each pin with a newer release.
+- **Pays it back:** the `pin-bumps: <tool> lookup failing` issue a failing lookup opens,
+  and [A disabled schedule](docs/releasing.md#a-disabled-schedule) for a disabled one.
