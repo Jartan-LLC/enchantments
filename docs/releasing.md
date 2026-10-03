@@ -74,7 +74,8 @@ nothing merges it automatically.
   `liza-toolchain`'s version on `pin-bumps/liza` again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   The Feature's PR stays as it is until a run succeeds, which closes the issue. CI's
-  `pin-lookups` job runs the same lookups, and stays red meanwhile.
+  `pin-lookups` job runs the same lookups on each PR that changes a `pins.sh` or the
+  pin-bump scripts.
 - **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
   usually because main has workflow changes the workflow can't push. Rebase the branch by
   hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
@@ -104,15 +105,15 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
 | `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it; Hugging Face dates a revision only by its commit, which the uploader sets, accepted since the model is data files and your merge and approval gate it |
-| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt`; nodejs.org dates a release by its files' timestamps, accepted since your merge and the `ghcr` approval gate it |
+| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt`, so a new LTS major arrives as an ordinary pin-bump PR; nodejs.org dates a release by its files' timestamps, accepted since your merge and the `ghcr` approval gate it |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
 | `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | the command in its header |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
 
-For a Liza release, in the same PR, raise the versions of both `liza` and `liza-toolchain`
-(a pin-bump PR has already raised `liza`'s), and:
+For a Liza release, in the same PR, raise `liza-toolchain`'s version, and `liza`'s unless
+a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;

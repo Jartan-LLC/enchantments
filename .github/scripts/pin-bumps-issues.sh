@@ -1,10 +1,10 @@
 #!/bin/bash
-# Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report
-# (its header gives the rows): one per tool whose lookup failed, and one per
-# Feature whose branch couldn't be pushed. Each is updated rather than
-# duplicated, and closed by the first run that reports that tool or Feature
-# clean. Needs GH_TOKEN with issues
-# write, GITHUB_REPOSITORY and RUN_URL.
+# Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report,
+# whose rows pin-bumps.sh's header gives: one issue per tool whose lookup
+# failed, and one per Feature whose branch couldn't be pushed. Each is
+# updated rather than duplicated, and closed by the first run that reports
+# that tool or Feature clean. Needs GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN
+# with issues write.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}
 : "${GITHUB_REPOSITORY:?}" "${RUN_URL:?}"
@@ -96,6 +96,7 @@ while IFS=$'\t' read -r what name state reason; do
       } >"$body"
       raise "$(title push "$name")" "$body"
       ;;
-    */ok) settle "$(title "$what" "$name")" ;;
+    lookup/ok | push/ok) settle "$(title "$what" "$name")" ;;
+    *) echo "unknown report row: $what/$state" >&2 && exit 1 ;;
   esac
 done <"$report"

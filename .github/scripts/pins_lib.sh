@@ -6,8 +6,13 @@
 # --- pins.sh ------------------------------------------------------------------
 
 # Prints "<kind> <tool>" for each "# pin <kind> <tool> ..." header, in order.
+# Fails on a "# pin" line without both, which would otherwise go unlooked-up.
 pin_list() { # file
-  awk '$1 == "#" && $2 == "pin" && NF >= 4 { print $3, $4 }' "$1"
+  awk '$1 == "#" && $2 == "pin" {
+      if (NF < 4) bad = 1
+      else print $3, $4
+    }
+    END { exit bad }' "$1"
 }
 
 # Prints the value of the header attribute key (key=value) of tool's pin.
@@ -77,7 +82,9 @@ numeric_version() { [[ $1 =~ ^v?[0-9]+(\.[0-9]+)+$ ]]; }
 
 # Prints a version that sort -V orders as PEP 440 does: a leading v goes,
 # and a pre-release (a, b, rc) or dev release is marked to sort before its
-# release, which "~" does for sort -V.
+# release, which "~" does for sort -V. Post and local (+) releases already
+# sort after theirs. It doesn't normalize epochs (1!) or trailing zeros
+# (1.0 = 1.0.0); uv writes versions already normalized.
 version_key() { # version
   sed -E -e 's/^v//' -e 's/([0-9])[.-]?(dev)/\1~~\2/' \
     -e 's/([0-9])[.-]?(a|alpha|b|beta|c|rc|pre|preview)([0-9])/\1~\2\3/' \

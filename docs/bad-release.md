@@ -39,8 +39,9 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    volume=claude-data`, and likewise for the others), since the shared volume carries
    whatever the bad code planted. Don't start or attach to them again: their `postStart`
    and `postAttach` hooks re-run from the image metadata. From a clean host, or the GitHub
-   web UI (Settings → Applications), revoke the gh token. Also revoke Claude sessions and
-   any MCP keys at their issuers. Re-authenticate only on that clean host, which is enough
+   web UI (Settings → Applications), revoke the gh token. Delete every private key of the
+   pin-bump App (its settings, Private keys), so no copy can mint a token. Also revoke
+   Claude sessions and any MCP keys at their issuers. Re-authenticate only on that clean host, which is enough
    to review and approve the fix.
 2. **Audit GitHub for footholds** the token could have left.
    - In the Jartan-LLC audit log (web UI, owners only), review the exposure window and
@@ -103,8 +104,8 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      `liza-*` volumes, not only the dangling ones.
    - Rebuild the Docker host, and rotate every credential it held or forwarded into
      containers, including MCP-server keys and tokens stored in `claude-data`.
-   - From the clean host, generate a new private key for the pin-bump App, delete every
-     old one, and replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY` secret
+   - From the clean host, generate a new private key for the pin-bump App and replace the
+     `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY` secret
      ([The pin-bump App](releasing.md#the-pin-bump-app)).
    - Re-clone workspaces from their remotes instead of reopening the old clones, because
      hooks may have planted `.git/config`, `.git/hooks` or `.devcontainer/` changes.

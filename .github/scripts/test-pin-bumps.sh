@@ -196,6 +196,7 @@ while [ "$#" -gt 0 ]; do
   esac
   shift
 done
+[ -z "${STUB_EATS_STDIN:-}" ] || cat >/dev/null
 file=$FIXTURES/$(tr -c 'A-Za-z0-9\n' _ <<<"$path")
 [ -f "$file" ] || { echo "stub gh: no fixture for $path" >&2 && exit 1; }
 read -r first code _ <"$file"
@@ -525,6 +526,10 @@ expect "and says why" 0 "note keeps the committed lock: it would move anyio" \
   uv_lock
 locked semble==1.0.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y"
 expect_not "an unchanged lock isn't" candidate uv_lock
+expect "max_version keeps a local version whole" 0 2.1.0+cpu \
+  max_version '2.1.0|2.1.0+cpu'
+expect "and ranks a release above its candidate" 0 "" \
+  test "$(max_version '1.0rc1|1.0')" = 1.0
 
 # --- Outages, hostile values and other lookup edges ---------------------------
 
@@ -564,6 +569,11 @@ expect "an outage on a tag's compare fails the lookup" 1 "can't compare" \
   tag_lookup
 tag_quiet() { tag_lookup 2>/dev/null || true; }
 expect_not "rather than fall back to an older tag" candidate tag_quiet
+echo '{"status": "identical"}' | serve "repos/example/tagged/compare/$t2...$t2"
+echo 'HTTP 502' | serve "repos/example/tagged/compare/$cur...$t2"
+expect "an outage comparing the pin with a tag fails the lookup" 1 \
+  "can't compare" tag_lookup
+expect_not "with no candidate" candidate tag_quiet
 
 # Hostile upstream values never reach pins.sh.
 hostile_sha="$(printf 'z%.0s' {1..64})"
@@ -618,15 +628,56 @@ for kind in node go; do
   expect "a $kind pin without digests fails" 1 "no $kind's digests" \
     "lookup_$kind" "$root/bare-$kind.sh" "$kind"
 done
+{
+  echo '# pin hf-model model model=org/m'
+  echo "M_REVISION='$r1'"
+} >"$root/bare-model.sh"
+expect "a model pin without files fails" 1 "no model's files" \
+  lookup_hf_model "$root/bare-model.sh" model
 
 # uv-lock: the compile runs with the cutoff, and a failed compile fails.
-locked semble==1.1.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y"
+printf '%s \\\n' "torch==2.1.0 ; x" "torch==2.1.0+cpu ; y" \
+  >>"$lockdir/lock.txt"
+locked semble==1.0.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
+  "torch==2.2.0 ; x" "torch==2.2.0+cpu ; y"
+expect "a local version moving up is offered" 0 \
+  "change torch: 2.1.0|2.1.0+cpu → 2.2.0|2.2.0+cpu" uv_lock
+locked semble==1.1.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
+  "torch==2.1.0 ; x" "torch==2.1.0+cpu ; y"
 uv_lock >/dev/null
 expect "the lock compiles up to the cutoff" 0 "$UV_CUTOFF" \
   cat "$fixtures/uv-cutoff"
 touch "$fixtures/uv-fails"
 expect "a failed compile fails the lookup" 1 "uv pip compile failed" uv_lock
 rm "$fixtures/uv-fails"
+
+# Dry runs over small repos of their own.
+dry_repo() { # pins.sh lines...
+  local dir
+  dir=$(mktemp -d "$root/dry.XXXX")
+  mkdir -p "$dir/src/odd"
+  echo '{"id": "odd", "version": "1.0.0"}' \
+    >"$dir/src/odd/devcontainer-feature.json"
+  printf '%s\n' "$@" >"$dir/src/odd/pins.sh"
+  echo "$dir"
+}
+dry_in() { (cd "$1" && "$scripts/pin-bumps.sh" --dry-run); }
+two=$(dry_repo '# pin branch-commit tool repo=example/tool' \
+  "TOOL_COMMIT='$cur'" '' '# pin branch-commit tool2 repo=example/tool' \
+  "TOOL2_COMMIT='$cur'")
+# Both lookups fail on the fixtures here; tool2 being looked up at all is
+# the point.
+expect "a lookup can't eat the list of pins" 1 "odd tool2 (branch-commit)" \
+  env STUB_EATS_STDIN=1 bash -c "cd '$two' && '$scripts/pin-bumps.sh' --dry-run"
+expect "a dry run with a failed lookup exits 1" 1 "lookup failed" \
+  dry_in "$(dry_repo '# pin branch-commit gone repo=example/gone' \
+    "GONE_COMMIT='$cur'")"
+expect "an unknown pin kind fails the dry run" 1 "unknown pin kind weird" \
+  dry_in "$(dry_repo '# pin weird odd')"
+expect "a malformed header fails the dry run" 1 "malformed # pin header" \
+  dry_in "$(dry_repo '# pin asset')"
+expect "a pins.sh with no pins fails the dry run" 1 "has no # pin header" \
+  dry_in "$(dry_repo '# just a comment')"
 
 # Every real tool name is unique, since issues are titled by tool.
 expect "no two pins share a tool name" 0 "" test -z "$(for f in \
@@ -841,7 +892,7 @@ expect_not "and isn't told it lacks the version it holds" "Not applied" \
   pr 1 body
 c5=$(commit_of 5)
 tool_head "$c5"
-bump >/dev/null
+bump >/dev/null 2>&1
 expect "a newer version is listed as not applied" 0 \
   "Not applied: \`tool@$c5\`" pr 1 body
 expect "and the branch still isn't rebuilt" 0 "" branch_is "$hand_head"
@@ -1057,9 +1108,12 @@ expect "upstream text in an issue sits in a code block" 0 '```text' \
 # shellcheck disable=SC2016 # Markdown backticks
 expect_not "without its backticks" '`@someone`' cat "$ISSUES.body"
 long=$(printf 'x%.0s' {1..400})
-issues "$(printf 'lookup\tzz\tfail\t%s\001bell' "$long")" >/dev/null
+issues "$(printf 'lookup\tzz\tfail\tbell\001esc\033%s' "$long")" >/dev/null
 expect "an issue quotes at most 300 characters" 0 "" \
   test "$(sed -n '/^```text$/{n;p}' "$ISSUES.body" | wc -c)" -le 301
 expect_not "and no control characters" $'\001' cat "$ISSUES.body"
+expect_not "of any kind" $'\033' cat "$ISSUES.body"
+expect "an unknown report row fails" 1 "unknown report row" \
+  issues "$(printf 'lookup\tzz\tmaybe')"
 
 summary

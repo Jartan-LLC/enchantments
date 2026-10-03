@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # One lookup per pin kind, for pin-bumps.sh. Each takes a pins.sh and a tool,
-# and prints its findings as lines:
+# and prints its findings as lines (after the "tool <name>" line pin-bumps.sh
+# writes first):
 #   current <shown value>
 #   release <tag> <asset names...>   (asset: the newest aged release seen)
 #   candidate <shown value>          (only when a newer pin qualifies)
@@ -18,7 +19,7 @@
 # lookup where set -e is off, checking its status itself. DRY_RUN=1
 # downloads no release asset or model file. Needs pins_lib.sh.
 
-lookup_fail() { # reason...
+fail_lookup() { # reason...
   echo "$*" >&2
   return 1
 }
@@ -35,7 +36,7 @@ fetch() {
 
 # Fails when a value pins.sh should hold is empty.
 need() { # name value
-  [ -n "$2" ] || lookup_fail "pins.sh has no $1"
+  [ -n "$2" ] || fail_lookup "pins.sh has no $1"
 }
 
 # Prints the pin's variable prefix: its first NAME ending in suffix, without it.
@@ -67,7 +68,7 @@ compare_status() { # repo base head
     return 0
   fi
   grep -q 'HTTP 404' <<<"$out" && return 1
-  lookup_fail "can't compare $2...$3 in $1: $(tail -n 1 <<<"$out")"
+  fail_lookup "can't compare $2...$3 in $1: $(tail -n 1 <<<"$out")"
   return 2
 }
 
@@ -79,7 +80,7 @@ aged_branch_head() { # repo
   { branch=$(gh api "repos/$1" --jq .default_branch) \
     && valid name "$branch"; } \
     || {
-      lookup_fail "can't read $1's default branch"
+      fail_lookup "can't read $1's default branch"
       return 1
     }
   activity=$(gh api --paginate "repos/$1/activity?ref=$branch&per_page=100" \
@@ -87,14 +88,14 @@ aged_branch_head() { # repo
       "force_push" or .activity_type == "pr_merge" or .activity_type ==
       "merge_queue_merge") | "\(.timestamp) \(.after)"') \
     || {
-      lookup_fail "can't read $1's activity"
+      fail_lookup "can't read $1's activity"
       return 1
     }
   while read -r at after; do
     [ -n "$at" ] || continue
     when=$(epoch "$at") \
       || {
-        lookup_fail "$1's activity has an unreadable date"
+        fail_lookup "$1's activity has an unreadable date"
         return 1
       }
     if [ "$when" -gt "$CUTOFF" ] || ! valid commit "$after"; then continue; fi
@@ -104,7 +105,7 @@ aged_branch_head() { # repo
     case $rc in 1) continue ;; 2) return 1 ;; esac
     case $status in identical | ahead) echo "$after" && return 0 ;; esac
   done <<<"$activity"
-  lookup_fail "no commit on $1's $branch pushed $COOLDOWN_DAYS or more days" \
+  fail_lookup "no commit on $1's $branch pushed $COOLDOWN_DAYS or more days" \
     "ago is still there"
 }
 
@@ -128,14 +129,14 @@ aged_release_tags() { # repo
     | select((.draft or .prerelease) | not)
     | "\(.published_at) \(.tag_name)"') \
     || {
-      lookup_fail "can't list $1's releases"
+      fail_lookup "can't list $1's releases"
       return 1
     }
   while read -r at tag; do
     [ -n "$at" ] || continue
     when=$(epoch "$at") \
       || {
-        lookup_fail "$1's release $tag has an unreadable date"
+        fail_lookup "$1's release $tag has an unreadable date"
         return 1
       }
     if [ "$when" -le "$CUTOFF" ] && numeric_version "$tag"; then
@@ -150,7 +151,7 @@ lookup_asset() { # file tool
   local -A urls digests
   repo=$(pin_attr "$file" "$tool" repo) \
     || {
-      lookup_fail "its header has no repo="
+      fail_lookup "its header has no repo="
       return 1
     }
   prefix=$(pin_prefix "$file" "$tool" _TAG)
@@ -163,7 +164,7 @@ lookup_asset() { # file tool
   for cand in $tags; do
     release=$(gh api "repos/$repo/releases/tags/$cand") \
       || {
-        lookup_fail "can't read $repo's release $cand"
+        fail_lookup "can't read $repo's release $cand"
         return 1
       }
     names=''
@@ -172,7 +173,7 @@ lookup_asset() { # file tool
       name=$(expand_asset "$template" "$cand")
       valid name "$name" \
         || {
-          lookup_fail "$cand expands $template to a bad name"
+          fail_lookup "$cand expands $template to a bad name"
           return 1
         }
       url=''
@@ -181,13 +182,13 @@ lookup_asset() { # file tool
         | "\(.updated_at) \(.digest // "-") \(.browser_download_url)"' \
         <<<"$release")
       [ -n "$url" ] || {
-        lookup_fail "$repo's release $cand has no asset $name; update the" \
+        fail_lookup "$repo's release $cand has no asset $name; update the" \
           "template"
         return 1
       }
       when=$(epoch "$updated") \
         || {
-          lookup_fail "$name in $cand has an unreadable date"
+          fail_lookup "$name in $cand has an unreadable date"
           return 1
         }
       # An asset replaced inside the cooldown holds the release back.
@@ -209,18 +210,18 @@ lookup_asset() { # file tool
       else
         sum=$(sha256_of_url "${urls[$arch]}") \
           || {
-            lookup_fail "can't download $cand's $arch asset"
+            fail_lookup "can't download $cand's $arch asset"
             return 1
           }
         [ -z "$digest" ] || [ "$digest" = "$sum" ] || {
-          lookup_fail "$cand's $arch asset doesn't match GitHub's digest"
+          fail_lookup "$cand's $arch asset doesn't match GitHub's digest"
           return 1
         }
       fi
       if [ "$sum" != unhashed ]; then
         valid sha256 "$sum" \
           || {
-            lookup_fail "$cand's $arch digest is malformed"
+            fail_lookup "$cand's $arch digest is malformed"
             return 1
           }
       fi
@@ -234,7 +235,7 @@ lookup_tag_commit() { # file tool
   local file=$1 tool=$2 repo prefix tag tags commit head cand sha status rc
   repo=$(pin_attr "$file" "$tool" repo) \
     || {
-      lookup_fail "its header has no repo="
+      fail_lookup "its header has no repo="
       return 1
     }
   prefix=$(pin_prefix "$file" "$tool" _TAG)
@@ -249,7 +250,7 @@ lookup_tag_commit() { # file tool
     version_gt "$cand" "$tag" || return 0
     { sha=$(tag_commit "$repo" "$cand") && valid commit "$sha"; } \
       || {
-        lookup_fail "can't resolve $repo's tag $cand"
+        fail_lookup "can't resolve $repo's tag $cand"
         return 1
       }
     # A tag on a commit not yet in an aged push waits for one.
@@ -259,13 +260,13 @@ lookup_tag_commit() { # file tool
     case $status in identical | ahead) ;; *) continue ;; esac
     rc=0
     status=$(compare_status "$repo" "$commit" "$sha") || rc=$?
-    [ "$rc" != 1 ] || lookup_fail "$repo doesn't have the pinned commit"
+    [ "$rc" != 1 ] || fail_lookup "$repo doesn't have the pinned commit"
     [ "$rc" = 0 ] || return 1
     # identical: the newer tag is on the pinned commit.
     case $status in
       ahead | identical) ;;
       *)
-        lookup_fail "$repo's tag $cand isn't ahead of the pinned commit" \
+        fail_lookup "$repo's tag $cand isn't ahead of the pinned commit" \
           "($status)"
         return 1
         ;;
@@ -282,7 +283,7 @@ lookup_branch_commit() { # file tool
   local file=$1 tool=$2 repo prefix commit head status rc
   repo=$(pin_attr "$file" "$tool" repo) \
     || {
-      lookup_fail "its header has no repo="
+      fail_lookup "its header has no repo="
       return 1
     }
   prefix=$(pin_prefix "$file" "$tool" _COMMIT)
@@ -293,7 +294,7 @@ lookup_branch_commit() { # file tool
   [ "$head" != "$commit" ] || return 0
   rc=0
   status=$(compare_status "$repo" "$commit" "$head") || rc=$?
-  [ "$rc" != 1 ] || lookup_fail "$repo doesn't have the pinned commit"
+  [ "$rc" != 1 ] || fail_lookup "$repo doesn't have the pinned commit"
   [ "$rc" = 0 ] || return 1
   case $status in
     ahead)
@@ -303,7 +304,7 @@ lookup_branch_commit() { # file tool
       ;;
     behind) ;; # pinned past the aged head
     *)
-      lookup_fail "the pinned commit isn't on $repo's default branch any" \
+      fail_lookup "the pinned commit isn't on $repo's default branch any" \
         "more ($status)"
       ;;
   esac
@@ -314,7 +315,7 @@ lookup_hf_model() { # file tool
   local pinned_when tree key name entry sum
   model=$(pin_attr "$file" "$tool" model) \
     || {
-      lookup_fail "its header has no model="
+      fail_lookup "its header has no model="
       return 1
     }
   prefix=$(pin_prefix "$file" "$tool" _REVISION)
@@ -329,7 +330,7 @@ lookup_hf_model() { # file tool
       && modified=$(jq -r .lastModified <<<"$info") && valid commit "$sha" \
       && when=$(epoch "$modified")
   } || {
-    lookup_fail "can't read $model's head"
+    fail_lookup "can't read $model's head"
     return 1
   }
   # Hugging Face dates a revision only by its commit, which the pusher sets.
@@ -340,13 +341,13 @@ lookup_hf_model() { # file tool
     modified=$(fetch "$api/revision/$revision" | jq -r .lastModified) \
       && pinned_when=$(epoch "$modified")
   } || {
-    lookup_fail "can't read $model's pinned revision"
+    fail_lookup "can't read $model's pinned revision"
     return 1
   }
   [ "$when" -gt "$pinned_when" ] || return 0
   tree=$(fetch "$api/tree/$sha") \
     || {
-      lookup_fail "can't list $model's files at $sha"
+      fail_lookup "can't list $model's files at $sha"
       return 1
     }
   echo "candidate ${sha:0:12}"
@@ -357,11 +358,11 @@ lookup_hf_model() { # file tool
     entry=$(jq -r --arg p "$name" \
       '.[] | select(.path == $p) | .lfs.oid // "git"' <<<"$tree") \
       || {
-        lookup_fail "$model's file list isn't JSON"
+        fail_lookup "$model's file list isn't JSON"
         return 1
       }
     [ -n "$entry" ] || {
-      lookup_fail "$model has no $name at $sha"
+      fail_lookup "$model has no $name at $sha"
       return 1
     }
     if [ "$entry" != git ]; then
@@ -371,14 +372,14 @@ lookup_hf_model() { # file tool
     else
       sum=$(sha256_of_url "https://huggingface.co/$model/resolve/$sha/$name") \
         || {
-          lookup_fail "can't download $model's $name"
+          fail_lookup "can't download $model's $name"
           return 1
         }
     fi
     if [ "$sum" != unhashed ]; then
       valid sha256 "$sum" \
         || {
-          lookup_fail "$model's $name digest is malformed"
+          fail_lookup "$model's $name digest is malformed"
           return 1
         }
     fi
@@ -403,7 +404,7 @@ lookup_node() { # file tool
       && listing=$(jq -r '.[] | select(.lts != false)
         | "\(.date) \(.version)"' <<<"$index") && [ -n "$listing" ]
   } || {
-    lookup_fail "can't read nodejs.org's LTS releases"
+    fail_lookup "can't read nodejs.org's LTS releases"
     return 1
   }
   # nodejs.org dates a release by its files' timestamps; accepted
@@ -414,13 +415,13 @@ lookup_node() { # file tool
       if [ "$when" -le "$CUTOFF" ] && numeric_version "$v"; then echo "$v"; fi
     done <<<"$listing" | sort -rV | sed -n 1p) && [ -n "$cand" ]
   } || {
-    lookup_fail "no readable LTS release past the cooldown"
+    fail_lookup "no readable LTS release past the cooldown"
     return 1
   }
   version_gt "$cand" "$version" || return 0
   sums=$(fetch "https://nodejs.org/dist/$cand/SHASUMS256.txt") \
     || {
-      lookup_fail "can't read Node $cand's SHASUMS256.txt"
+      fail_lookup "can't read Node $cand's SHASUMS256.txt"
       return 1
     }
   echo "candidate $cand"
@@ -431,7 +432,7 @@ lookup_node() { # file tool
     sum=$(awk -v n="$name" '$2 == n { print $1 }' <<<"$sums")
     valid sha256 "$sum" \
       || {
-        lookup_fail "SHASUMS256.txt has no sha256 for $name"
+        fail_lookup "SHASUMS256.txt has no sha256 for $name"
         return 1
       }
     echo "set ${prefix}_SHA256_$arch $sum"
@@ -452,7 +453,7 @@ lookup_go() { # file tool
       && versions=$(jq -r '.[] | select(.stable) | .version
         | ltrimstr("go")' <<<"$json") && [ -n "$versions" ]
   } || {
-    lookup_fail "can't read go.dev's stable releases"
+    fail_lookup "can't read go.dev's stable releases"
     return 1
   }
   while read -r cand; do
@@ -465,7 +466,7 @@ lookup_go() { # file tool
         '.[].files[] | select(.filename == $n) | .sha256' <<<"$json")
       valid sha256 "$sum" \
         || {
-          lookup_fail "go.dev lists no sha256 for $name"
+          fail_lookup "go.dev lists no sha256 for $name"
           return 1
         }
       # go.dev dates a release only by its download's Last-Modified.
@@ -474,7 +475,7 @@ lookup_go() { # file tool
           | sed -n 's/^[Ll]ast-[Mm]odified: *//p' | tr -d '\r' | tail -n 1) \
           && [ -n "$modified" ] && when=$(epoch "$modified")
       } || {
-        lookup_fail "can't read $name's Last-Modified"
+        fail_lookup "can't read $name's Last-Modified"
         return 1
       }
       [ "$when" -le "$CUTOFF" ] || continue 2
@@ -489,12 +490,13 @@ lookup_go() { # file tool
 }
 
 # Prints "name versions" for each requirement in a requirements file, the
-# versions joined by "+" when platform markers pin a name more than once.
+# versions joined by "|" (which no version holds) when platform markers pin a
+# name more than once.
 lock_pins() { # file
   sed -n 's/^\([A-Za-z0-9._-]*\)==\([^ ;\\]*\).*/\1 \2/p' "$1" \
     | awk '{ name = tolower($1); gsub(/_/, "-", name); print name, $2 }' \
     | LC_ALL=C sort -u | awk '
-      $1 == last { line = line "+" $2; next }
+      $1 == last { line = line "|" $2; next }
       NR > 1 { print line }
       { last = $1; line = $1 " " $2 }
       END { if (NR) print line }'
@@ -506,9 +508,9 @@ comma_list() { # items...
   echo "${list//,/, }"
 }
 
-max_version() { # versions joined by +
+max_version() { # versions joined by |
   local v best=''
-  for v in ${1//+/ }; do
+  for v in ${1//|/ }; do
     if [ -z "$best" ] || version_gt "$v" "$best"; then best=$v; fi
   done
   echo "$best"
@@ -527,7 +529,7 @@ lookup_uv_lock() { # file tool
       && input=$dir/$(pin_attr "$file" "$tool" input) \
       && [ -f "$lock" ] && [ -f "$input" ]
   } || {
-    lookup_fail "its header needs an existing lock= and input="
+    fail_lookup "its header needs an existing lock= and input="
     return 1
   }
   echo "current $tool==$(lock_pins "$lock" | awk -v t="$tool" '$1 == t {
@@ -538,7 +540,7 @@ lookup_uv_lock() { # file tool
     --generate-hashes --no-build --upgrade --no-header --quiet \
     --exclude-newer "$before" -o "$new" \
     || {
-      lookup_fail "uv pip compile failed"
+      fail_lookup "uv pip compile failed"
       rm -f "$new"
       return 1
     }
