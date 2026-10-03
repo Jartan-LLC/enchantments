@@ -31,11 +31,11 @@ MDQ_ASSET_X86_64='mdq-linux-x64-musl.tar.gz'
 MDQ_SHA256_X86_64='673ed676382f54a21e4381d845236c776b2b71ed8dc1cc3e92cf6d66a39edb07'
 
 # pin asset uv repo=astral-sh/uv
-UV_TAG='0.12.18'
+UV_TAG='0.12.19'
 UV_ASSET_X86_64='uv-x86_64-unknown-linux-musl.tar.gz'
-UV_SHA256_X86_64='e38d97460b98ebfd31b197de0fe9fa578add4bc8ba0179b203dd3f87b99f98e6'
+UV_SHA256_X86_64='db7278c9f57981338fddff1fb250e11964bc0a4fafcb9eed8303fdb117dc067b'
 UV_ASSET_AARCH64='uv-aarch64-unknown-linux-musl.tar.gz'
-UV_SHA256_AARCH64='0796973fb3eea8095078c3d0659bd17a5f6789a71b8dd85caff2483178f78ac3'
+UV_SHA256_AARCH64='ad8d8448a2ff642ba62c2f684d7dd22a03f8eb3fc9918c2c3e8ec975f4ed6710'
 
 # pin tag-commit scip-search repo=liza-mas/scip-search
 SCIP_SEARCH_TAG='v0.2.1'
