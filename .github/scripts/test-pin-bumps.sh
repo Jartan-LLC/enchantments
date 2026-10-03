@@ -12,7 +12,12 @@ repo=$(cd "$scripts/../.." && pwd)
 # shellcheck source=pin_lookups.sh
 . "$scripts/pin_lookups.sh"
 root=$(mktemp -d)
-trap 'rm -rf "$root"' EXIT
+# The node tests' signing starts a gpg-agent, which outlives its home.
+cleanup() {
+  gpgconf --homedir "$root/gnupg" --kill all 2>/dev/null
+  rm -rf "$root"
+}
+trap cleanup EXIT
 # shellcheck source=test_lib.sh
 . "$scripts/test_lib.sh"
 export COOLDOWN_DAYS=7
@@ -427,7 +432,56 @@ hf_head "$r2" soon
 expect "an unreadable date fails the lookup" 1 "can't read org/m's head" \
   hf_lookup
 
-# node: the newest LTS release past the cooldown.
+# node: the newest LTS release past the cooldown, from a SHASUMS256.txt
+# signed by a pinned release key. Throwaway keys, all in the pinned keyring
+# but stranger: revoked is revoked after signing, and expired and lapsed are
+# made and used in 2020, lapsed then revoked.
+node_sums_url=https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
+sign_sums() { # key [gpg option] (sums on stdin): serves them, signed
+  serve "$node_sums_url"
+  gpg --batch --yes ${2:+"$2"} --local-user "$1@test" --detach-sign -o - \
+    "$(fixture "$node_sums_url")" 2>/dev/null | serve "$node_sums_url.sig"
+}
+node_sums_good() {
+  echo "$ones  node-v20.2.0-linux-x64.tar.gz"
+  echo "$twos  node-v20.2.0-linux-arm64.tar.gz"
+}
+export GNUPGHOME=$root/gnupg
+mkdir -m 700 "$GNUPGHOME"
+for k in pinned stranger revoked; do
+  gpg --batch --quiet --passphrase '' --quick-gen-key "$k@test" ed25519 \
+    sign never 2>/dev/null
+done
+for k in expired lapsed; do
+  gpg --batch --quiet --passphrase '' --faked-system-time=20200101T000000! \
+    --quick-gen-key "$k@test" ed25519 sign 1d 2>/dev/null
+done
+if ! gpg --list-secret-keys pinned@test stranger@test revoked@test \
+  expired@test lapsed@test >/dev/null 2>&1; then
+  echo "FAIL can't make gpg test keys in $GNUPGHOME: is gpg installed, and" \
+    "the path short enough for gpg-agent's socket?"
+  exit 1
+fi
+node_sums_good | sign_sums revoked
+cp "$(fixture "$node_sums_url.sig")" "$root/revoked.sig"
+for k in expired lapsed; do
+  node_sums_good | sign_sums "$k" --faked-system-time=20200101T120000!
+  cp "$(fixture "$node_sums_url.sig")" "$root/$k.sig"
+done
+for k in revoked lapsed; do
+  fp=$(gpg --with-colons --list-keys "$k@test" \
+    | awk -F: '/^fpr/ { print $10; exit }') # codespell:ignore fpr
+  sed 's/^:-----/-----/' "$GNUPGHOME/openpgp-revocs.d/$fp.rev" \
+    | gpg --batch --quiet --import 2>/dev/null
+done
+gpg --batch --export pinned@test revoked@test expired@test lapsed@test \
+  >"$root/pinned.pub"
+gpg --batch --quiet --no-default-keyring --keyring "$root/keys.kbx" \
+  --import "$root/pinned.pub" 2>/dev/null
+NODE_KEYS_SUM=$(sha256sum <"$root/keys.kbx" | cut -d' ' -f1)
+keys_url=https://raw.githubusercontent.com/nodejs/release-keys
+serve "$keys_url/$NODE_KEYS_COMMIT/gpg-only-active-keys/pubring.kbx" \
+  <"$root/keys.kbx"
 nodepins=$root/node.sh
 {
   echo '# pin node node'
@@ -440,17 +494,57 @@ serve https://nodejs.org/dist/index.json <<'EOF'
  {"version": "v21.0.0", "date": "2026-08-01", "lts": false},
  {"version": "v20.2.0", "date": "2026-08-01", "lts": "Iron"}]
 EOF
-{
-  echo "$ones  node-v20.2.0-linux-x64.tar.gz"
-  echo "$twos  node-v20.2.0-linux-arm64.tar.gz"
-} | serve https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
+node_sums_good | sign_sums pinned
 node_lookup() { lookup_node "$nodepins" node; }
 expect "node takes the newest aged LTS release" 0 "candidate v20.2.0" \
   node_lookup
 expect "with each arch's digest from SHASUMS256.txt" 0 \
   "set NODE_SHA256_AARCH64 $twos" node_lookup
-echo "$ones  node-v20.2.0-linux-x64.tar.gz" \
-  | serve https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
+node_sums_good | sign_sums stranger
+expect "SHASUMS256.txt signed by a key outside the pinned ones fails" 1 \
+  "isn't signed by a pinned release key" node_lookup
+node_sums_good | sign_sums pinned
+node_sums_good | sed 's/^1/3/' | serve "$node_sums_url"
+expect "SHASUMS256.txt altered after signing fails" 1 \
+  "doesn't match its signature" node_lookup
+node_sums_good | serve "$node_sums_url"
+serve "$node_sums_url.sig" <"$root/revoked.sig"
+expect "SHASUMS256.txt signed by a since-revoked key fails" 1 \
+  "signed by a revoked release key" node_lookup
+serve "$node_sums_url.sig" <"$root/lapsed.sig"
+expect "SHASUMS256.txt signed by a revoked, expired key fails" 1 \
+  "signed by a revoked release key" node_lookup
+serve "$node_sums_url.sig" <"$root/expired.sig"
+expect "SHASUMS256.txt signed by a since-expired key passes" 0 \
+  "candidate v20.2.0" node_lookup
+node_sums_good | sign_sums pinned
+mkdir "$root/nogpg"
+printf '#!/bin/sh\nexit 2\n' >"$root/nogpg/gpg"
+chmod +x "$root/nogpg/gpg"
+broken_gpg_lookup() {
+  local PATH=$root/nogpg:$PATH
+  node_lookup
+}
+expect "a gpg that can't run says so" 1 "gpg couldn't check" \
+  broken_gpg_lookup
+node_sums_good | sign_sums pinned
+rm "$(fixture "$node_sums_url.sig")"
+expect "SHASUMS256.txt without its signature fails" 1 \
+  "or its signature" node_lookup
+node_sums_good | sign_sums pinned
+repinned_lookup() {
+  local NODE_KEYS_SUM=$ones
+  node_lookup
+}
+expect "release keys that don't match their pin fail" 1 \
+  "don't match NODE_KEYS_SUM" repinned_lookup
+keys_fixture=$(fixture \
+  "$keys_url/$NODE_KEYS_COMMIT/gpg-only-active-keys/pubring.kbx")
+mv "$keys_fixture" "$root/keys.served"
+expect "release keys that can't be downloaded fail" 1 \
+  "can't download Node's pinned release keys" node_lookup
+mv "$root/keys.served" "$keys_fixture"
+echo "$ones  node-v20.2.0-linux-x64.tar.gz" | sign_sums pinned
 expect "a digest missing from SHASUMS256.txt fails" 1 "no sha256 for" \
   node_lookup
 echo '<html>' | serve https://nodejs.org/dist/index.json
@@ -600,7 +694,7 @@ EOF
 {
   echo "$hostile_sha  node-v20.2.0-linux-x64.tar.gz"
   echo "$twos  node-v20.2.0-linux-arm64.tar.gz"
-} | serve https://nodejs.org/dist/v20.2.0/SHASUMS256.txt
+} | sign_sums pinned
 expect "a malformed Node digest fails the lookup" 1 "no sha256" node_lookup
 
 cp "$pins" "$root/odd.sh"

@@ -393,6 +393,60 @@ lookup_hf_model() { # file tool
 node_arch() { case $1 in X86_64) echo x64 ;; AARCH64) echo arm64 ;; esac }
 go_arch() { case $1 in X86_64) echo amd64 ;; AARCH64) echo arm64 ;; esac }
 
+# Node's active release keys: nodejs/release-keys' gpg-only-active-keys
+# keyring at this commit, with its sha256 (docs/releasing.md).
+NODE_KEYS_COMMIT=481637f813e912c4aa3622d7964ab426c97b8e8d
+NODE_KEYS_SUM=140f2ad5260fd62773b6243ce8e1d3009645d558f121b8262c55e383dc285932
+
+# Prints Node's SHASUMS256.txt for a version once its signature verifies
+# against the pinned release keys. A subshell, for the trap.
+node_sums() ( # version
+  tmp=$(mktemp -d) || exit 1
+  trap 'rm -rf "$tmp"' EXIT
+  keys=https://raw.githubusercontent.com/nodejs/release-keys
+  keys+=/$NODE_KEYS_COMMIT/gpg-only-active-keys/pubring.kbx
+  sums=https://nodejs.org/dist/$1/SHASUMS256.txt
+  fetch -o "$tmp/keys.kbx" "$keys" || {
+    fail_lookup "can't download Node's pinned release keys"
+    exit 1
+  }
+  [ "$(sha256sum <"$tmp/keys.kbx" | cut -d' ' -f1)" = "$NODE_KEYS_SUM" ] || {
+    fail_lookup "Node's release keys don't match NODE_KEYS_SUM"
+    exit 1
+  }
+  { fetch -o "$tmp/sums" "$sums" && fetch -o "$tmp/sums.sig" "$sums.sig"; } \
+    || {
+      fail_lookup "can't read Node $1's SHASUMS256.txt or its signature"
+      exit 1
+    }
+  gpg_keys() { GNUPGHOME=$tmp gpg --batch --no-default-keyring \
+    --keyring "$tmp/keys.kbx" --trust-model always "$@" 2>/dev/null; }
+  status=$(gpg_keys --status-fd 1 --verify "$tmp/sums.sig" "$tmp/sums") \
+    || true
+  case $status in
+    *'[GNUPG:] VALIDSIG '*) why='' ;;
+    *'[GNUPG:] BADSIG '*) why="doesn't match its signature" ;;
+    *'[GNUPG:] NO_PUBKEY '*) why="isn't signed by a pinned release key" ;;
+    *) why="has a signature gpg couldn't check" ;;
+  esac
+  # gpg passes a good signature from a revoked key, and calls one from a
+  # revoked, expired key merely expired: ask for the key's own validity.
+  if [ -z "$why" ]; then
+    signer=$(awk '$2 == "VALIDSIG" { print $NF }' <<<"$status")
+    validity=$(gpg_keys --with-colons --list-keys "$signer" \
+      | awk -F: '$1 == "pub" { print $2 }')
+    case $validity in
+      r) why='is signed by a revoked release key' ;;
+      '') why="has a signature gpg couldn't check" ;;
+    esac
+  fi
+  if [ -n "$why" ]; then
+    fail_lookup "Node $1's SHASUMS256.txt $why"
+    exit 1
+  fi
+  cat "$tmp/sums"
+)
+
 lookup_node() { # file tool
   local file=$1 tool=$2 prefix version index listing cand sums arch name sum
   prefix=$(pin_prefix "$file" "$tool" _VERSION)
@@ -421,11 +475,7 @@ lookup_node() { # file tool
     return 1
   }
   version_gt "$cand" "$version" || return 0
-  sums=$(fetch "https://nodejs.org/dist/$cand/SHASUMS256.txt") \
-    || {
-      fail_lookup "can't read Node $cand's SHASUMS256.txt"
-      return 1
-    }
+  sums=$(node_sums "$cand") || return 1
   echo "candidate $cand"
   echo "key $tool@$cand"
   echo "set ${prefix}_VERSION $cand"
