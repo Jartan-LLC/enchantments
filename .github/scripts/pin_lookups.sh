@@ -418,13 +418,21 @@ node_sums() ( # version
       fail_lookup "can't read Node $1's SHASUMS256.txt or its signature"
       exit 1
     }
-  GNUPGHOME=$tmp gpg --batch --no-default-keyring --keyring "$tmp/keys.kbx" \
-    --trust-model always --verify "$tmp/sums.sig" "$tmp/sums" 2>/dev/null \
-    || {
-      fail_lookup "Node $1's SHASUMS256.txt isn't signed by a pinned" \
-        "release key"
-      exit 1
-    }
+  # gpg exits 0 for a good signature from a revoked key, so read its status.
+  status=$(GNUPGHOME=$tmp gpg --batch --no-default-keyring \
+    --keyring "$tmp/keys.kbx" --trust-model always --status-fd 1 \
+    --verify "$tmp/sums.sig" "$tmp/sums" 2>/dev/null) || true
+  case $status in
+    *'[GNUPG:] REVKEYSIG '*) why='is signed by a revoked release key' ;;
+    *'[GNUPG:] VALIDSIG '*) why='' ;;
+    *'[GNUPG:] BADSIG '*) why="doesn't match its signature" ;;
+    *'[GNUPG:] NO_PUBKEY '*) why="isn't signed by a pinned release key" ;;
+    *) why="has a signature gpg couldn't check" ;;
+  esac
+  if [ -n "$why" ]; then
+    fail_lookup "Node $1's SHASUMS256.txt $why"
+    exit 1
+  fi
   cat "$tmp/sums"
 )
 

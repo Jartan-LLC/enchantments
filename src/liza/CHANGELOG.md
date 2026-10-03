@@ -1,6 +1,6 @@
 ## 1.0.1
 
-- Downloads also retry when the connection is reset.
+- Downloads retry after any error, a reset connection included.
 
 ## 1.0.0
 

@@ -4,8 +4,8 @@
 
 # Fetches into a destination only if the bytes match the expected digest.
 fetch_verified() { # url expected-sha256 destination
-  # --retry skips connection resets, and curl before 7.71 has no
-  # --retry-all-errors to retry them.
+  # --retry skips some errors, connection resets among them; curl before
+  # 7.71 has no --retry-all-errors, which retries every error.
   local retry_flags=(--retry 3 --retry-connrefused)
   if curl --retry-all-errors --version >/dev/null 2>&1; then
     retry_flags+=(--retry-all-errors)

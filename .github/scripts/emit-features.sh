@@ -4,9 +4,10 @@
 # every Feature, and each _global scenario, on both architectures, all or
 # nothing: consumer scenarios build sibling Features from source, so one
 # Feature's change re-runs every Feature that composes it. _global's
-# scenarios, the slowest, get a job each. With no base (a manual run, a
-# failed fetch) everything runs, rather than risk skipping a change. EVENT and
-# BEFORE carry github.event_name and github.event.before.
+# scenarios get a job each, as one job running them all is the longest.
+# With no base (a manual run, a failed fetch) everything runs, rather than
+# risk skipping a change. EVENT and BEFORE carry github.event_name and
+# github.event.before.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
