@@ -107,7 +107,7 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      containers, including MCP-server keys and tokens stored in `claude-data`.
    - From the clean host, replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY`
      secret with the key step 1 generated
-     ([The pin-bump App](releasing.md#the-pin-bump-app)).
+     ([The pin-bump App](releasing.md#the-pin-bump-app)), then delete that key's file.
    - Re-clone workspaces from their remotes instead of reopening the old clones, because
      hooks may have planted `.git/config`, `.git/hooks` or `.devcontainer/` changes.
    - Only then rebuild the containers and log in inside them again. Containers go first,

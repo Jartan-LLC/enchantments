@@ -1,10 +1,10 @@
 #!/bin/bash
 # Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report,
 # whose rows pin-bumps.sh's header gives: one issue per tool whose lookup
-# failed, and one per Feature whose branch couldn't be pushed. Each is
-# updated rather than duplicated, and closed by the first run that reports
-# that tool or Feature clean. Needs GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN
-# with issues write.
+# failed, and one per Feature whose pins.sh couldn't be read or whose branch
+# couldn't be pushed. Each is updated rather than duplicated, and closed by
+# the first run that reports that tool or Feature clean. Needs
+# GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN with issues write.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}
 : "${GITHUB_REPOSITORY:?}" "${RUN_URL:?}"
@@ -17,9 +17,10 @@ gh label create "$label" --repo "$GITHUB_REPOSITORY" --force \
 open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
   --label "$label" --limit 200 --json number,title)
 
-title() { # lookup|push tool|id
+title() { # lookup|pins|push tool|id
   case $1 in
     lookup) echo "pin-bumps: $2 lookup failing" ;;
+    pins) echo "pin-bumps: $2 pins.sh unreadable" ;;
     push) echo "pin-bumps: $2 push refused" ;;
   esac
 }
@@ -72,6 +73,19 @@ while IFS=$'\t' read -r what name state reason; do
       } >"$body"
       raise "$(title lookup "$name")" "$body"
       ;;
+    pins/fail)
+      {
+        echo "\`pin-bumps.yml\` couldn't read \`src/$name/pins.sh\`'s pin list:"
+        echo
+        quoted "$reason"
+        echo
+        echo "None of the Feature's pins are looked up, and each run fails," \
+          "until it's fixed; the first run after that closes this issue."
+        echo
+        echo "Last failure: $RUN_URL"
+      } >"$body"
+      raise "$(title pins "$name")" "$body"
+      ;;
     push/refused)
       {
         echo "\`pin-bumps.yml\` couldn't push \`pin-bumps/$name\`:"
@@ -96,7 +110,7 @@ while IFS=$'\t' read -r what name state reason; do
       } >"$body"
       raise "$(title push "$name")" "$body"
       ;;
-    lookup/ok | push/ok) settle "$(title "$what" "$name")" ;;
+    lookup/ok | pins/ok | push/ok) settle "$(title "$what" "$name")" ;;
     *) echo "unknown report row: $what/$state" >&2 && exit 1 ;;
   esac
 done <"$report"

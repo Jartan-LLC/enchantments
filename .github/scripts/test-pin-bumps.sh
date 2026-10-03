@@ -642,6 +642,11 @@ locked semble==1.0.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
   "torch==2.2.0 ; x" "torch==2.2.0+cpu ; y"
 expect "a local version moving up is offered" 0 \
   "change torch: 2.1.0/2.1.0+cpu → 2.2.0/2.2.0+cpu" uv_lock
+expect "from its versions joined by /" 0 "torch==2.1.0/2.1.0+cpu" uv_lock
+expect "to its versions joined by /" 0 "torch==2.2.0/2.2.0+cpu" uv_lock
+mkdir -p "$root/globs" && touch "$root/globs/5.0"
+glob_max() { (cd "$root/globs" && max_version '1.0|[5].0'); }
+expect_not "max_version never globs a version" 5.0 glob_max
 locked semble==1.1.0 anyio==4.1.0 "numpy==1.26.0 ; x" "numpy==2.1.0 ; y" \
   "torch==2.1.0 ; x" "torch==2.1.0+cpu ; y"
 uv_lock >/dev/null
@@ -1028,7 +1033,13 @@ commit_seed zzz
 git -C "$seed" push -q origin HEAD:main
 expect "a malformed pins.sh fails a real run" 1 "malformed # pin header" bump
 expect "and is reported against it" 0 \
-  "$(printf 'lookup\tzzz/pins.sh\tfail')" cat "$root/report"
+  "$(printf 'pins\tzzz\tfail')" cat "$root/report"
+echo '# pin nosuch zzz-tool' >"$seed/src/zzz/pins.sh"
+commit_seed "fix zzz"
+git -C "$seed" push -q origin HEAD:main
+expect "once it reads, the run passes" 0 "" bump
+expect "and reports it clean" 0 \
+  "$(printf 'pins\tzzz\tok')" cat "$root/report"
 
 # --- The lock write path, end to end ------------------------------------------
 
@@ -1121,6 +1132,11 @@ expect "a refused push opens an issue" 0 "create pin-bumps: liza push refused" \
 expect_not "a clean lookup of another tool leaves it open" close \
   issues "lookup${tab}go${tab}ok"
 expect "a clean push closes it" 0 "close 2" issues "push${tab}liza${tab}ok"
+expect "an unreadable pins.sh opens an issue" 0 \
+  "create pin-bumps: zzz pins.sh unreadable" \
+  issues "pins${tab}zzz${tab}fail${tab}no # pin header"
+expect "a run that reads it closes it" 0 "close 3" \
+  issues "pins${tab}zzz${tab}ok"
 
 # shellcheck disable=SC2016 # Markdown backticks
 issues "$(printf 'lookup\tzz\tfail\t`@someone` see')" >/dev/null

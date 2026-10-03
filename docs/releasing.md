@@ -76,6 +76,9 @@ nothing merges it automatically.
   The Feature's PR stays as it is until a run succeeds, which closes the issue. CI's
   `pin-lookups` job runs the lookups, without downloading assets or model files, on each
   PR that changes a `pins.sh`, a lock or its input, the pin-bump scripts or `ci.yml`.
+- **A `pin-bumps: <id> pins.sh unreadable` issue** means a run couldn't read that
+  Feature's `# pin` headers, so it looked none of its pins up, and every run fails until
+  they're fixed. The first run after that closes the issue.
 - **A `pin-bumps: <id> push refused` issue** means a run couldn't push the branch,
   usually because main has workflow changes the workflow can't push. Rebase the branch by
   hand, as the issue says. The next run that pushes the branch, or leaves it as it is,
@@ -91,7 +94,11 @@ token start no CI. To set it up, or to replace it:
    enchantments.
 2. Create enchantments' `pin-bumps` environment, with its deployment branches limited to
    `main`. Set its variable `PIN_BUMPS_CLIENT_ID` to the App's Client ID, and its secret
-   `PIN_BUMPS_PRIVATE_KEY` to a private key generated for the App.
+   `PIN_BUMPS_PRIVATE_KEY` to a private key generated for the App, then delete the
+   downloaded key.
+
+To rotate the key, generate a new one, store it in `PIN_BUMPS_PRIVATE_KEY`, then delete
+the downloaded file and the older keys. GitHub won't delete an App's only key.
 
 ## Updating pins
 

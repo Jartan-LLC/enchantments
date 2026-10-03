@@ -8,7 +8,8 @@
 # exits 1 when a Feature's update errors or its pins.sh can't be read (a
 # failed lookup is reported, not fatal), and writes a report for
 # pin-bumps-issues.sh, one tab-separated row each:
-#   lookup <tool>|<id>/pins.sh ok|fail [reason]
+#   lookup <tool> ok|fail [reason]
+#   pins   <id>   ok|fail [reason]
 #   push   <id>   ok|refused [reason]
 # "push ok" means the branch needs no maintainer: pushed, already up to date,
 # left to its hand edits, or its PR closed. Run from the repository root.
@@ -70,9 +71,12 @@ git_authed() {
     GIT_CONFIG_VALUE_0="$auth" git "$@"
 }
 
-# The report's two row kinds; the header above gives their vocabulary.
+# The report's row kinds; the header above gives their vocabulary.
 report_lookup() { # tool ok|fail [reason]
   printf 'lookup\t%s\t%s\t%s\n' "$1" "$2" "${3:-}" >>"$report"
+}
+report_pins() { # id ok|fail [reason]
+  printf 'pins\t%s\t%s\t%s\n' "$1" "$2" "${3:-}" >>"$report"
 }
 report_push() { # id ok|refused [reason]
   printf 'push\t%s\t%s\t%s\n' "$1" "$2" "${3:-}" >>"$report"
@@ -112,8 +116,8 @@ look_up_pin() { # id kind tool output
 }
 
 # Looks every pin of a Feature up, and prints the outputs that hold a
-# candidate. Returns 1 when a lookup failed, and 2, reported against
-# <id>/pins.sh, when the pin list can't be read.
+# candidate. Returns 1 when a lookup failed, and 2 when the pin list can't
+# be read.
 look_up_feature() { # id
   local id=$1 kind tool out pinned reason='' failed=0
   if ! pinned=$(pin_list "src/$id/pins.sh"); then
@@ -123,9 +127,10 @@ look_up_feature() { # id
   fi
   if [ -n "$reason" ]; then
     echo "$id: $reason" >&2
-    report_lookup "$id/pins.sh" fail "$reason"
+    report_pins "$id" fail "$reason"
     return 2
   fi
+  report_pins "$id" ok
   mkdir -p "$work/$id"
   while read -r kind tool; do
     [ -n "$kind" ] || continue
@@ -316,9 +321,8 @@ build_commit() { # id parent output...
 # Pushes the commit unless the branch already holds its tree on its parent.
 # Fails when the push was refused, which it reports and marks in
 # $work/<id>.refused: the branch and PR then stay as they are, for a
-# maintainer. The usual cause is
-# main's workflow changes, which the App, with no workflows permission, can't
-# push.
+# maintainer. The usual cause is main's workflow changes, which the App,
+# with no workflows permission, can't push.
 push_branch() { # id remote parent commit
   local id=$1 remote=$2 parent=$3 commit=$4 out reason
   if [ -n "$remote" ] && [ "$(git rev-parse "$remote^")" = "$parent" ] \
