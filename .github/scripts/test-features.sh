@@ -1,10 +1,11 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Runs every scenario of one Feature, or of _global, each as its own invocation
-# on fresh claude-data, gh-config and liza-rebuild volumes: the CLI removes
-# containers but never volumes, and the volume names are fixed. A scenario
-# named *-rebuild then runs again on the volumes it left, as a rebuilt
-# container would.
+# Usage: test-features.sh <id> [scenario]. Runs every scenario of one Feature
+# or of _global, or only the one named, each as its own invocation on fresh
+# claude-data, gh-config and liza-rebuild volumes: the CLI removes containers
+# but never volumes, and the volume names are fixed. A scenario named
+# *-rebuild then runs again on the volumes it left, as a rebuilt container
+# would.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
@@ -15,6 +16,7 @@ if [ "${CI:-}" != true ]; then
 fi
 volumes=(claude-data gh-config liza-rebuild)
 id=$1
+only=${2:-}
 scenarios=test/$id/scenarios.json
 
 # The CLI counts zero scenarios as a pass, and --filter is a substring match.
@@ -29,6 +31,11 @@ overlap=$(jq -r 'keys as $k
 if [ -n "$overlap" ]; then
   echo "::error file=$scenarios::a scenario name is a substring of another," \
     "so --filter would run both: $overlap"
+  exit 1
+fi
+if [ -n "$only" ] \
+  && ! jq -e --arg s "$only" 'has($s)' "$scenarios" >/dev/null; then
+  echo "::error file=$scenarios::no scenario named $only"
   exit 1
 fi
 # A new Feature mustn't skip the image-coverage tests.
@@ -56,7 +63,8 @@ run() { # scenario
 }
 
 failed=()
-for name in $(jq -r 'keys[]' "$scenarios"); do
+for name in $(jq -r --arg s "$only" 'keys[] | select($s == "" or . == $s)' \
+  "$scenarios"); do
   echo "::group::$id: $name"
   # The CLI returns while Docker is still removing its test container, which
   # holds the volumes; the last try reports the error.

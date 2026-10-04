@@ -91,7 +91,7 @@ jobs:
         run: .github/scripts/emit-features.sh
 
   test:
-    name: test (${{ matrix.id }}, ${{ matrix.runner }})
+    name: test (${{ matrix.id }}${{ matrix.scenario && format('/{0}', matrix.scenario) || '' }}, ${{ matrix.runner }})
     needs: features
     if: needs.features.outputs.matrix != '[]'
     runs-on: ${{ matrix.runner }}
@@ -111,7 +111,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - env:
           ID: ${{ matrix.id }}
-        run: .github/scripts/test-features.sh "$ID"
+          SCENARIO: ${{ matrix.scenario }}
+        run: .github/scripts/test-features.sh "$ID" "$SCENARIO"
 
   # A Feature's change must raise its version, with that version's changelog
   # entry (GUARDRAILS.md). Without a base there's nothing to compare.

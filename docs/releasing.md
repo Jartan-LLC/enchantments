@@ -76,7 +76,10 @@ nothing merges it automatically.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
-  `pin-lookups` job.
+  `pin-lookups` job. If the `node` lookup says a release `doesn't match its signature`
+  or `is signed by a revoked release key`, leave the pins as they are; the issue closes
+  once a newer release verifies. If it says `isn't signed by a pinned release key`,
+  update Node's release keys ([Updating pins](#updating-pins)).
 - **A `pin-bumps: <id> pin headers invalid` issue** means that Feature's `pins.sh` has
   a malformed `# pin` header, or none, so every run fails. Fix it; the next run closes
   the issue.
@@ -115,7 +118,8 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
 | `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it |
-| `node` | the version and each arch's sha256 | the newest LTS, with digests from its published `SHASUMS256.txt` |
+| `node` | the version and each arch's sha256 | the newest LTS, with digests from its `SHASUMS256.txt`, signed by one of Node's release keys |
+| Node's release keys | `NODE_KEYS_COMMIT` and `NODE_KEYS_SUM` in `.github/scripts/pin_lookups.sh` | the steps below; no Feature version |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
 | `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | run the command in its header, then restore the header lines uv replaces |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
@@ -135,6 +139,16 @@ a pin-bump PR already has, and:
 - check `src/liza-toolchain/configure.args` against `liza toolchain configure --help`.
 
 Liza's own `liza toolchain install` isn't used: it fetches unpinned installers.
+
+When the `node` lookup says a release `isn't signed by a pinned release key`, update
+Node's release keys:
+
+1. Download `gpg-only-active-keys/pubring.kbx` at the newest `nodejs/release-keys` commit,
+   and that release's `SHASUMS256.txt` and `SHASUMS256.txt.sig`.
+2. Run `gpg --no-default-keyring --keyring ./pubring.kbx --verify SHASUMS256.txt.sig
+   SHASUMS256.txt`. Check that it prints `Good signature`, and a `Primary key fingerprint`
+   listed under Release keys in `nodejs/node`'s README.
+3. Set `NODE_KEYS_COMMIT` to that commit and `NODE_KEYS_SUM` to the keyring's sha256.
 
 ## A disabled schedule
 

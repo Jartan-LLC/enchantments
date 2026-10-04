@@ -1,3 +1,8 @@
+## 1.1.1
+
+- Release downloads checked against a pinned sha256 retry after any error, a reset
+  connection included, where the image's curl is 7.71 or later.
+
 ## 1.1.0
 
 - `uv`: 0.12.18 → 0.12.19

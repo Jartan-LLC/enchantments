@@ -1,8 +1,9 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Tests the release scripts in .github/scripts against throwaway git repos
-# built from this checkout's src/, with a stub devcontainer CLI for the
-# registry. Prints one line per case and exits non-zero if any fails.
+# Tests the CI scripts in .github/scripts, and lib/fetch_verified.sh, against
+# throwaway git repos built from this checkout, with stub devcontainer,
+# docker and curl CLIs. Prints one line per case and exits non-zero if any
+# fails.
 set -uo pipefail
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 root=$(mktemp -d)
@@ -10,14 +11,14 @@ trap 'rm -rf "$root"' EXIT
 # shellcheck source=test_lib.sh
 . "$repo/.github/scripts/test_lib.sh"
 
-# A repo whose base commit copies src/ and the scripts; the change commit
-# follows. Leaves the shell in it, with $base set.
+# A repo whose base commit copies src/, test/ and the scripts; the change
+# commit follows. Leaves the shell in it, with $base set.
 new_repo() {
   cd "$(mktemp -d "$root/repo.XXXX")" || exit 1
   git init -q
   git config user.email test@example.com
   git config user.name test
-  cp -R "$repo/src" .
+  cp -R "$repo/src" "$repo/test" .
   mkdir -p .github lib && cp -R "$repo/.github/scripts" .github/
   echo x >lib/keep
   git add -A && git commit -qm base
@@ -210,6 +211,24 @@ if grep -qF "$full" <<<"$out" && grep -qx "base=" <<<"$out"; then
 else
   fail "schedule" "$out"
 fi
+out=$(emit pull_request)
+matrix_jq() { # filter
+  sed -n 's/^matrix=//p' <<<"$out" | jq -c "$1"
+}
+want=$(jq -c '[keys[] as $s | ("ubuntu-24.04", "ubuntu-24.04-arm") as $r
+  | {id: "_global", scenario: $s, runner: $r}] | sort' \
+  test/_global/scenarios.json)
+if [ "$(matrix_jq '[.[] | select(.id == "_global")] | sort')" = "$want" ]; then
+  pass "each _global scenario is a job on each runner"
+else
+  fail "_global jobs" "$out"
+fi
+if [ "$(matrix_jq '[.[] | select(.id != "_global") | has("scenario")]
+  | length > 0 and all(. == false)')" = true ]; then
+  pass "a Feature's jobs name no scenario"
+else
+  fail "Feature jobs" "$out"
+fi
 
 new_pushed_repo README.md
 out=$(emit pull_request)
@@ -217,6 +236,15 @@ if grep -qx 'matrix=\[\]' <<<"$out" && grep -qx "base=$base" <<<"$out"; then
   pass "a PR changing no Feature runs nothing"
 else
   fail "PR, docs change" "$out"
+fi
+
+new_repo
+echo '{}' >test/_global/scenarios.json
+commit
+if grep -qx rc=1 <<<"$(emit schedule)"; then
+  pass "_global without scenarios fails"
+else
+  fail "_global without scenarios" "$(emit schedule)"
 fi
 
 # grep -q exits at its first match; piped, a long git diff would die of
@@ -239,6 +267,76 @@ if [ "$runs" -eq 5 ]; then
   pass "a 1,600-path diff whose first path matches runs everything"
 else
   fail "long diff" "$runs/5 runs"
+fi
+
+# --- test-features.sh, against stub devcontainer and docker CLIs ---
+
+new_repo
+mkdir -p node_modules/.bin stubs test/fixture
+cat >node_modules/.bin/devcontainer <<'EOF'
+#!/bin/bash
+echo "$*" >>"$STUB_LOG"
+EOF
+echo '#!/bin/bash' >stubs/docker
+chmod +x node_modules/.bin/devcontainer stubs/docker
+echo '{"one": {}, "two-rebuild": {}}' >test/fixture/scenarios.json
+export STUB_LOG=$PWD/stub.log
+features_test() { # scenario...
+  CI=true PATH=$PWD/stubs:$PATH .github/scripts/test-features.sh fixture "$@"
+}
+# Checks the exit status, then the scenarios the CLI ran, one line per run.
+expect_runs() { # name want scenario...
+  local name=$1 want=$2 out
+  shift 2
+  : >"$STUB_LOG"
+  features_test "$@" >/dev/null 2>&1
+  out="rc=$?"$'\n'$(sed -n 's/.* --filter \([^ ]*\) .*/\1/p' "$STUB_LOG")
+  if [ "$out" = "$want" ]; then
+    pass "$name"
+  else
+    fail "$name" "$out"
+  fi
+}
+all=$'rc=0\none\ntwo-rebuild\ntwo-rebuild'
+expect_runs "test-features.sh runs each scenario, a rebuild twice" "$all"
+expect_runs "test-features.sh with an empty scenario name runs each" "$all" ""
+expect_runs "test-features.sh with a scenario runs only it" $'rc=0\none' one
+expect_runs "test-features.sh with a rebuild scenario runs it twice" \
+  $'rc=0\ntwo-rebuild\ntwo-rebuild' two-rebuild
+expect_runs "test-features.sh with an unknown scenario runs none" \
+  $'rc=1\n' nope
+expect "test-features.sh names the unknown scenario" 1 \
+  "no scenario named nope" features_test nope
+
+# --- lib/fetch_verified.sh, against a stub curl ---
+
+# The stub rejects --retry-all-errors when OLD_CURL is set, as curl before
+# 7.71 does, and logs each download's flags.
+stubs=$(mktemp -d "$root/curl.XXXX")
+cat >"$stubs/curl" <<'EOF'
+#!/bin/bash
+if [ "$2" = --version ]; then
+  [ -z "${OLD_CURL:-}" ]
+  exit
+fi
+echo "$*" >>"$STUB_LOG"
+exit 22
+EOF
+chmod +x "$stubs/curl"
+retry_flags() { # old (non-empty for an old curl)
+  : >"$STUB_LOG"
+  (
+    # shellcheck source=../../lib/fetch_verified.sh
+    . "$repo/lib/fetch_verified.sh"
+    PATH=$stubs:$PATH OLD_CURL=$1 fetch_verified https://x 00 "$root/dest"
+  )
+  grep -c -- --retry-all-errors "$STUB_LOG"
+}
+if [ "$(retry_flags '')" = 1 ] && [ "$(retry_flags old)" = 0 ] \
+  && grep -q -- '--retry 3' "$STUB_LOG"; then
+  pass "fetch_verified retries every error where curl can"
+else
+  fail "fetch_verified's retries" "$(cat "$STUB_LOG")"
 fi
 
 # --- check-pending.sh and check-visibility.sh, against a stub CLI ---
