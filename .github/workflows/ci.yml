@@ -3,8 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  # Hook envs resolve at run time within their bounds, so `main` can go red with no
-  # commit touching it; these catch that before the next PR does.
+  # pre-commit's hook envs and the dev container's unpinned downloads (Claude's
+  # installer, grimoire's plugins) resolve at run time, so `main` can go red with
+  # no commit touching it; these catch that before the next PR does.
   push:
     branches: [main]
   schedule:
@@ -201,7 +202,6 @@ jobs:
           fi
 
   changes:
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -212,8 +212,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-      # A PR's merge commit has its base as first parent. With no base (a manual run, a
-      # failed fetch) the jobs run, rather than risk skipping a change.
+      # A PR's merge commit has its base as first parent. With no base (a scheduled or
+      # manual run, a failed fetch) the jobs run, rather than risk skipping a change.
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
@@ -224,10 +224,12 @@ jobs:
             push) git fetch -q --depth=1 origin "$BEFORE" && base=$BEFORE ;;
           esac
           changed=$([ -z "${base:-}" ] || git diff --name-only "$base" HEAD)
-          # Everything the dev container build reads, post-create's installs included.
+          # Everything the Dev container job reads, from the build to verify.sh's git
+          # status check.
           if [ -z "${base:-}" ] \
               || grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$' \
-                -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$' <<<"$changed"; then
+                -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$' \
+                -e '^\.claude/settings\.json$' -e '^\.gitignore$' <<<"$changed"; then
             echo devcontainer=true >>"$GITHUB_OUTPUT"
           fi
           # A pins.sh, a lock or its input, the code that looks them up, the uv
