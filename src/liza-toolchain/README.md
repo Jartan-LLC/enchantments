@@ -27,7 +27,7 @@ Release binaries, each checked against its sha256:
   syntax matters more than names.
 - **yq**: jq-style querying and editing for YAML, JSON, XML and TOML.
 - **rtk**: a proxy that compresses command output before it reaches the agent, to save
-  tokens. Not on aarch64 with glibc older than 2.39.
+  tokens.
 - **mdq**: jq for Markdown: selects sections, lists and tables. x86_64 only.
 
 Built from the `liza-mas` sources at a pinned commit, with a pinned Go:
@@ -48,13 +48,12 @@ From `npm/package-lock.json`, run by a pinned Node kept off `PATH`:
 
 - **scip-python, scip-typescript**: Sourcegraph's indexers, which write the SCIP indexes
   scip-search reads.
-- **context7 MCP**: an MCP server that gives the agent current library docs; registered
-  with Claude Code when the `claude-code` Feature is present.
+- **context7 MCP**: an MCP server that gives the agent current library docs.
 
 In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`:
 
 - **semble**: code search for agents that returns just the snippets they need, mixing
-  static embeddings from the potion-code-16M model with BM25 keyword matching. The model
+  static embeddings from the potion-code-16M-v2 model with BM25 keyword matching. The model
   is fetched at a pinned revision and sha256, so semble never downloads it at run time.
 
 ## Known limitations

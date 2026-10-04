@@ -1,6 +1,7 @@
 # enchantments
 
-Dev container Features for Jartan LLC's projects, each one installable on its own.
+[Dev container Features](https://containers.dev/features) that set up Claude Code and
+agent tools on Debian-based images.
 
 ```{include} ../README.md
 :start-after: <!-- declare:start -->
@@ -12,11 +13,11 @@ Dev container Features for Jartan LLC's projects, each one installable on its ow
 :caption: Features
 
 features/claude-code
-features/codebase-memory-mcp
 features/gh-config
 features/grimoire
 features/liza
 features/liza-toolchain
+features/codebase-memory-mcp
 ```
 
 ```{toctree}
