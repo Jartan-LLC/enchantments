@@ -21,13 +21,41 @@ Liza's agent toolchain, every tool pinned and verified, installed into the liza 
 
 ## Tools
 
-| Tool | Installed from |
-|---|---|
-| ast-grep, yq, rtk | release binary + sha256 |
-| mdq (x86_64 only) | release binary + sha256 |
-| stacklit, scip-search, functional-clusters, mdtoc, bash-policy | source at a pinned commit, built with a pinned Go |
-| scip-python, scip-typescript, context7 MCP | `npm/package-lock.json`, run by a pinned Node |
-| semble | `semble-requirements.txt` (hash-locked), in a venv a pinned uv builds; its model by revision and sha256 |
+Release binaries, each checked against its sha256:
+
+- **ast-grep**: structural code search and rewrite with syntax-tree patterns, for when
+  syntax matters more than names.
+- **yq**: jq-style querying and editing for YAML, JSON, XML and TOML.
+- **rtk**: a proxy that compresses command output before it reaches the agent, to save
+  tokens. Not on aarch64 with glibc older than 2.39.
+- **mdq**: jq for Markdown: selects sections, lists and tables. x86_64 only.
+
+Built from the `liza-mas` sources at a pinned commit, with a pinned Go:
+
+- **stacklit**: indexes a repo with tree-sitter into a compact `stacklit.json` (modules,
+  dependencies, exports, hints), queried with subcommands such as `find-module` and
+  `get-hot-files`.
+- **scip-search**: queries SCIP indexes for symbols, references, implementations,
+  callers, callees and impact, in place of grepping and reading files.
+- **functional-clusters**: groups code into advisory functional clusters from scip-search
+  and Stacklit exports; `explain` shows why a symbol is in its cluster.
+- **mdtoc**: prints each Markdown heading with its line range and an mdq selector.
+- **bash-policy**: splits an agent's Bash commands into single commands and applies allow
+  and deny rules to each, finer than Claude Code's `Bash(...)` rules. It also covers Codex
+  and Cursor, and can audit in dry-run mode.
+
+From `npm/package-lock.json`, run by a pinned Node kept off `PATH`:
+
+- **scip-python, scip-typescript**: Sourcegraph's indexers, which write the SCIP indexes
+  scip-search reads.
+- **context7 MCP**: an MCP server that gives the agent current library docs; registered
+  with Claude Code when the `claude-code` Feature is present.
+
+In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`:
+
+- **semble**: code search for agents that returns just the snippets they need, mixing
+  static embeddings from the potion-code-16M model with BM25 keyword matching. The model
+  is fetched at a pinned revision and sha256, so semble never downloads it at run time.
 
 ## Known limitations
 
