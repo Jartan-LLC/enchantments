@@ -19,7 +19,8 @@
 
 A run on main publishes only when it ran every Feature's tests. A merge that changes only
 docs doesn't, so its pending version waits for the daily run, or for one you start with
-`gh workflow run ci.yml`.
+`gh workflow run ci.yml`. Those runs also build this repo's dev container, and publish only
+if it builds.
 
 ## Versioning
 
