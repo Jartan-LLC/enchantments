@@ -1,7 +1,7 @@
 ## 1.0.2
 
-- Activation gives Claude no stdin, so it can't put the hook's terminal into raw mode.
-- The description names ripgrep, which the Feature installs alongside Liza.
+- Activation no longer changes the settings of the terminal VS Code runs the hook in.
+- The description names ripgrep, which the Feature installs with Liza.
 
 ## 1.0.1
 

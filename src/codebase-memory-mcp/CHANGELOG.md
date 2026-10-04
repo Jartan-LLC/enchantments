@@ -1,7 +1,7 @@
 ## 1.0.2
 
-- Registering the MCP server gives Claude no stdin, so it can't put the hook's terminal
-  into raw mode.
+- Registering the MCP server no longer changes the settings of the terminal VS Code runs
+  the hook in.
 
 ## 1.0.1
 

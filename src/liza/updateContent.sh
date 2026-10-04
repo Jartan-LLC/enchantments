@@ -7,8 +7,8 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-steps.sh
 . "$here/activation-steps.sh"
-# claude puts a terminal stdin into raw mode, which stops it outside the
-# terminal's foreground group, as under timeout. Hooks read no input.
+# claude switches a terminal stdin to raw mode, changing the terminal the hook
+# runs in. Hooks read no input.
 exec </dev/null
 
 liza_volume_ready "Liza isn't set up or activated" || exit 0

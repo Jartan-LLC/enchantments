@@ -10,8 +10,8 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/claude_ready.sh"
 id=codebase-memory-mcp
 bin=$HOME/.local/bin/codebase-memory-mcp
-# claude puts a terminal stdin into raw mode, which stops it outside the
-# terminal's foreground group, as under timeout. Hooks read no input.
+# claude switches a terminal stdin to raw mode, changing the terminal the hook
+# runs in. Hooks read no input.
 exec </dev/null
 
 [ -x "$bin" ] || exit 0 # onCreate recorded why
