@@ -1,7 +1,7 @@
 
 # Liza (liza)
 
-Liza, pinned and digest-checked, activated locally for each clone.
+Liza and ripgrep, pinned and digest-checked, with Liza activated locally for each clone.
 
 ## Example Usage
 
