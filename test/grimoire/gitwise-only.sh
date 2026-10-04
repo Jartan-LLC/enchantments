@@ -19,8 +19,8 @@ check "no failures recorded" \
 check "a rerun finishes with a terminal on stdin" timeout 200 script -qec \
   "bash /usr/local/share/enchantments/grimoire/updateContent.sh" /dev/null \
   </dev/null
-cat "$HOME"/.cache/enchantments/*.failures 2>/dev/null || true
+# grep prints a recorded failure, if any, into the test log.
 check "the rerun records no failure" \
-  test -z "$(ls "$HOME"/.cache/enchantments/*.failures 2>/dev/null)"
+  bash -c "! grep -H . $HOME/.cache/enchantments/*.failures 2>/dev/null"
 
 reportResults
