@@ -1,6 +1,7 @@
 ## 1.0.2
 
-- Activation no longer changes the settings of the terminal VS Code runs the hook in.
+- Activation runs Claude without the hook's terminal, as a precaution: under a timeout,
+  a terminal on stdin stops Claude.
 - The description names ripgrep, which the Feature installs with Liza.
 
 ## 1.0.1

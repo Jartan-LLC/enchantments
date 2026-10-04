@@ -17,7 +17,9 @@ check "no failures recorded" \
 # VS Code can run the hook with a terminal on stdin; a rerun with one still
 # finishes and fails nothing.
 check "a rerun finishes with a terminal on stdin" timeout 200 script -qec \
-  "bash /usr/local/share/enchantments/grimoire/updateContent.sh" /dev/null
+  "bash /usr/local/share/enchantments/grimoire/updateContent.sh" /dev/null \
+  </dev/null
+cat "$HOME"/.cache/enchantments/*.failures 2>/dev/null || true
 check "the rerun records no failure" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures 2>/dev/null)"
 

@@ -1,7 +1,7 @@
 ## 1.0.2
 
-- Registering the MCP server no longer changes the settings of the terminal VS Code runs
-  the hook in.
+- Registering the MCP server runs Claude without the hook's terminal, as a precaution:
+  under a timeout, a terminal on stdin stops Claude.
 
 ## 1.0.1
 

@@ -72,14 +72,16 @@ ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
   | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
   | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
-# Runs claude; on failure, prints the last line of its error output, or that
-# it timed out.
+# Runs claude for up to 300 seconds, discarding its output. On failure, passes
+# its error output on to stderr and prints why: the last error line, the exit
+# status when there's none, or that it timed out or was killed.
 run_claude() { # claude-args...
   local out status
   out=$(timeout -k 10 300 "$claude_bin" "$@" 2>&1 >/dev/null)
   status=$?
+  [ "$status" = 0 ] && return 0
+  [ -z "$out" ] || printf '%s\n' "$out" >&2
   case $status in
-    0) return 0 ;;
     124) echo "timed out" ;;
     137) echo "killed, or timed out" ;;
     *)

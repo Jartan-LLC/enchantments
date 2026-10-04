@@ -70,7 +70,7 @@ check "attach in a subfolder matches the workspace and the repo root" \
 # VS Code runs postAttach with a terminal on stdin; with the real claude, the
 # refresh still finishes.
 check "the attach refresh finishes with a terminal on stdin" \
-  timeout 50 script -qec "bash $hooks/postAttach.sh" /dev/null
+  timeout 50 script -qec "bash $hooks/postAttach.sh" /dev/null </dev/null
 
 # A second claude on PATH, in a scratch HOME so the real report stays as it was.
 probe=$(mktemp -d)
