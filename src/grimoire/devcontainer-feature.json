@@ -1,6 +1,6 @@
 {
   "id": "grimoire",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "grimoire plugins",
   "description": "Installs plugins from the grimoire Claude Code marketplace at local scope.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/grimoire",

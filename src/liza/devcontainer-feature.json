@@ -1,6 +1,6 @@
 {
   "id": "liza",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "name": "Liza",
   "description": "Liza, pinned and digest-checked, activated locally for each clone.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/liza",

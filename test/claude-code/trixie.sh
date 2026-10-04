@@ -67,6 +67,11 @@ plugins update e@m4 --scope project"
 check "attach in a subfolder matches the workspace and the repo root" \
   test "$(cd "$root/sub" && refresh "$plugins")" = "$expected"
 
+# VS Code runs postAttach with a terminal on stdin; with the real claude, the
+# refresh still finishes.
+check "the attach refresh finishes with a terminal on stdin" \
+  timeout 50 script -qec "bash $hooks/postAttach.sh" /dev/null
+
 # A second claude on PATH, in a scratch HOME so the real report stays as it was.
 probe=$(mktemp -d)
 mkdir "$probe/bin" && ln -s /bin/true "$probe/bin/claude"
