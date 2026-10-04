@@ -382,9 +382,10 @@ else
   fail "query token" "$(cat "$STUB_LOG")"
 fi
 cp src/grimoire/CHANGELOG.md changelog.keep
-printf '## 1.0.0\n' >src/grimoire/CHANGELOG.md
+version=$(jq -r .version src/grimoire/devcontainer-feature.json)
+printf '## %s\n' "$version" >src/grimoire/CHANGELOG.md
 expect "check-pending fails on an invalid changelog" 1 \
-  "the '## 1.0.0' entry is empty" \
+  "the '## $version' entry is empty" \
   env GITHUB_TOKEN=secret .github/scripts/check-pending.sh
 mv changelog.keep src/grimoire/CHANGELOG.md
 mv .github/scripts/check-changelog.sh check-changelog.keep
