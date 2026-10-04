@@ -3,22 +3,24 @@
 [![CI](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml/badge.svg)](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Jartan-LLC/enchantments/badge)](https://scorecard.dev/viewer/?uri=github.com/Jartan-LLC/enchantments)
 
-Dev container Features for Jartan LLC's projects, each one installable on its own.
+[Dev container Features](https://containers.dev/features) that set up Claude
+Code and agent tools on Debian-based images.
 
 ## Features
 
-| Feature | What it does |
+| Feature | What you get |
 |---|---|
-| [`claude-code`](src/claude-code/README.md) | Installs Claude Code, which updates itself, and keeps its login in the `claude-data` volume. |
-| [`codebase-memory-mcp`](src/codebase-memory-mcp/README.md) | Installs the codebase-memory-mcp code graph and registers it as an MCP server. |
-| [`gh-config`](src/gh-config/README.md) | Keeps the GitHub CLI's login in the `gh-config` volume. |
-| [`grimoire`](src/grimoire/README.md) | Installs plugins from the grimoire Claude Code marketplace. |
-| [`liza`](src/liza/README.md) | Installs Liza, pinned, and activates it locally for each clone. |
-| [`liza-toolchain`](src/liza-toolchain/README.md) | Installs Liza's agent toolchain, every tool pinned, into the `liza` volume. |
+| [`claude-code`](src/claude-code/README.md) | Claude Code, self-updating, with its login kept across rebuilds |
+| [`gh-config`](src/gh-config/README.md) | the GitHub CLI's login, kept across rebuilds (`gh` not included) |
+| [`grimoire`](src/grimoire/README.md) | Claude Code plugins from the [grimoire](https://github.com/Jartan-LLC/grimoire) marketplace |
+| [`liza`](src/liza/README.md) | [Liza](https://github.com/liza-mas/liza): rules and a multi-agent workflow for coding agents |
+| [`liza-toolchain`](src/liza-toolchain/README.md) | Liza's agent tools, such as code indexes and code search |
+| [`codebase-memory-mcp`](src/codebase-memory-mcp/README.md) | a code graph Claude Code can query |
+
+## Declaring a Feature
 
 <!-- declare:start -->
-Declare one in a project's `devcontainer.json`, or for every container in VS Code's
-`dev.containers.defaultFeatures`:
+Declare each Feature you want under `features` in a project's `devcontainer.json`:
 
 ```json
 {
@@ -28,12 +30,18 @@ Declare one in a project's `devcontainer.json`, or for every container in VS Cod
 }
 ```
 
-Use that exact key, `:1` included, in both places, so a Feature declared twice runs once.
+A Feature never installs another; [Choosing Features](docs/choosing.md) lists the ones
+that need one. To declare one for every container you open, read the
+[trust boundary guide](docs/trust-boundary.md) first, then add the same key to VS Code's
+`dev.containers.defaultFeatures` (no `features` wrapper). Use that exact key, `:1`
+included, in both places, so a Feature declared twice runs once.
 <!-- declare:end -->
 
-## Contributing
+## Documentation
 
-Setup and the checks a change must pass: [CONTRIBUTING.md](CONTRIBUTING.md).
+[Choosing Features](docs/choosing.md) · [Using and removing](docs/using.md) ·
+[What persists](docs/persistence.md) · [Trust boundary](docs/trust-boundary.md) ·
+[Troubleshooting](docs/troubleshooting.md) · [Contributing](CONTRIBUTING.md)
 
 ## License
 
