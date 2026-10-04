@@ -8,28 +8,28 @@
 
 Release binaries, each checked against its sha256:
 
-- **ast-grep**: structural code search and rewrite with syntax-tree patterns, for when
-  syntax matters more than names.
+- **ast-grep**: code search and rewrite that matches code by its structure, not its text.
 - **yq**: jq-style querying and editing for YAML, JSON, XML and TOML.
 - **rtk**: a proxy that compresses command output before it reaches the agent, to save
   tokens.
 - **mdq**: jq for Markdown: selects sections, lists and tables. x86_64 only.
 
-Built from the `liza-mas` sources at a pinned commit, with a pinned Go:
+Built from Liza's own repositories (`liza-mas` on GitHub) at a pinned commit, with a
+pinned Go:
 
 - **stacklit**: indexes a repo with tree-sitter into a compact `stacklit.json` (modules,
   dependencies, exports, hints), queried with subcommands such as `find-module` and
   `get-hot-files`.
 - **scip-search**: queries SCIP indexes for symbols, references, implementations,
   callers, callees and impact, in place of grepping and reading files.
-- **functional-clusters**: groups code into advisory functional clusters from scip-search
-  and Stacklit exports; `explain` shows why a symbol is in its cluster.
+- **functional-clusters**: groups related code by what it does, from scip-search and
+  stacklit exports; `explain` shows why a symbol is in its group.
 - **mdtoc**: prints each Markdown heading with its line range and an mdq selector.
 - **bash-policy**: splits an agent's Bash commands into single commands and applies allow
   and deny rules to each, finer than Claude Code's `Bash(...)` rules. It also covers Codex
   and Cursor, and can audit in dry-run mode.
 
-From `npm/package-lock.json`, run by a pinned Node kept off `PATH`:
+From `npm/package-lock.json`, run by a pinned Node:
 
 - **scip-python, scip-typescript**: Sourcegraph's indexers, which write the SCIP indexes
   scip-search reads.
@@ -39,7 +39,7 @@ In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`
 
 - **semble**: code search for agents that returns just the snippets they need, mixing
   static embeddings from the potion-code-16M-v2 model with BM25 keyword matching. The model
-  is fetched at a pinned revision and sha256, so semble never downloads it at run time.
+  is pinned by revision and sha256, and the toolchain's environment points semble at it.
 
 ## Known limitations
 

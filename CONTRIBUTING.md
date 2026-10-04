@@ -25,6 +25,8 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
   edit those, never `README.md`, then run `make readmes` and commit the result.
 - A change under `src/<id>/` may need a version bump and a `CHANGELOG.md` entry: follow
   the version rule in `GUARDRAILS.md`.
+- Guides: [Adding a Feature](docs/adding-a-feature.md) ·
+  [Releasing](docs/releasing.md) · [A bad release](docs/bad-release.md).
 
 ## Verify before opening a PR
 
