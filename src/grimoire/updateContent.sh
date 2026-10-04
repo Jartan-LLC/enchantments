@@ -15,9 +15,8 @@ plugins='' plugins_invalid=''
 . "$here/options.sh"
 id=grimoire
 retry="retry from the workspace folder: bash $here/updateContent.sh"
-# claude switches a terminal stdin to raw mode, which stops it when it runs
-# outside the terminal's foreground group, as under timeout. Hooks read no
-# input.
+# claude switches a terminal stdin to raw mode, which stops it outside the
+# terminal's foreground process group, as under timeout. Hooks read no input.
 exec </dev/null
 
 if [ -n "$plugins_invalid" ]; then

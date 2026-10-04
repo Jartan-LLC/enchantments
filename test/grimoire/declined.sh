@@ -76,7 +76,8 @@ check "an exclude line without a newline stays whole" \
 check "the settings line is added on its own" \
   grep -qxF .claude/settings.local.json "$repo/.git/info/exclude"
 
-# A failed step reports claude's last error line, or its exit status.
+# A failed step reports claude's last error line, not its first, or its exit
+# status.
 fails=$(mktemp -d)
 mkdir -p "$fails/.local/bin"
 cat >"$fails/.local/bin/claude" <<'STUB'

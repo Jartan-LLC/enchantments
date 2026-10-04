@@ -1,7 +1,6 @@
 ## 1.0.2
 
-- Registering the MCP server runs Claude without the hook's terminal, as a precaution:
-  under a timeout, a terminal on stdin stops Claude.
+- Claude runs without the hook's terminal.
 
 ## 1.0.1
 

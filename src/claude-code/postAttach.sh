@@ -3,9 +3,8 @@
 # marketplaces they come from, so the newest versions load on the next session.
 # Best-effort: a network hiccup never blocks attaching.
 
-# claude switches a terminal stdin to raw mode, which stops it when it runs
-# outside the terminal's foreground group, as under timeout. Hooks read no
-# input.
+# claude switches a terminal stdin to raw mode, which stops it outside the
+# terminal's foreground process group, as under timeout. Hooks read no input.
 exec </dev/null
 command -v claude >/dev/null && command -v jq >/dev/null || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)

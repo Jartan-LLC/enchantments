@@ -1,8 +1,7 @@
 ## 1.0.2
 
-- Activation runs Claude without the hook's terminal, as a precaution: under a timeout,
-  a terminal on stdin stops Claude.
-- The description names ripgrep, which the Feature installs with Liza.
+- Claude runs without the hook's terminal.
+- The description names ripgrep.
 
 ## 1.0.1
 

@@ -1,8 +1,7 @@
 ## 1.0.1
 
-- Adding the marketplace and installing plugins no longer stall until they time out
-  when the hook gets a terminal.
-- A failed step's report says why: Claude's last error line, or that it timed out.
+- Claude runs without the hook's terminal, so plugin installs no longer stall.
+- A failed step's report says why it failed.
 
 ## 1.0.0
 
