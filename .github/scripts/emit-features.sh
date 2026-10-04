@@ -6,8 +6,8 @@
 # Feature's change re-runs every Feature that composes it. _global gets a
 # job per scenario, so its long scenarios run side by side.
 # With no base (a scheduled or manual run, a failed fetch) everything runs,
-# rather than risk skipping a change. EVENT and BEFORE carry github.event_name and
-# github.event.before.
+# rather than risk skipping a change. EVENT and BEFORE carry
+# github.event_name and github.event.before.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
