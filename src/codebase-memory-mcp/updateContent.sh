@@ -10,6 +10,9 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/claude_ready.sh"
 id=codebase-memory-mcp
 bin=$HOME/.local/bin/codebase-memory-mcp
+# claude switches a terminal stdin to raw mode, which stops it under timeout.
+# This hook runs it untimed, so this is a precaution. Hooks read no input.
+exec </dev/null
 
 [ -x "$bin" ] || exit 0 # onCreate recorded why
 # The setting lives in ~/.cache, which a rebuild resets.

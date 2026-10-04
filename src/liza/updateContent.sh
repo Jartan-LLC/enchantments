@@ -7,6 +7,9 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-steps.sh
 . "$here/activation-steps.sh"
+# claude switches a terminal stdin to raw mode, which stops it under timeout.
+# This hook runs it untimed, so this is a precaution. Hooks read no input.
+exec </dev/null
 
 liza_volume_ready "Liza isn't set up or activated" || exit 0
 [ -x "$liza_bin" ] || exit 0 # onCreate recorded why

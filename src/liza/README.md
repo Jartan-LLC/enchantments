@@ -1,7 +1,7 @@
 
 # Liza (liza)
 
-Liza, pinned and digest-checked, activated locally for each clone.
+Liza, activated locally for each clone, with ripgrep; both pinned and digest-checked.
 
 ## Example Usage
 
@@ -15,7 +15,7 @@ Liza, pinned and digest-checked, activated locally for each clone.
 
 ## How it works
 
-- **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`.
+- **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`; `rg` only if `~/.local/bin` has no `rg` already.
 - **Then, in the workspace,** Liza's global files are refreshed to match its binary, and Liza is activated for this clone. Outside a git repository, only the clone's activation is skipped.
 
 ## Activation

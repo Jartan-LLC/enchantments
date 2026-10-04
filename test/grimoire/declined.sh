@@ -76,6 +76,31 @@ check "an exclude line without a newline stays whole" \
 check "the settings line is added on its own" \
   grep -qxF .claude/settings.local.json "$repo/.git/info/exclude"
 
+# A failed step reports claude's last error line, not its first, or its exit
+# status.
+fails=$(mktemp -d)
+mkdir -p "$fails/.local/bin"
+cat >"$fails/.local/bin/claude" <<'STUB'
+#!/bin/bash
+case "$STUB_FAIL $1 $2" in
+  "add plugins marketplace")
+    echo "first error" >&2
+    echo "no network" >&2
+    exit 1
+    ;;
+  "install plugins install") exit 3 ;;
+esac
+STUB
+chmod +x "$fails/.local/bin/claude"
+ln -s /mnt/enchantments/claude-data/claude.json "$fails/.claude.json"
+failures=$fails/.cache/enchantments/grimoire.failures
+(cd "$repo/sub" && STUB_FAIL=add HOME=$fails bash "$hook") 2>/dev/null
+check "a failed add reports claude's last error line" \
+  grep -q "adding the grimoire marketplace failed (no network)" "$failures"
+(cd "$repo/sub" && STUB_FAIL=install HOME=$fails bash "$hook") 2>/dev/null
+check "a failure with no error output reports the exit status" \
+  grep -q "installing praxis failed (exit 3)" "$failures"
+
 # A .claude.json that isn't claude-data's: claude would write elsewhere, so
 # nothing may install.
 unlinked=$(mktemp -d)

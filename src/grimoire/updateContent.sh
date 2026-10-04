@@ -15,6 +15,9 @@ plugins='' plugins_invalid=''
 . "$here/options.sh"
 id=grimoire
 retry="retry from the workspace folder: bash $here/updateContent.sh"
+# claude switches a terminal stdin to raw mode, which stops it outside the
+# terminal's foreground process group, as under timeout. Hooks read no input.
+exec </dev/null
 
 if [ -n "$plugins_invalid" ]; then
   record_failure "$id" "the plugins option must be comma-separated plugin" \
@@ -68,15 +71,34 @@ ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
   | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
   | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
-if ! timeout 300 "$claude_bin" plugins marketplace add \
-  "Jartan-LLC/grimoire${ref:+#$ref}" --scope local >/dev/null; then
-  record_failure "$id" "adding the grimoire marketplace failed; $retry"
+# Runs claude for up to 300 seconds, discarding its output. On failure, passes
+# its error output on to stderr and prints why: the last error line, the exit
+# status when there's none, or that it timed out or was killed.
+run_claude() { # claude-args...
+  local out status
+  out=$(timeout -k 10 300 "$claude_bin" "$@" 2>&1 >/dev/null)
+  status=$?
+  [ "$status" = 0 ] && return 0
+  [ -z "$out" ] || printf '%s\n' "$out" >&2
+  case $status in
+    124) echo "timed out" ;;
+    137) echo "killed, or timed out" ;;
+    *)
+      out=${out##*$'\n'}
+      echo "${out:-exit $status}"
+      ;;
+  esac
+  return 1
+}
+
+if ! why=$(run_claude plugins marketplace add \
+  "Jartan-LLC/grimoire${ref:+#$ref}" --scope local); then
+  record_failure "$id" "adding the grimoire marketplace failed ($why); $retry"
   exit 0
 fi
 IFS=, read -ra wanted <<<"$plugins"
 for plugin in "${wanted[@]}"; do
   declined "$plugin" && continue
-  timeout 300 "$claude_bin" plugins install "$plugin@$id" --scope local \
-    >/dev/null \
-    || record_failure "$id" "installing $plugin failed; $retry"
+  why=$(run_claude plugins install "$plugin@$id" --scope local) \
+    || record_failure "$id" "installing $plugin failed ($why); $retry"
 done

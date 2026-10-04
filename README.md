@@ -13,7 +13,7 @@ Code and agent tools on Debian-based images.
 | [`claude-code`](src/claude-code/README.md) | Claude Code, self-updating, with its login kept across rebuilds |
 | [`gh-config`](src/gh-config/README.md) | the GitHub CLI's login, kept across rebuilds (`gh` not included) |
 | [`grimoire`](src/grimoire/README.md) | Claude Code plugins from the [grimoire](https://github.com/Jartan-LLC/grimoire) marketplace |
-| [`liza`](src/liza/README.md) | [Liza](https://github.com/liza-mas/liza): rules and a multi-agent workflow for coding agents |
+| [`liza`](src/liza/README.md) | [Liza](https://github.com/liza-mas/liza): rules and a multi-agent workflow for coding agents, with ripgrep |
 | [`liza-toolchain`](src/liza-toolchain/README.md) | Liza's agent tools, such as code indexes and code search |
 | [`codebase-memory-mcp`](src/codebase-memory-mcp/README.md) | a code graph Claude Code can query |
 
