@@ -4,6 +4,7 @@
 agent tools on Debian-based images.
 
 ```{include} ../README.md
+:relative-docs: docs/
 :start-after: <!-- declare:start -->
 :end-before: <!-- declare:end -->
 ```

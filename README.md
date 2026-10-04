@@ -20,8 +20,8 @@ Code and agent tools on Debian-based images.
 ## Declaring a Feature
 
 <!-- declare:start -->
-Declare each Feature you want under `features` in a project's `devcontainer.json`; none
-installs another:
+Declare each Feature you want under `features` in a project's `devcontainer.json`. None
+installs another, and [Choosing Features](docs/choosing.md) lists the ones that need one:
 
 ```json
 {
@@ -31,11 +31,9 @@ installs another:
 }
 ```
 
-For every container, read the
-[trust boundary guide](https://github.com/Jartan-LLC/enchantments/blob/main/docs/trust-boundary.md),
-then add the same key to VS Code's `dev.containers.defaultFeatures` (no `features`
-wrapper). Use that exact key, `:1`
-included, in both places, so a Feature declared twice runs once.
+For every container, read the [trust boundary guide](docs/trust-boundary.md), then add
+the same key to VS Code's `dev.containers.defaultFeatures` (no `features` wrapper). Use
+that exact key, `:1` included, in both places, so a Feature declared twice runs once.
 <!-- declare:end -->
 
 ## Documentation
