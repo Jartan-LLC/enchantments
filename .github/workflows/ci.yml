@@ -3,9 +3,9 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  # Hook envs and the dev container Features' create-time downloads resolve at run
-  # time, so `main` can go red with no commit touching it; these catch that before
-  # the next PR does.
+  # Hook envs, and the dev container's unpinned downloads (Claude's installer,
+  # grimoire's plugins), resolve at run time, so `main` can go red with no commit
+  # touching it; these catch that before the next PR does.
   push:
     branches: [main]
   schedule:
@@ -228,7 +228,7 @@ jobs:
           if [ -z "${base:-}" ] \
               || grep -q -e '^\.devcontainer/' -e '^\.github/workflows/ci\.yml$' -e '^Makefile$' \
                 -e '^ci/requirements\.txt$' -e '^docs/requirements\.txt$' -e '^package\.json$' -e '^package-lock\.json$' \
-                -e '^\.claude/settings\.json$' <<<"$changed"; then
+                -e '^\.claude/settings\.json$' -e '^\.gitignore$' <<<"$changed"; then
             echo devcontainer=true >>"$GITHUB_OUTPUT"
           fi
           # A pins.sh, a lock or its input, the code that looks them up, the uv
