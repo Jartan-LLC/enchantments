@@ -115,6 +115,61 @@ bump_minor() { # X.Y.Z
   echo "$major.$((minor + 1)).0"
 }
 
+bump_patch() { # X.Y.Z
+  local major minor patch
+  IFS=. read -r major minor patch <<<"$1"
+  echo "$major.$minor.$((patch + 1))"
+}
+
+# Prints how far a value moved: major, minor or patch, comparing the release
+# version at its end (so v1.2.3 and lychee-v0.24.2 count). Anything else, such
+# as a commit, counts as minor.
+change_level() { # old new
+  local old=${1##*[!0-9.]} new=${2##*[!0-9.]} o1 o2 n1 n2
+  if ! numeric_version "$old" || ! numeric_version "$new"; then
+    echo minor
+    return
+  fi
+  IFS=. read -r o1 o2 _ <<<"$old"
+  IFS=. read -r n1 n2 _ <<<"$new"
+  if [ "$((10#$o1))" != "$((10#$n1))" ]; then
+    echo major
+  elif [ "$((10#${o2:-0}))" != "$((10#${n2:-0}))" ]; then
+    echo minor
+  else
+    echo patch
+  fi
+}
+
+# Prints the largest move in a lookup output: each requirement a lock moved,
+# else the pin from its current value to its candidate. A lock's added or
+# removed requirement counts as minor; versions joined by "/" compare by their
+# highest.
+output_level() { # output
+  local level=patch line old arrow new step current candidate
+  local -a moves
+  mapfile -t moves < <(sed -n 's/^change //p' "$1")
+  if [ "${#moves[@]}" = 0 ]; then
+    current=$(sed -n 's/^current //p' "$1")
+    candidate=$(sed -n 's/^candidate //p' "$1")
+    moves=("pin: $current → $candidate")
+  fi
+  for line in "${moves[@]}"; do
+    read -r _ old arrow new <<<"$line"
+    if [ "$arrow" = → ]; then
+      step=$(change_level "$(max_version "${old//\//|}")" \
+        "$(max_version "${new//\//|}")")
+    else
+      step=minor
+    fi
+    case $step in
+      major) level=major ;;
+      minor) [ "$level" = major ] || level=minor ;;
+    esac
+  done
+  echo "$level"
+}
+
 set_version() { # devcontainer-feature.json version
   jq --arg v "$2" '.version = $v' "$1" | overwrite "$1"
 }

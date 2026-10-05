@@ -27,8 +27,8 @@ if their `Dev container` job passes.
 Each Feature has its own version:
 
 - **Major:** an option removed or renamed, or a change in behavior a project would notice.
-- **Minor:** a pin bump, or a new option.
-- **Patch:** anything else.
+- **Minor:** a new option, or a pin bump with a minor or larger upstream move.
+- **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
@@ -55,8 +55,11 @@ automatically, and fail the version check. Push a commit to the PR's branch that
 
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
-days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's minor
-version and adds its changelog entry. Merge it as in [Releasing a change](#releasing-a-change);
+days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
+and adds its changelog entry. The version takes the largest upstream move: a patch when every
+pin moved by a patch, otherwise a minor. A commit or other non-numeric pin counts as a minor.
+An upstream major also releases as a minor, and the PR names it so you can decide whether
+the Feature needs a major. Merge it as in [Releasing a change](#releasing-a-change);
 nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's

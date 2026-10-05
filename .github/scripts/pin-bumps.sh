@@ -201,7 +201,7 @@ exclusions() { # prs-json
 # Excluded: and held lines.
 pr_body() { # id excluded-file output...
   local id=$1 out
-  local -a held=() excluded_keys=()
+  local -a held=() excluded_keys=() majors=()
   mapfile -t excluded_keys <"$2"
   shift 2
   echo "Raises \`$id\`'s pins to upstream releases at least $COOLDOWN_DAYS" \
@@ -213,7 +213,15 @@ pr_body() { # id excluded-file output...
     echo "| \`$(field "$out" tool)\` | $(shown_from "$out") |" \
       "$(field "$out" candidate) |"
     held+=("$(field "$out" key)")
+    [ "$(output_level "$out")" != major ] \
+      || majors+=("\`$(field "$out" tool)\`")
   done
+  if [ "${#majors[@]}" -gt 0 ]; then
+    echo
+    echo "**Upstream major:** ${majors[*]}. This PR releases the Feature as a" \
+      "minor; if the new major changes what the Feature installs or how it" \
+      "behaves, release a major instead."
+  fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
     "approve the \`ghcr\` deployment. To skip these versions for good, close" \
@@ -288,7 +296,7 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -305,10 +313,13 @@ build_commit() { # id parent output...
     printf -- "- \`%s\`: %s → %s\n" "$(field "$out" tool)" \
       "$(shown_from "$out")" "$(field "$out" candidate)" >>"$work/entry"
     sed -n 's/^change \(.*\)/  - \1/p' "$out" >>"$work/entry"
+    [ "$(output_level "$out")" = patch ] || level=minor
   done
+  # An upstream major is a minor here too: a major would move the :N tag that
+  # consuming repos pin. pr_body flags it for a maintainer to judge.
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
     | jq -r .version)
-  version=$(bump_minor "$version")
+  version=$("bump_$level" "$version")
   set_version "$wt/src/$id/devcontainer-feature.json" "$version"
   add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version" "$work/entry"
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
