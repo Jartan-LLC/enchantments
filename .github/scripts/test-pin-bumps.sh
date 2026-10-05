@@ -151,6 +151,15 @@ level_case "a move on the lower joined version counts" major "tool semble" \
 level_case "a lock's change lines win over its pin values" patch "tool semble" \
   "current semble==1.0.0" "from filelock==4.0.4" "candidate filelock==4.0.5" \
   "change filelock: 4.0.4 → 4.0.5"
+level_case "a major outranks a minor" major "tool semble" \
+  "change anyio: 4.1.0 → 4.2.0" "change certifi: 2025.10.5 → 2026.7.22"
+printf '%s\n' "tool semble" "change anyio: 4.1.0 → 4.2.0" \
+  "change certifi: 2025.10.5 → 2026.7.22" >"$root/moves.out"
+expect "output_moves names a lock's major" 0 "major certifi" \
+  output_moves "$root/moves.out"
+printf '%s\n' "tool demo" "current v1.2.3" "candidate v1.2.4" >"$root/pin.out"
+expect "output_moves names a pin's move pin" 0 "patch pin" \
+  output_moves "$root/pin.out"
 level_case "unequal joined counts are a minor" minor "tool semble" \
   "change numpy: 1.26.0/2.1.0 → 2.1.1"
 level_case "a removed requirement is a minor" minor "tool semble" \

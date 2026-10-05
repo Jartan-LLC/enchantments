@@ -168,12 +168,13 @@ joined_level() { # old new
   echo "$level"
 }
 
-# Prints the largest move in a lookup output: each requirement a lock moved,
-# else the pin from its current value to its candidate (each value's first
-# word: a tag-commit pin shows its commit after the tag). A lock's added or
-# removed requirement counts as minor.
-output_level() { # output
-  local level=patch line old arrow new step current candidate
+# Prints one line per move in a lookup output, its level then what moved ("pin"
+# for the pin itself): each requirement a lock moved, else the pin from its
+# current value to its candidate (each value's first word: a tag-commit pin
+# shows its commit after the tag). A lock's added or removed requirement counts
+# as minor.
+output_moves() { # output
+  local line name old arrow new current candidate
   local -a moves
   mapfile -t moves < <(sed -n 's/^change //p' "$1")
   if [ "${#moves[@]}" = 0 ]; then
@@ -182,14 +183,21 @@ output_level() { # output
     moves=("pin: ${current%% *} → ${candidate%% *}")
   fi
   for line in "${moves[@]}"; do
-    read -r _ old arrow new <<<"$line"
+    read -r name old arrow new <<<"$line"
     if [ "$arrow" = → ]; then
-      step=$(joined_level "$old" "$new")
+      echo "$(joined_level "$old" "$new") ${name%:}"
     else
-      step=minor
+      echo "minor ${name%:}"
     fi
-    level=$(larger_level "$level" "$step")
   done
+}
+
+# Prints the largest move in a lookup output.
+output_level() { # output
+  local level=patch step
+  while read -r step _; do
+    level=$(larger_level "$level" "$step")
+  done < <(output_moves "$1")
   echo "$level"
 }
 

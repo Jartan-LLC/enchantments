@@ -200,7 +200,7 @@ exclusions() { # prs-json
 # Prints a pin-bump PR's body: the bumps, how to act on them, and the
 # Excluded: and held lines.
 pr_body() { # id excluded-file output...
-  local id=$1 out names
+  local id=$1 out names moved
   local -a held=() excluded_keys=() majors=()
   mapfile -t excluded_keys <"$2"
   shift 2
@@ -213,16 +213,22 @@ pr_body() { # id excluded-file output...
     echo "| \`$(field "$out" tool)\` | $(shown_from "$out") |" \
       "$(field "$out" candidate) |"
     held+=("$(field "$out" key)")
-    [ "$(output_level "$out")" != major ] \
-      || majors+=("\`$(field "$out" tool)\`")
+    # A lock names its requirements: a dated one (certifi) moves a major yearly.
+    moved=$(output_moves "$out" | sed -n 's/^major //p' | paste -sd, -)
+    if [ "$moved" = pin ]; then
+      majors+=("\`$(field "$out" tool)\`")
+    elif [ -n "$moved" ]; then
+      majors+=("\`$(field "$out" tool)\` (${moved//,/, })")
+    fi
   done
   if [ "${#majors[@]}" -gt 0 ]; then
     names=$(printf '%s, ' "${majors[@]}")
     echo
     echo "**Upstream major:** ${names%, }. This PR releases the Feature as a" \
       "minor. If the new major changes what the Feature installs or how it" \
-      "behaves, push a commit here that raises the Feature's major version;" \
-      "the workflow then leaves this branch to you."
+      "behaves, push a commit here that raises the Feature's major version" \
+      "and renames its changelog entry to match; the workflow then leaves" \
+      "this branch to you."
   fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
