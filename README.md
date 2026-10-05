@@ -1,7 +1,7 @@
 # enchantments
 
 [![CI](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml/badge.svg)](https://github.com/Jartan-LLC/enchantments/actions/workflows/ci.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Jartan-LLC/enchantments/badge)](https://scorecard.dev/viewer/?uri=github.com/Jartan-LLC/enchantments)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Jartan-LLC/enchantments/badge)](https://scorecard.dev/viewer/?uri=github.com/Jartan-LLC/enchantments)
 
 [Dev container Features](https://containers.dev/features) that set up Claude
 Code and agent tools on Debian-based images.
