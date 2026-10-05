@@ -148,6 +148,11 @@ level_case "joined versions pair up" patch "tool semble" \
   "change numpy: 1.26.0/2.1.0 → 1.26.0/2.1.1"
 level_case "a move on the lower joined version counts" major "tool semble" \
   "change numpy: 1.26.0/2.1.0 → 2.0.0/2.1.0"
+level_case "a lock's change lines win over its pin values" patch "tool semble" \
+  "current semble==1.0.0" "from filelock==4.0.4" "candidate filelock==4.0.5" \
+  "change filelock: 4.0.4 → 4.0.5"
+level_case "unequal joined counts are a minor" minor "tool semble" \
+  "change numpy: 1.26.0/2.1.0 → 2.1.1"
 level_case "a removed requirement is a minor" minor "tool semble" \
   "change filelock: 4.0.4 → 4.0.5" "change idna: removed"
 level_case "a tag-commit pin reads the tag" patch "tool tagged" \

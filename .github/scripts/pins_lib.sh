@@ -123,7 +123,8 @@ bump_patch() { # X.Y.Z
 
 # Prints how far a value moved: major, minor or patch, comparing the release
 # version at its end (so v1.2.3 and lychee-v0.24.2 count). Anything else, such
-# as a commit, counts as minor.
+# as a commit or a pre-release like 2.0.0rc1, counts as minor, so a move to a
+# pre-release major isn't named as one.
 change_level() { # old new
   local old=${1##*[!0-9.]} new=${2##*[!0-9.]} o1 o2 n1 n2
   if ! numeric_version "$old" || ! numeric_version "$new"; then
