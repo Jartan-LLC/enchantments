@@ -200,7 +200,7 @@ exclusions() { # prs-json
 # Prints a pin-bump PR's body: the bumps, how to act on them, and the
 # Excluded: and held lines.
 pr_body() { # id excluded-file output...
-  local id=$1 out
+  local id=$1 out names
   local -a held=() excluded_keys=() majors=()
   mapfile -t excluded_keys <"$2"
   shift 2
@@ -217,10 +217,12 @@ pr_body() { # id excluded-file output...
       || majors+=("\`$(field "$out" tool)\`")
   done
   if [ "${#majors[@]}" -gt 0 ]; then
+    names=$(printf '%s, ' "${majors[@]}")
     echo
-    echo "**Upstream major:** ${majors[*]}. This PR releases the Feature as a" \
-      "minor; if the new major changes what the Feature installs or how it" \
-      "behaves, release a major instead."
+    echo "**Upstream major:** ${names%, }. This PR releases the Feature as a" \
+      "minor. If the new major changes what the Feature installs or how it" \
+      "behaves, push a commit here that raises the Feature's major version;" \
+      "the workflow then leaves this branch to you."
   fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \

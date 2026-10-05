@@ -141,10 +141,36 @@ change_level() { # old new
   fi
 }
 
+# Prints the larger of two levels.
+larger_level() { # level level
+  case "$1 $2" in
+    *major*) echo major ;;
+    *minor*) echo minor ;;
+    *) echo patch ;;
+  esac
+}
+
+# Prints the largest move between values joined by "/" (one per environment
+# marker), pairing them in order; a different count counts as minor.
+joined_level() { # old new
+  local level=patch i
+  local -a olds news
+  IFS=/ read -ra olds <<<"$1"
+  IFS=/ read -ra news <<<"$2"
+  if [ "${#olds[@]}" != "${#news[@]}" ]; then
+    echo minor
+    return
+  fi
+  for i in "${!olds[@]}"; do
+    level=$(larger_level "$level" "$(change_level "${olds[i]}" "${news[i]}")")
+  done
+  echo "$level"
+}
+
 # Prints the largest move in a lookup output: each requirement a lock moved,
-# else the pin from its current value to its candidate. A lock's added or
-# removed requirement counts as minor; versions joined by "/" compare by their
-# highest.
+# else the pin from its current value to its candidate (each value's first
+# word: a tag-commit pin shows its commit after the tag). A lock's added or
+# removed requirement counts as minor.
 output_level() { # output
   local level=patch line old arrow new step current candidate
   local -a moves
@@ -152,20 +178,16 @@ output_level() { # output
   if [ "${#moves[@]}" = 0 ]; then
     current=$(sed -n 's/^current //p' "$1")
     candidate=$(sed -n 's/^candidate //p' "$1")
-    moves=("pin: $current → $candidate")
+    moves=("pin: ${current%% *} → ${candidate%% *}")
   fi
   for line in "${moves[@]}"; do
     read -r _ old arrow new <<<"$line"
     if [ "$arrow" = → ]; then
-      step=$(change_level "$(max_version "${old//\//|}")" \
-        "$(max_version "${new//\//|}")")
+      step=$(joined_level "$old" "$new")
     else
       step=minor
     fi
-    case $step in
-      major) level=major ;;
-      minor) [ "$level" = major ] || level=minor ;;
-    esac
+    level=$(larger_level "$level" "$step")
   done
   echo "$level"
 }

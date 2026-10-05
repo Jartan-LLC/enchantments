@@ -144,8 +144,16 @@ level_case "an added requirement is a minor" minor "tool semble" \
   "change filelock: 4.0.4 → 4.0.5" "change idna: added 3.10"
 level_case "a lock's largest move wins" major "tool semble" \
   "change anyio: 4.1.0 → 4.1.1" "change numpy: 1.26.0 → 2.1.0"
-level_case "joined versions compare by their highest" patch "tool semble" \
+level_case "joined versions pair up" patch "tool semble" \
   "change numpy: 1.26.0/2.1.0 → 1.26.0/2.1.1"
+level_case "a move on the lower joined version counts" major "tool semble" \
+  "change numpy: 1.26.0/2.1.0 → 2.0.0/2.1.0"
+level_case "a removed requirement is a minor" minor "tool semble" \
+  "change filelock: 4.0.4 → 4.0.5" "change idna: removed"
+level_case "a tag-commit pin reads the tag" patch "tool tagged" \
+  "current v0.2.1 (b8c1487bb4cb)" "candidate v0.2.2 (0123456789ab)"
+level_case "a pin's major is a major" major "tool demo" \
+  "current v1.4.2" "candidate v2.0.0"
 level_case "a tag pin's patch is a patch" patch "tool demo" \
   "current v1.2.3" "candidate v1.2.4"
 level_case "a commit pin is a minor" minor "tool demo" \
