@@ -226,9 +226,10 @@ pr_body() { # id excluded-file output...
     names=$(printf '%s, ' "${majors[@]}")
     echo
     echo "**Upstream major:** ${names%, }. This PR releases the Feature as a" \
-      "minor. If a new major changes what the Feature installs or how it" \
-      "behaves, push a commit here that raises the Feature's major version" \
-      "and renames its changelog entry to match."
+      "minor, since it absorbs the change. If the Feature itself changes as" \
+      "a major does under Versioning in \`docs/releasing.md\`, push a" \
+      "commit here that raises its major version and renames its changelog" \
+      "entry to match."
   fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
@@ -321,8 +322,7 @@ build_commit() { # id parent output...
     printf -- "- \`%s\`: %s → %s\n" "$(field "$out" tool)" \
       "$(shown_from "$out")" "$(field "$out" candidate)" >>"$work/entry"
     sed -n 's/^change \(.*\)/  - \1/p' "$out" >>"$work/entry"
-    # An upstream major also releases as a minor, since a Feature major moves
-    # the :N tag consuming repos pin; pr_body names it for a maintainer.
+    # Levels follow Versioning in docs/releasing.md.
     [ "$(output_level "$out")" = patch ] || level=minor
   done
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \

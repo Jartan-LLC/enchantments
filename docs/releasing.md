@@ -58,8 +58,8 @@ when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin 
 days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
 as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
 non-numeric pin, and a requirement a lock adds or removes, count as a minor move. An
-upstream major also releases as a minor, and the PR names it so you can decide whether the
-Feature needs a major. Merge it as in [Releasing a change](#releasing-a-change); nothing
+upstream major is still a minor, since the Feature absorbs it; the PR names it so you can
+check whether the Feature itself changed as a major does. Merge it as in [Releasing a change](#releasing-a-change); nothing
 merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
