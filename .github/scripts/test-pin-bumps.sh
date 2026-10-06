@@ -122,6 +122,56 @@ expect "expand_asset fills {version}" 0 demo-1.3.0-x86_64.tar.gz \
 expect "expand_asset fills {tag}" 0 demo-v1.3.0-aarch64.tar.gz \
   expand_asset 'demo-{tag}-aarch64.tar.gz' v1.3.0
 expect "bump_minor raises the minor" 0 1.10.0 bump_minor 1.9.3
+expect "bump_patch raises the patch" 0 1.9.4 bump_patch 1.9.3
+
+expect "change_level sees a patch" 0 patch change_level 0.12.18 0.12.19
+expect "change_level sees a minor" 0 minor change_level v1.2.3 v1.3.0
+expect "change_level sees a major" 0 major change_level 1.9.3 2.0.0
+expect "change_level reads a prefixed tag" 0 patch \
+  change_level lychee-v0.24.2 lychee-v0.24.3
+expect "change_level counts a commit as minor" 0 minor \
+  change_level "$(printf 'a%.0s' {1..40})" "$(printf 'b%.0s' {1..40})"
+
+level_case() { # name want lines...
+  local name=$1 want=$2
+  shift 2
+  printf '%s\n' "$@" >"$root/level.out"
+  expect "$name" 0 "$want" output_level "$root/level.out"
+}
+level_case "a lock's patch moves are a patch" patch "tool semble" \
+  "change filelock: 4.0.4 → 4.0.5" "change anyio: 4.1.0 → 4.1.1"
+level_case "an added requirement is a minor" minor "tool semble" \
+  "change filelock: 4.0.4 → 4.0.5" "change idna: added 3.10"
+level_case "a lock's largest move wins" major "tool semble" \
+  "change anyio: 4.1.0 → 4.1.1" "change numpy: 1.26.0 → 2.1.0"
+level_case "joined versions pair up" patch "tool semble" \
+  "change numpy: 1.26.0/2.1.0 → 1.26.0/2.1.1"
+level_case "a move on the lower joined version counts" major "tool semble" \
+  "change numpy: 1.26.0/2.1.0 → 2.0.0/2.1.0"
+level_case "a lock's change lines win over its pin values" patch "tool semble" \
+  "current semble==1.0.0" "from filelock==4.0.4" "candidate filelock==4.0.5" \
+  "change filelock: 4.0.4 → 4.0.5"
+level_case "a major outranks a minor" major "tool semble" \
+  "change anyio: 4.1.0 → 4.2.0" "change certifi: 2025.10.5 → 2026.7.22"
+printf '%s\n' "tool semble" "change anyio: 4.1.0 → 4.2.0" \
+  "change certifi: 2025.10.5 → 2026.7.22" >"$root/moves.out"
+expect "output_moves names a lock's major" 0 "major certifi" \
+  output_moves "$root/moves.out"
+printf '%s\n' "tool demo" "current v1.2.3" "candidate v1.2.4" >"$root/pin.out"
+expect "output_moves labels a pin's own move \"pin\"" 0 "patch pin" \
+  output_moves "$root/pin.out"
+level_case "unequal joined counts are a minor" minor "tool semble" \
+  "change numpy: 1.26.0/2.1.0 → 2.1.1"
+level_case "a removed requirement is a minor" minor "tool semble" \
+  "change filelock: 4.0.4 → 4.0.5" "change idna: removed"
+level_case "a tag-commit pin reads the tag" patch "tool tagged" \
+  "current v0.2.1 (b8c1487bb4cb)" "candidate v0.2.2 (0123456789ab)"
+level_case "a pin's major is a major" major "tool demo" \
+  "current v1.4.2" "candidate v2.0.0"
+level_case "a tag pin's patch is a patch" patch "tool demo" \
+  "current v1.2.3" "candidate v1.2.4"
+level_case "a commit pin is a minor" minor "tool demo" \
+  "current $(printf 'a%.0s' {1..40})" "candidate $(printf 'b%.0s' {1..40})"
 
 # A changelog edit passes the version check's own changelog rule.
 changelog_case() { # name changelog

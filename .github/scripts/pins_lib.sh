@@ -115,6 +115,91 @@ bump_minor() { # X.Y.Z
   echo "$major.$((minor + 1)).0"
 }
 
+bump_patch() { # X.Y.Z
+  local major minor patch
+  IFS=. read -r major minor patch <<<"$1"
+  echo "$major.$minor.$((patch + 1))"
+}
+
+# Prints how far a value moved: major, minor or patch, comparing the release
+# version at its end (so v1.2.3 and lychee-v0.24.2 count). Anything else, such
+# as a commit or a pre-release like 2.0.0rc1, counts as minor, so a move to a
+# pre-release major isn't named as one.
+change_level() { # old new
+  local old=${1##*[!0-9.]} new=${2##*[!0-9.]} o1 o2 n1 n2
+  if ! numeric_version "$old" || ! numeric_version "$new"; then
+    echo minor
+    return
+  fi
+  IFS=. read -r o1 o2 _ <<<"$old"
+  IFS=. read -r n1 n2 _ <<<"$new"
+  if [ "$((10#$o1))" != "$((10#$n1))" ]; then
+    echo major
+  elif [ "$((10#${o2:-0}))" != "$((10#${n2:-0}))" ]; then
+    echo minor
+  else
+    echo patch
+  fi
+}
+
+# Prints the larger of two levels.
+larger_level() { # level level
+  case "$1 $2" in
+    *major*) echo major ;;
+    *minor*) echo minor ;;
+    *) echo patch ;;
+  esac
+}
+
+# Prints the largest move between "/"-joined versions (a name markers pin more
+# than once), pairing them in sorted order; unequal counts are a minor move.
+joined_level() { # old new
+  local level=patch i
+  local -a olds news
+  IFS=/ read -ra olds <<<"$1"
+  IFS=/ read -ra news <<<"$2"
+  if [ "${#olds[@]}" != "${#news[@]}" ]; then
+    echo minor
+    return
+  fi
+  for i in "${!olds[@]}"; do
+    level=$(larger_level "$level" "$(change_level "${olds[i]}" "${news[i]}")")
+  done
+  echo "$level"
+}
+
+# Prints "<level> <what moved>" for each move in a lookup output: each lock
+# requirement that moved, else "pin", from current to candidate by first word
+# (a tag-commit pin shows its commit after the tag). An added or removed
+# requirement is a minor move.
+output_moves() { # output
+  local line name old arrow new current candidate
+  local -a moves
+  mapfile -t moves < <(sed -n 's/^change //p' "$1")
+  if [ "${#moves[@]}" = 0 ]; then
+    current=$(sed -n 's/^current //p' "$1")
+    candidate=$(sed -n 's/^candidate //p' "$1")
+    moves=("pin: ${current%% *} → ${candidate%% *}")
+  fi
+  for line in "${moves[@]}"; do
+    read -r name old arrow new <<<"$line"
+    if [ "$arrow" = → ]; then
+      echo "$(joined_level "$old" "$new") ${name%:}"
+    else
+      echo "minor ${name%:}"
+    fi
+  done
+}
+
+# Prints the largest move in a lookup output.
+output_level() { # output
+  local level=patch step
+  while read -r step _; do
+    level=$(larger_level "$level" "$step")
+  done < <(output_moves "$1")
+  echo "$level"
+}
+
 set_version() { # devcontainer-feature.json version
   jq --arg v "$2" '.version = $v' "$1" | overwrite "$1"
 }

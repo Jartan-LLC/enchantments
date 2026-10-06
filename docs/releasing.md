@@ -24,11 +24,11 @@ if their `Dev container` job passes.
 
 ## Versioning
 
-Each Feature has its own version:
+Each Feature has its own version; raise the first level that applies:
 
 - **Major:** an option removed or renamed, or a change in behavior a project would notice.
-- **Minor:** a pin bump, or a new option.
-- **Patch:** anything else.
+- **Minor:** a new option, or a pin bump with a minor or larger upstream move.
+- **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
@@ -55,8 +55,10 @@ automatically, and fail the version check. Push a commit to the PR's branch that
 
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
-days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's minor
-version and adds its changelog entry. Merge it as in [Releasing a change](#releasing-a-change);
+days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
+as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
+non-numeric pin, and a requirement a lock adds or removes, count as a minor move, and an
+upstream major is still a minor. Merge it as in [Releasing a change](#releasing-a-change);
 nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
@@ -67,6 +69,9 @@ nothing merges it automatically.
   when you edit the body.
 - **A PR the workflow closes,** with `Closed: nothing newer.` in its body, had nothing
   left to propose. Unlike your close, it excludes nothing.
+- **For an upstream major,** which the PR body names, check whether the Feature itself
+  changed as [Versioning](#versioning)'s Major describes. If it did, push a commit that
+  raises the Feature's major version and renames its changelog entry to match.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops updating it, and lists newer versions on a
   `Not applied:` line in the PR body instead.

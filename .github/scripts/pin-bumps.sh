@@ -200,8 +200,8 @@ exclusions() { # prs-json
 # Prints a pin-bump PR's body: the bumps, how to act on them, and the
 # Excluded: and held lines.
 pr_body() { # id excluded-file output...
-  local id=$1 out
-  local -a held=() excluded_keys=()
+  local id=$1 out names moved
+  local -a held=() excluded_keys=() majors=()
   mapfile -t excluded_keys <"$2"
   shift 2
   echo "Raises \`$id\`'s pins to upstream releases at least $COOLDOWN_DAYS" \
@@ -213,7 +213,21 @@ pr_body() { # id excluded-file output...
     echo "| \`$(field "$out" tool)\` | $(shown_from "$out") |" \
       "$(field "$out" candidate) |"
     held+=("$(field "$out" key)")
+    # A lock's note names the requirements, since a calendar-versioned one
+    # (certifi) moves a major every year.
+    moved=$(output_moves "$out" | sed -n 's/^major //p' | paste -sd, -)
+    if [ "$moved" = pin ]; then
+      majors+=("\`$(field "$out" tool)\`")
+    elif [ -n "$moved" ]; then
+      majors+=("\`$(field "$out" tool)\` (${moved//,/, })")
+    fi
   done
+  if [ "${#majors[@]}" -gt 0 ]; then
+    names=$(printf '%s, ' "${majors[@]}")
+    echo
+    echo "**Upstream major:** ${names%, }. Check whether the Feature needs a" \
+      "major release instead (\`docs/releasing.md\`, Pin-bump PRs)."
+  fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
     "approve the \`ghcr\` deployment. To skip these versions for good, close" \
@@ -288,7 +302,7 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -305,10 +319,12 @@ build_commit() { # id parent output...
     printf -- "- \`%s\`: %s → %s\n" "$(field "$out" tool)" \
       "$(shown_from "$out")" "$(field "$out" candidate)" >>"$work/entry"
     sed -n 's/^change \(.*\)/  - \1/p' "$out" >>"$work/entry"
+    # Levels follow Versioning in docs/releasing.md.
+    [ "$(output_level "$out")" = patch ] || level=minor
   done
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
     | jq -r .version)
-  version=$(bump_minor "$version")
+  version=$("bump_$level" "$version")
   set_version "$wt/src/$id/devcontainer-feature.json" "$version"
   add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version" "$work/entry"
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
