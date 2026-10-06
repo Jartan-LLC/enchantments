@@ -151,8 +151,8 @@ larger_level() { # level level
   esac
 }
 
-# Prints the largest move between values joined by "/" (one per environment
-# marker), pairing them in order; a different count counts as minor.
+# Prints the largest move between "/"-joined versions (a name markers pin more
+# than once), pairing them in sorted order; unequal counts are a minor move.
 joined_level() { # old new
   local level=patch i
   local -a olds news
@@ -168,11 +168,10 @@ joined_level() { # old new
   echo "$level"
 }
 
-# Prints one line per move in a lookup output, its level then what moved ("pin"
-# for the pin itself): each requirement a lock moved, else the pin from its
-# current value to its candidate (each value's first word: a tag-commit pin
-# shows its commit after the tag). A lock's added or removed requirement counts
-# as minor.
+# Prints "<level> <what moved>" for each move in a lookup output: each lock
+# requirement that moved, else "pin", from current to candidate by first word
+# (a tag-commit pin shows its commit after the tag). An added or removed
+# requirement is a minor move.
 output_moves() { # output
   local line name old arrow new current candidate
   local -a moves

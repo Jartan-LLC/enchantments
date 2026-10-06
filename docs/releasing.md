@@ -24,7 +24,7 @@ if their `Dev container` job passes.
 
 ## Versioning
 
-Each Feature has its own version:
+Each Feature has its own version; raise the first level that applies:
 
 - **Major:** an option removed or renamed, or a change in behavior a project would notice.
 - **Minor:** a new option, or a pin bump with a minor or larger upstream move.
@@ -57,9 +57,10 @@ automatically, and fail the version check. Push a commit to the PR's branch that
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
 days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
 as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
-non-numeric pin counts as a minor move. An upstream major also releases as a minor, and the
-PR names it so you can decide whether the Feature needs a major. Merge it as in
-[Releasing a change](#releasing-a-change); nothing merges it automatically.
+non-numeric pin, and a requirement a lock adds or removes, count as a minor move. An
+upstream major also releases as a minor, and the PR names it so you can decide whether the
+Feature needs a major. Merge it as in [Releasing a change](#releasing-a-change); nothing
+merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.

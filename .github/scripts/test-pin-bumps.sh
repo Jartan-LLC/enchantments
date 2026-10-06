@@ -158,7 +158,7 @@ printf '%s\n' "tool semble" "change anyio: 4.1.0 → 4.2.0" \
 expect "output_moves names a lock's major" 0 "major certifi" \
   output_moves "$root/moves.out"
 printf '%s\n' "tool demo" "current v1.2.3" "candidate v1.2.4" >"$root/pin.out"
-expect "output_moves names a pin's move pin" 0 "patch pin" \
+expect "output_moves labels a pin's own move \"pin\"" 0 "patch pin" \
   output_moves "$root/pin.out"
 level_case "unequal joined counts are a minor" minor "tool semble" \
   "change numpy: 1.26.0/2.1.0 → 2.1.1"

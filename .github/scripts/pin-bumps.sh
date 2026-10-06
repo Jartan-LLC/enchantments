@@ -213,7 +213,8 @@ pr_body() { # id excluded-file output...
     echo "| \`$(field "$out" tool)\` | $(shown_from "$out") |" \
       "$(field "$out" candidate) |"
     held+=("$(field "$out" key)")
-    # A lock names its requirements: a dated one (certifi) moves a major yearly.
+    # A lock's note names the requirements, since a calendar-versioned one
+    # (certifi) moves a major every year.
     moved=$(output_moves "$out" | sed -n 's/^major //p' | paste -sd, -)
     if [ "$moved" = pin ]; then
       majors+=("\`$(field "$out" tool)\`")
@@ -225,10 +226,9 @@ pr_body() { # id excluded-file output...
     names=$(printf '%s, ' "${majors[@]}")
     echo
     echo "**Upstream major:** ${names%, }. This PR releases the Feature as a" \
-      "minor. If the new major changes what the Feature installs or how it" \
+      "minor. If a new major changes what the Feature installs or how it" \
       "behaves, push a commit here that raises the Feature's major version" \
-      "and renames its changelog entry to match; the workflow then leaves" \
-      "this branch to you."
+      "and renames its changelog entry to match."
   fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \
@@ -321,10 +321,10 @@ build_commit() { # id parent output...
     printf -- "- \`%s\`: %s → %s\n" "$(field "$out" tool)" \
       "$(shown_from "$out")" "$(field "$out" candidate)" >>"$work/entry"
     sed -n 's/^change \(.*\)/  - \1/p' "$out" >>"$work/entry"
+    # An upstream major also releases as a minor, since a Feature major moves
+    # the :N tag consuming repos pin; pr_body names it for a maintainer.
     [ "$(output_level "$out")" = patch ] || level=minor
   done
-  # An upstream major is a minor here too: a major would move the :N tag that
-  # consuming repos pin. pr_body flags it for a maintainer to judge.
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
     | jq -r .version)
   version=$("bump_$level" "$version")
