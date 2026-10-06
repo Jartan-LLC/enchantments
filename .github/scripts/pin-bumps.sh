@@ -225,11 +225,8 @@ pr_body() { # id excluded-file output...
   if [ "${#majors[@]}" -gt 0 ]; then
     names=$(printf '%s, ' "${majors[@]}")
     echo
-    echo "**Upstream major:** ${names%, }. This PR releases the Feature as a" \
-      "minor, since it absorbs the change. If the Feature itself changes as" \
-      "a major does under Versioning in \`docs/releasing.md\`, push a" \
-      "commit here that raises its major version and renames its changelog" \
-      "entry to match."
+    echo "**Upstream major:** ${names%, }. Check whether the Feature needs a" \
+      "major release instead (\`docs/releasing.md\`, Pin-bump PRs)."
   fi
   echo
   echo "\`check\` runs the Feature's tests, and merging releases it once you" \

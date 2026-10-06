@@ -57,10 +57,9 @@ automatically, and fail the version check. Push a commit to the PR's branch that
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
 days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
 as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
-non-numeric pin, and a requirement a lock adds or removes, count as a minor move. An
-upstream major is still a minor, since the Feature absorbs it; the PR names it so you can
-check whether the Feature itself changed as a major does. Merge it as in [Releasing a change](#releasing-a-change); nothing
-merges it automatically.
+non-numeric pin, and a requirement a lock adds or removes, count as a minor move, and an
+upstream major is still a minor. Merge it as in [Releasing a change](#releasing-a-change);
+nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.
@@ -70,6 +69,9 @@ merges it automatically.
   when you edit the body.
 - **A PR the workflow closes,** with `Closed: nothing newer.` in its body, had nothing
   left to propose. Unlike your close, it excludes nothing.
+- **For an upstream major,** which the PR body names, check whether the Feature itself
+  changed as [Versioning](#versioning)'s Major describes. If it did, push a commit that
+  raises the Feature's major version and renames its changelog entry to match.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops updating it, and lists newer versions on a
   `Not applied:` line in the PR body instead.
