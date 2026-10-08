@@ -29,7 +29,7 @@ Values live in the `container-env` volume at `/mnt/enchantments/container-env`, 
   printf 'x-api-key: <key>\nx-team: core\n' >ANTHROPIC_CUSTOM_HEADERS
   ```
 
-- **A `.env` file** at `/mnt/enchantments/container-env/.env`, in dotenv syntax: `KEY=value` lines, `export`, `#` comments, quotes, `\n` inside double quotes, and `${VAR:-default}`. direnv's parser reads it (`https://github.com/direnv/direnv`), and one line it can't parse leaves the whole file unloaded.
+- **A `.env` file** at `/mnt/enchantments/container-env/.env`, in dotenv syntax: `KEY=value` lines, `export`, `#` comments, quotes, `\n` inside double quotes, and `${VAR:-default}`. direnv's parser reads it (`https://github.com/direnv/direnv`), and one line it can't parse leaves the whole file unloaded. Outside single quotes, a dollar sign expands from the shell's environment: single-quote a literal one, and don't make a value refer to itself, as `PATH=$PATH:/opt/x` grows in each nested login shell.
 
 When both set a variable, the file wins. The Feature takes no options: values set there would be saved in the image and, from `defaultFeatures`, copied to your other devices by Settings Sync.
 
@@ -42,7 +42,7 @@ When both set a variable, the file wins. The Feature takes no options: values se
 
 ## When a value doesn't show up
 
-1. Read the warnings printed when the container starts, or print them again with `bash /usr/local/share/enchantments/container-env/postStart.sh`. Whatever was skipped is named there: a `.env` that doesn't parse or can't be read, a `.env` line bash rejects, a file whose name isn't a variable name or that can't be read, a name bash won't set such as `UID`, a value over 128 KiB, and values past half the system's limit for a program's arguments and environment together. A missing direnv shows there too.
+1. Read the warnings printed when the container starts, or print them again with `bash /usr/local/share/enchantments/container-env/postStart.sh`. Whatever was skipped is named there: a `.env` that doesn't parse or can't be read, a `.env` line bash rejects, a file whose name isn't a variable name or that can't be read, a name bash won't set such as `UID`, a value over 128 KiB, and values that would take the environment past half the system's limit for a program's arguments and environment together. A missing direnv shows there too.
 2. Check where you're reading it: see When values apply.
 3. Check the tool's own settings: a tool can override an exported value, as an `env` block in its settings file does.
 

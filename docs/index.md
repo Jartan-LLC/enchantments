@@ -14,12 +14,12 @@ agent tools on Debian-based images.
 :caption: Features
 
 features/claude-code
+features/codebase-memory-mcp
+features/container-env
 features/gh-config
 features/grimoire
 features/liza
 features/liza-toolchain
-features/codebase-memory-mcp
-features/container-env
 ```
 
 ```{toctree}

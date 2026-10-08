@@ -39,8 +39,8 @@ and CI's tests catch broken releases; they don't stop someone who holds your gh 
   under that name first. [Adding a Feature](adding-a-feature.md) checks for this.
 
 A container running as root also shares the volumes: what it writes to `claude-data`,
-`container-env` or `gh-config` is owned by root, which a non-root container may fail to update until it's
-recreated.
+`container-env` or `gh-config` is owned by root, which a non-root container may fail to
+update until it's recreated.
 
 ## Opening an untrusted repo
 

@@ -90,15 +90,51 @@ chmod 000 "$dir/.env"
 check "an unreadable .env is reported" reports "permission denied"
 mv "$dir/.env.saved" "$dir/.env"
 
-for i in $(seq -w 20); do
+# The loader keeps the environment within half of ARG_MAX.
+budget=$(($(getconf ARG_MAX) / 2))
+for i in $(seq -w $((budget / 120000 + 2))); do
   head -c 120000 /dev/zero | tr '\0' a >"$dir/FILL$i"
 done
 check "values past the environment budget are reported" \
   reports "the environment would pass"
+check "values within the budget still load" test -n "$(login bash FILL01)"
 check "past the budget, login shells still run programs" test -z "$(
   env -i HOME="$HOME" PATH=/usr/bin:/bin bash -lc /bin/true 2>&1
 )"
 rm "$dir"/FILL*
+
+# Values the shell already holds count once, as in a nested login shell.
+fat=$(head -c 100000 /dev/zero | tr '\0' b)
+held=()
+for i in $(seq $((budget * 3 / 4 / 100000))); do
+  printf '%s' "$fat" >"$dir/FAT$i"
+  held+=("FAT$i=$fat")
+done
+# Counted once, ZLAST fits; counted twice, the held values leave it no room.
+head -c 120000 /dev/zero | tr '\0' z >"$dir/ZLAST"
+check "values the shell already holds don't count twice" test "$(
+  env -i HOME="$HOME" PATH=/usr/bin:/bin "${held[@]}" \
+    bash -lc "printf %s \"\$ZLAST\" | wc -c"
+)" = 120000
+rm "$dir"/FAT* "$dir/ZLAST"
+
+# An earlier profile script's readonly name doesn't stop a dash login shell.
+echo 'readonly HELD=mine' | sudo tee /etc/profile.d/00-held.sh >/dev/null
+printf theirs >"$dir/HELD"
+printf after >"$dir/ZAFTER"
+check "a readonly name doesn't stop sh loading the rest" \
+  test "$(login sh ZAFTER)" = after
+sudo rm /etc/profile.d/00-held.sh
+rm "$dir/HELD" "$dir/ZAFTER"
+
+# The .env child's own variables are reserved.
+mv "$dir/.env" "$dir/.env.saved"
+printf '__container_env_n=x\nAFTER_RESERVED=1\n' >"$dir/.env"
+check "a .env name the loader reserves is left out" \
+  test -z "$(login bash __container_env_n)"
+check "and the rest of that .env loads" \
+  test "$(login bash AFTER_RESERVED)" = 1
+mv "$dir/.env.saved" "$dir/.env"
 
 printf x >"$dir/bad-name"
 echo 'NOT A LINE' >>"$dir/.env"

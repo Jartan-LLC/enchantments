@@ -20,12 +20,13 @@ mkdir -p "$mount" \
 here=$(dirname "$0")
 rm -rf "$dest"
 if ! { mkdir -p "$dest" && cp "$here"/*.sh "$dest"/ \
-  && rm "$dest"/install*.sh "$dest/fetch_verified.sh" "$dest/pins.sh"; }; then
+  && rm "$dest"/install*.sh "$dest/fetch_verified.sh" "$dest/pins.sh" \
+    "$dest/profile.sh"; }; then
   echo "Warning: $id could not stage its hooks; nothing installed" >&2
   rm -rf "$dest"
   exit 0
 fi
-cp "$dest/profile.sh" /etc/profile.d/container-env.sh \
+cp "$here/profile.sh" /etc/profile.d/container-env.sh \
   || echo "Warning: $id could not hook login shells; nothing loads" >&2
 
 # Built in, not fetched at create, so every user's login shell can run it.
