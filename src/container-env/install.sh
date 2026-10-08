@@ -1,6 +1,7 @@
 #!/bin/sh
-# Image build, as root: stage the hooks and the loader, install the pinned
-# direnv, whose dotenv parser reads .env, and create the mount point.
+# Image build, as root: stage the hooks and the loader, hook the loader into
+# login shells, install the pinned direnv, whose dotenv parser reads .env, and
+# create the mount point.
 id=container-env
 dest=/usr/local/share/enchantments/$id
 mount=/mnt/enchantments/container-env
@@ -24,6 +25,8 @@ if ! { mkdir -p "$dest" && cp "$here"/*.sh "$dest"/ \
   rm -rf "$dest"
   exit 0
 fi
+cp "$dest/profile.sh" /etc/profile.d/container-env.sh \
+  || echo "Warning: $id could not hook login shells; nothing loads" >&2
 
 # Built in, not fetched at create, so every user's login shell can run it.
 # Without it, per-variable files still load, and postStart reports a .env.

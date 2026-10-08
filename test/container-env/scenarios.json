@@ -1,0 +1,8 @@
+{
+  "trixie": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "features": {
+      "container-env": {}
+    }
+  }
+}

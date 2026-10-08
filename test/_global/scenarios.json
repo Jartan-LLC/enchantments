@@ -5,6 +5,7 @@
     "features": {
       "claude-code": {},
       "codebase-memory-mcp": {},
+      "container-env": {},
       "gh-config": {},
       "grimoire": {},
       "liza": {},
@@ -17,6 +18,7 @@
     "features": {
       "claude-code": {},
       "codebase-memory-mcp": {},
+      "container-env": {},
       "gh-config": {},
       "grimoire": {},
       "liza": {},
@@ -31,6 +33,7 @@
     "features": {
       "claude-code": {},
       "codebase-memory-mcp": {},
+      "container-env": {},
       "gh-config": {},
       "grimoire": {},
       "liza": {},
