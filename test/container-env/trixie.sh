@@ -71,6 +71,35 @@ check "an IFS file doesn't stop the others loading" \
   test "$(login bash BOTH)" = from-file
 rm "$dir/value" "$dir/dir" "$dir/IFS"
 
+mv "$dir/.env" "$dir/.env.saved"
+# A PATH without env or bash in it mustn't stop the .env being read back.
+printf 'PATHED=1\nPATH=/opt/tools/bin\n' >"$dir/.env"
+check "a .env that sets PATH still loads" test "$(login bash PATHED)" = 1
+{
+  echo SMALL=1
+  printf 'HUGE='
+  head -c 140000 /dev/zero | tr '\0' a
+  echo
+} >"$dir/.env"
+check "a .env value over 128 KiB is reported" reports "HUGE is skipped"
+check "the rest of that .env loads" test "$(login bash SMALL)" = 1
+printf 'export FOO.BAR=x\nKEPT=1\n' >"$dir/.env"
+check "a .env line bash rejects is reported" reports "FOO.BAR"
+check "the rest of that .env loads too" test "$(login bash KEPT)" = 1
+chmod 000 "$dir/.env"
+check "an unreadable .env is reported" reports "permission denied"
+mv "$dir/.env.saved" "$dir/.env"
+
+for i in $(seq -w 20); do
+  head -c 120000 /dev/zero | tr '\0' a >"$dir/FILL$i"
+done
+check "values past the environment budget are reported" \
+  reports "the environment would pass"
+check "past the budget, login shells still run programs" test -z "$(
+  env -i HOME="$HOME" PATH=/usr/bin:/bin bash -lc /bin/true 2>&1
+)"
+rm "$dir"/FILL*
+
 printf x >"$dir/bad-name"
 echo 'NOT A LINE' >>"$dir/.env"
 printf 5 >"$dir/UID"
@@ -92,6 +121,10 @@ check "the files still load" test "$(login bash BOTH)" = from-file
 sudo mv "$staged/direnv" "$staged/direnv.off"
 check "a missing direnv is reported" reports "direnv isn't installed"
 sudo mv "$staged/direnv.off" "$staged/direnv"
+
+sudo chmod 000 "$staged/load.sh"
+check "a loader that fails is reported" reports "the loader failed"
+sudo chmod 755 "$staged/load.sh"
 
 check "nothing recorded at create" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"

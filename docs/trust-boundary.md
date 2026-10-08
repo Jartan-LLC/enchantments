@@ -4,8 +4,8 @@
 repo. Each of those containers holds your Claude login, your user-wide `~/.claude` (hooks,
 plugins, MCP servers) and your gh token, and the repo's own code (its setup, scripts and
 tests) runs as the same user beside them. With `container-env`, that code can also change
-the variables every other container's login shells export, which runs its code in them:
-`PATH`, `LD_PRELOAD` or `BASH_ENV` pointing into the volume is enough.
+the variables exported in every other container that mounts its volume, and so run code
+there: pointing `PATH`, `LD_PRELOAD` or `BASH_ENV` into the volume is enough.
 
 ## What a bad release can do
 
@@ -38,8 +38,8 @@ and CI's tests catch broken releases; they don't stop someone who holds your gh 
 - **A name nobody has published.** A workflow in any Jartan-LLC repo can publish a package
   under that name first. [Adding a Feature](adding-a-feature.md) checks for this.
 
-A container running as root also shares the volumes: what it writes to `claude-data` or
-`gh-config` is owned by root, which a non-root container may fail to update until it's
+A container running as root also shares the volumes: what it writes to `claude-data`,
+`container-env` or `gh-config` is owned by root, which a non-root container may fail to update until it's
 recreated.
 
 ## Opening an untrusted repo

@@ -102,8 +102,8 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    Past 5,000 downloads, only GitHub Support can remove a version.
 5. **Rebuild clean:**
    - Remove every container step 1 stopped, then the `claude-data`, `container-env`,
-     `gh-config` and all `liza-*` volumes, not only the dangling ones. Do this first, so new credentials never
-     land in a volume a compromised container still mounts.
+     `gh-config` and all `liza-*` volumes, not only the dangling ones. Do this first, so
+     new credentials never land in a volume a compromised container still mounts.
    - Rebuild the Docker host, and rotate every credential it held or forwarded into
      containers, including MCP-server keys and tokens stored in `claude-data`.
    - From the clean host, replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY`

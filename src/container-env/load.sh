@@ -16,16 +16,23 @@ problems=()
 notes=()
 declare -A before after values from_env
 
-# A child's environment after it evals the code given, as NUL-separated
-# NAME=value pairs. --check runs it on a clean environment, so the .env's
-# names show even where the calling shell already holds the same value.
-# shellcheck disable=SC2016 # the child expands $1
+# A child bash's exported variables after it runs the code given, as
+# NUL-separated NAME=value pairs. The code arrives on stdin, as an argument is
+# held to 128 KiB, and the child writes the pairs with builtins only, so a
+# PATH or an oversized value the code sets can't stop it. --check runs it on
+# a clean environment, so the .env's names show even where the calling shell
+# already holds the same value.
+# shellcheck disable=SC2016 # the child expands it
+dump='mapfile -t __container_env_names < <(compgen -e)
+for __container_env_n in "${__container_env_names[@]}"; do
+  printf "%s=%s\0" "$__container_env_n" "${!__container_env_n}"
+done'
 child_env() { # code
   if [ "$mode" = --check ]; then
-    env -i PATH="$PATH" bash --noprofile --norc -c 'eval "$1"; exec env -0' \
-      _ "$1"
+    printf '%s\n%s\n' "$1" "$dump" \
+      | env -i PATH="$PATH" bash --noprofile --norc 2>/dev/null
   else
-    bash --noprofile --norc -c 'eval "$1"; exec env -0' _ "$1"
+    printf '%s\n%s\n' "$1" "$dump" | bash --noprofile --norc 2>/dev/null
   fi
 }
 
@@ -39,11 +46,10 @@ read_pairs() { # array
   done
 }
 
-# A variable longer than the kernel's limit for one string (128 KiB) makes
-# every program launch fail with "Argument list too long".
-fits() { # name value
+# The bytes a variable takes in the environment, into $length.
+measure() { # name value
   local LC_ALL=C
-  [ $((${#1} + ${#2} + 2)) -le 131072 ]
+  length=$((${#1} + ${#2} + 2))
 }
 
 read_pairs before < <(child_env '')
@@ -52,6 +58,13 @@ if [ -f "$dir/.env" ]; then
     problems+=("$dir/.env isn't loaded: direnv isn't installed; rebuild")
   elif exports=$("$direnv" dotenv bash "$dir/.env" 2>/dev/null); then
     read_pairs after < <(child_env "$exports")
+    if [ "$mode" = --check ]; then
+      while IFS= read -r line; do
+        problems+=("$dir/.env: $line")
+      done < <(printf '%s\n' "$exports" \
+        | env -i PATH="$PATH" bash --noprofile --norc 2>&1 >/dev/null \
+        | sed 's/^bash: line [0-9]*: //')
+    fi
     for name in "${!after[@]}"; do
       if [ "${before[$name]-}" != "${after[$name]}" ] \
         || [ -z "${before[$name]+x}" ]; then
@@ -79,15 +92,34 @@ for file in "$dir"/*; do
   fi
 done
 
-for name in "${!values[@]}"; do
+# One string over 128 KiB, or an environment over ARG_MAX with a program's
+# arguments, makes every program launch fail with "Argument list too long".
+# The loaded values together stay within half of ARG_MAX, taken in name
+# order so the same ones load each time.
+budget=$(($(getconf ARG_MAX 2>/dev/null || echo 2097152) / 2))
+kib=$((budget / 1024))
+used=0
+for name in "${!before[@]}"; do
+  measure "$name" "${before[$name]}"
+  used=$((used + length))
+done
+mapfile -t names < <(printf '%s\n' "${!values[@]}" | sort)
+for name in "${names[@]}"; do
+  [ -n "$name" ] || continue
+  measure "$name" "${values[$name]}"
   if ! (export "$name=") 2>/dev/null; then
     problems+=("$name is skipped: bash doesn't let it be set")
-  elif ! fits "$name" "${values[$name]}"; then
+  elif [ "$length" -gt 131072 ]; then
     problems+=("$name is skipped: its value is over 128 KiB")
-  elif [ "$mode" != --check ] && { [ -z "${before[$name]+x}" ] \
-    || [ "${before[$name]}" != "${values[$name]}" ]; }; then
-    value=${values[$name]}
-    printf "export %s='%s'\n" "$name" "${value//\'/\'\\\'\'}"
+  elif [ $((used + length)) -gt "$budget" ]; then
+    problems+=("$name is skipped: the environment would pass $kib KiB")
+  else
+    used=$((used + length))
+    if [ "$mode" != --check ] && { [ -z "${before[$name]+x}" ] \
+      || [ "${before[$name]}" != "${values[$name]}" ]; }; then
+      value=${values[$name]}
+      printf "export %s='%s'\n" "$name" "${value//\'/\'\\\'\'}"
+    fi
   fi
 done
 
