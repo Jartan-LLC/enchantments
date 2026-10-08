@@ -1,0 +1,17 @@
+{
+  "id": "container-env",
+  "version": "1.0.0",
+  "name": "Per-device environment variables",
+  "description": "Exports environment variables from the container-env volume, a .env file and one file per variable, into login shells and VS Code, so per-device values never go in a repo.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/container-env",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "mounts": [
+    {
+      "source": "container-env",
+      "target": "/mnt/enchantments/container-env",
+      "type": "volume"
+    }
+  ],
+  "onCreateCommand": "f=/usr/local/share/enchantments/container-env/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
+  "postStartCommand": "f=/usr/local/share/enchantments/container-env/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}
