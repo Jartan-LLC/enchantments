@@ -1,7 +1,7 @@
 
 # Per-device environment variables (container-env)
 
-Exports environment variables from the container-env volume, a .env file and one file per variable, into login shells and VS Code, so per-device values never go in a repo.
+Exports per-device environment variables, kept in the container-env volume, into login shells and VS Code, so no repo holds them.
 
 ## Example Usage
 
@@ -13,11 +13,15 @@ Exports environment variables from the container-env volume, a .env file and one
 
 
 
+## Where to declare it
+
+In VS Code's `dev.containers.defaultFeatures`, so every container you open gets it and no repo has to name it: `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.
+
 ## Setting variables
 
-Values live in the `container-env` volume, mounted at `/mnt/enchantments/container-env`. Every container on this Docker host that has the Feature shares it, so each device keeps its own values and no repo holds them. Write them from any of those containers, in either form:
+Values live in the `container-env` volume at `/mnt/enchantments/container-env`, shared by every container on this Docker host that has the Feature. Write them from any of those containers, in either form:
 
-- **One file per variable.** The file's name is the variable's name. Its contents, minus trailing newlines, are the value, used as is, with no quoting or escaping. Use this form for secrets and multi-line values:
+- **One file per variable,** for secrets and multi-line values. The file's name is the variable's name, and its contents, minus trailing newlines, are the value as is:
 
   ```bash
   cd /mnt/enchantments/container-env
@@ -25,28 +29,26 @@ Values live in the `container-env` volume, mounted at `/mnt/enchantments/contain
   printf 'x-api-key: <key>\nx-team: core\n' >ANTHROPIC_CUSTOM_HEADERS
   ```
 
-- **A `.env` file** at `/mnt/enchantments/container-env/.env`, read by direnv's dotenv parser (`https://github.com/direnv/direnv`). It takes `KEY=value` lines, `export`, `#` comments, single and double quotes, `\n` inside double quotes, and `${VAR:-default}`. A line it can't parse leaves the whole file unloaded.
+- **A `.env` file** at `/mnt/enchantments/container-env/.env`, in dotenv syntax: `KEY=value` lines, `export`, `#` comments, quotes, `\n` inside double quotes, and `${VAR:-default}`. direnv's parser reads it (`https://github.com/direnv/direnv`), and one line it can't parse leaves the whole file unloaded.
 
-When a variable is set both ways, the file's value wins.
+When both set a variable, the file wins. The Feature takes no options: values set there would be saved in the image and, from `defaultFeatures`, copied to your other devices by Settings Sync.
 
-A new login shell picks up a change straight away. VS Code takes the values when it starts in the container, so restart the container for VS Code and the processes it starts.
+## When values apply
 
-## How it works
+- **Login shells** (`sh` and `bash`) load the values each time they start, through `/etc/profile.d/container-env.sh`.
+- **VS Code** loads them from a login shell when it starts in the container, and passes them to its terminals, tasks and extensions. Restart the container after a change.
+- **A removed variable** stays in VS Code, and in the shells it starts, until the container restarts.
+- **zsh on Debian, and non-login shells** such as a plain `docker exec`, don't load them.
 
-- **When the image is built,** a pinned direnv is installed, and `/etc/profile.d/container-env.sh` makes every login shell load the volume. VS Code takes its environment from a login shell (its `userEnvProbe`, `loginInteractiveShell` by default), so its terminals, tasks and extensions get the values too.
-- **Each time the container starts,** problems with the volume are printed: a `.env` that doesn't parse, a file whose name isn't a variable name, and a variable that the `.env` sets but a file overrides.
+## When a value doesn't show up
 
-## Limits
+1. Read the warnings printed when the container starts, or print them again with `bash /usr/local/share/enchantments/container-env/postStart.sh`. A `.env` that doesn't parse, a file whose name isn't a variable name, a value over 128 KiB, and a name bash won't set, such as `UID`, are skipped and named there.
+2. Check where you're reading it: see When values apply.
+3. Check the tool's own settings: a tool can override an exported value, as an `env` block in its settings file does.
 
-- **Only shells that read `/etc/profile` load the values:** `sh` and `bash` login shells, and whatever VS Code starts. zsh on Debian doesn't read it, and neither does a non-login shell such as a plain `docker exec`.
-- **Removing a variable takes effect when the container restarts.** Until then, shells started from VS Code inherit the old value.
-- **A tool's own configuration can override an exported value,** as an `env` block in a tool's settings file can. If a value doesn't take, check the tool's settings.
-- **A value over 128 KiB, or a name bash won't set (such as `UID`), is skipped** and reported when the container starts.
-- **Every container on the device can change the values,** `PATH` included. See the trust boundary guide: `https://github.com/Jartan-LLC/enchantments/blob/main/docs/trust-boundary.md`.
+## Security
 
-## Why there are no options
-
-Option values would be stored in the image and printed in the build log, VS Code's Settings Sync would copy them to every device, and the devcontainer CLI changes a value containing quotes, dollar signs or backslashes before a Feature sees it.
+Every container on this Docker host with the Feature can change the values, `PATH` included, so code that runs in one of them can run in the others. See the trust boundary guide: `https://github.com/Jartan-LLC/enchantments/blob/main/docs/trust-boundary.md`.
 
 ## Removal
 

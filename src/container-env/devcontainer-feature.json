@@ -2,7 +2,7 @@
   "id": "container-env",
   "version": "1.0.0",
   "name": "Per-device environment variables",
-  "description": "Exports environment variables from the container-env volume, a .env file and one file per variable, into login shells and VS Code, so per-device values never go in a repo.",
+  "description": "Exports per-device environment variables, kept in the container-env volume, into login shells and VS Code, so no repo holds them.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/container-env",
   "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
   "mounts": [
