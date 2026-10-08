@@ -5,8 +5,8 @@ A rebuild replaces the container. These volumes outlive it:
 | Volume | Holds | Shared by |
 |---|---|---|
 | `claude-data` | Claude Code's login and `~/.claude`: settings, plugins, MCP entries, and each clone's local-scope plugins | every container with `claude-code` |
-| `gh-config` | the GitHub CLI's login | every container with `gh-config` |
 | `container-env` | the variables `container-env` exports | every container with `container-env` |
+| `gh-config` | the GitHub CLI's login | every container with `gh-config` |
 | `liza-<devcontainerId>` | Liza and its toolchain | one opened config |
 
 ## The Liza volumes

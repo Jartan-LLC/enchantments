@@ -15,7 +15,7 @@ direnv=$here/direnv
 mode=${1-}
 problems=()
 notes=()
-declare -A before values from_env
+declare -A before values
 
 # The exported variables of a child bash, after it runs the code it's given,
 # as NUL-separated NAME=value pairs. The code arrives on stdin, as an argument
@@ -68,8 +68,10 @@ if [ -f "$dir/.env" ]; then
     read_pairs values < <(printf '%s\n%s\n' "$exports" "$dump" \
       | env -i bash --noprofile --norc 2>"$errors")
     unset 'values[PWD]' 'values[SHLVL]'
+    # A name bash won't set comes back with its own value; stderr has
+    # reported it already.
     for name in "${!values[@]}"; do
-      from_env[$name]=1
+      (export "$name=") 2>/dev/null || unset 'values[$name]'
     done
     while IFS= read -r line; do
       problems+=("$dir/.env: ${line#bash: line *: }")
@@ -85,10 +87,10 @@ for file in "$dir"/*; do
     problems+=("$file is skipped: $name isn't a variable name")
   elif [ ! -r "$file" ]; then
     problems+=("$file is skipped: it can't be read")
-  elif [ "$(stat -c %s "$file")" -gt 131072 ]; then
+  elif [ "$(stat -L -c %s "$file")" -gt 131072 ]; then
     problems+=("$name is skipped: its value is over 128 KiB")
   else
-    [ -n "${from_env[$name]+x}" ] \
+    [ -n "${values[$name]+x}" ] \
       && notes+=("$name is set by both, and $file overrides $dir/.env")
     values[$name]=$(<"$file")
   fi

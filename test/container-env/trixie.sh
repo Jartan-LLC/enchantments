@@ -92,7 +92,8 @@ mv "$dir/.env.saved" "$dir/.env"
 
 # The loader keeps the environment within half of ARG_MAX.
 budget=$(($(getconf ARG_MAX) / 2))
-for i in $(seq -w $((budget / 120000 + 2))); do
+# Past ARG_MAX itself, so without the cap no program could launch.
+for i in $(seq -w $(($(getconf ARG_MAX) / 120000 + 2))); do
   head -c 120000 /dev/zero | tr '\0' a >"$dir/FILL$i"
 done
 check "values past the environment budget are reported" \
@@ -116,7 +117,17 @@ check "values the shell already holds don't count twice" test "$(
   env -i HOME="$HOME" PATH=/usr/bin:/bin "${held[@]}" \
     bash -lc "printf %s \"\$ZLAST\" | wc -c"
 )" = 120000
-rm "$dir"/FAT* "$dir/ZLAST"
+rm "$dir/ZLAST"
+# Not counted at all, the held values would leave room for every NEW value.
+new=$((budget / 4 / 120000 + 2))
+for i in $(seq "$new"); do
+  head -c 120000 /dev/zero | tr '\0' n >"$dir/NEW$i"
+done
+check "values the shell already holds are counted" test "$(
+  env -i HOME="$HOME" PATH=/usr/bin:/bin "${held[@]}" \
+    bash -lc "compgen -e | grep -c ^NEW"
+)" -lt "$new"
+rm "$dir"/FAT* "$dir"/NEW*
 
 # An earlier profile script's readonly name doesn't stop a dash login shell.
 echo 'readonly HELD=mine' | sudo tee /etc/profile.d/00-held.sh >/dev/null
@@ -129,7 +140,9 @@ rm "$dir/HELD" "$dir/ZAFTER"
 
 # The .env child's own variables are reserved.
 mv "$dir/.env" "$dir/.env.saved"
-printf '__container_env_n=x\nAFTER_RESERVED=1\n' >"$dir/.env"
+printf '__container_env_n=x\nAFTER_RESERVED=1\nUID=5\n' >"$dir/.env"
+check "a .env name bash won't set is reported once" \
+  test "$(post_start | grep -c UID)" = 1
 check "a .env name the loader reserves is left out" \
   test -z "$(login bash __container_env_n)"
 check "and the rest of that .env loads" \
