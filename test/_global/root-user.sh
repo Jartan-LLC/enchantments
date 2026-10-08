@@ -57,7 +57,7 @@ container_env_loads() {
 }
 check "container-env loads in root's login shells" container_env_loads
 
-# initializeCommand seeded both shared volumes as the runner's user, as a
+# initializeCommand seeded claude-data and gh-config as the runner's user, as a
 # non-root container leaves them. Root never re-owns one: that would lock the
 # non-root containers out of their 0600 files.
 keeps_owner() { # mount

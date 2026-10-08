@@ -3,9 +3,8 @@ set -e
 # shellcheck source=/dev/null # the CLI adds it at test time
 source dev-container-features-test-lib
 
-# initializeCommand left the volume's top directory the user's, as a container
-# of this user leaves it, and a root-owned file inside, as a root container
-# does: onCreate's sudo chown must fix it.
+# initializeCommand put a root-owned file in the volume, as a root container
+# would. onCreate's sudo chown must give that file to the user.
 dir=/mnt/enchantments/container-env
 check "the volume and its files belong to the user" \
   test "$(stat -c %U "$dir" "$dir/SEEDED")" = "$(printf 'vscode\nvscode')"

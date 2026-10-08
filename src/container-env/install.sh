@@ -1,7 +1,6 @@
 #!/bin/sh
-# Image build, as root: stage the hooks and the loader, hook the loader into
-# login shells, install the pinned direnv, whose dotenv parser reads .env, and
-# create the mount point.
+# Image build, as root: create the mount point, stage the hooks and the
+# loader, hook the loader into login shells, and install the pinned direnv.
 id=container-env
 dest=/usr/local/share/enchantments/$id
 mount=/mnt/enchantments/container-env

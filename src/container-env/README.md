@@ -29,7 +29,7 @@ Values live in the `container-env` volume at `/mnt/enchantments/container-env`, 
   printf 'x-api-key: <key>\nx-team: core\n' >ANTHROPIC_CUSTOM_HEADERS
   ```
 
-- **A `.env` file** at `/mnt/enchantments/container-env/.env`, in dotenv syntax: `KEY=value` lines, `export`, `#` comments, quotes, `\n` inside double quotes, and `${VAR:-default}`. direnv's parser reads it (`https://github.com/direnv/direnv`), and one line it can't parse leaves the whole file unloaded. Outside single quotes, a dollar sign expands from the shell's environment: single-quote a literal one, and don't make a value refer to itself, as `PATH=$PATH:/opt/x` grows in each nested login shell.
+- **A `.env` file** at `/mnt/enchantments/container-env/.env`, in dotenv syntax: `KEY=value` lines, `export`, `#` comments, quotes, `\n` inside double quotes, and `${VAR:-default}`. direnv's parser reads it (`https://github.com/direnv/direnv`), and one line it can't parse leaves the whole file unloaded. Outside single quotes, a dollar sign expands from the `.env`'s earlier lines or the shell's environment, so single-quote a literal one. Don't make a value refer to itself: `PATH=$PATH:/opt/x` grows in each nested login shell.
 
 When both set a variable, the file wins, and a value from the volume replaces one the shell already has, such as one from `containerEnv`. The Feature takes no options: a value given as an option would be saved in the image and, from `defaultFeatures`, copied to your other devices by Settings Sync.
 
@@ -48,6 +48,8 @@ When both set a variable, the file wins, and a value from the volume replaces on
    - a name bash won't set, such as `UID`;
    - a value over 128 KiB, and values that would take the environment past half the system's limit for a program's arguments and environment together;
    - a missing direnv.
+
+   They also note each variable a file overrides in the `.env`.
 
    Folders, files whose names start with a dot other than `.env`, and a `.env`'s `PWD` and `SHLVL`, which bash sets itself, are ignored without a warning.
 2. Check where you're reading it: see When values apply.

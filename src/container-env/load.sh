@@ -52,10 +52,10 @@ valid_name() { # name
 
 read_pairs before < <(printf '%s\n' "$dump" | bash --noprofile --norc)
 
-# direnv prints its values already expanded, so the .env runs on a clean
-# environment: what comes back is exactly what it sets, apart from the PWD
-# and SHLVL bash exports itself. Under --check, direnv's error, or the lines
-# bash rejects, are reported.
+# direnv parses the .env in the caller's environment and prints its values
+# expanded, so its export lines run on a clean one: what comes back is exactly
+# what the .env sets, apart from the PWD and SHLVL bash exports itself. Under
+# --check, direnv's error, or the lines bash rejects, are reported.
 errors=/dev/null
 [ "$mode" = --check ] && errors=$(mktemp)
 if [ -f "$dir/.env" ]; then

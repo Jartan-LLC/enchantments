@@ -41,8 +41,8 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    and `postAttach` hooks re-run from the image metadata. From a clean host, or the GitHub
    web UI (Settings → Applications), revoke the gh token. In the pin-bump App's settings,
    under Private keys, generate a new key, keep it on the clean host, and delete every
-   older one: GitHub won't delete an App's only key. Also revoke Claude sessions and any
-   MCP keys at their issuers. Re-authenticate only on that clean host, which is enough to
+   older one: GitHub won't delete an App's only key. Also revoke Claude sessions, any
+   MCP keys and every secret kept in `container-env` at their issuers. Re-authenticate only on that clean host, which is enough to
    review and approve the fix.
 2. **Audit GitHub for footholds** the token could have left.
    - In the Jartan-LLC audit log (web UI, owners only), review the exposure window and
