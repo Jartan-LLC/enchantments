@@ -16,6 +16,7 @@ Code and agent tools on Debian-based images.
 | [`liza`](src/liza/README.md) | [Liza](https://github.com/liza-mas/liza): rules and a multi-agent workflow for coding agents, with ripgrep |
 | [`liza-toolchain`](src/liza-toolchain/README.md) | Liza's agent tools, such as code indexes and code search |
 | [`codebase-memory-mcp`](src/codebase-memory-mcp/README.md) | a code graph Claude Code can query |
+| [`container-env`](src/container-env/README.md) | per-device environment variables, kept out of every repo |
 
 ## Declaring a Feature
 

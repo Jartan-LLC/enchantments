@@ -3,7 +3,8 @@
 `defaultFeatures` applies to every container you open in VS Code, with no way to exclude a
 repo. Each of those containers holds your Claude login, your user-wide `~/.claude` (hooks,
 plugins, MCP servers) and your gh token, and the repo's own code (its setup, scripts and
-tests) runs as the same user beside them.
+tests) runs as the same user beside them. With `container-env`, that code can also change
+the variables every other container's login shells export, `PATH` included.
 
 ## What a bad release can do
 
@@ -43,7 +44,7 @@ recreated.
 ## Opening an untrusted repo
 
 Clear `defaultFeatures` first; opening the repo outside a container gives its code your
-whole host instead. Review its `.devcontainer/` too: any config can mount `claude-data` and
-`gh-config` by name, and its `initializeCommand` runs on your host.
+whole host instead. Review its `.devcontainer/` too: any config can mount `claude-data`,
+`container-env` and `gh-config` by name, and its `initializeCommand` runs on your host.
 
 A fine-grained gh token, limited to the repos you work in, would narrow the first route.

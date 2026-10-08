@@ -19,6 +19,7 @@ features/grimoire
 features/liza
 features/liza-toolchain
 features/codebase-memory-mcp
+features/container-env
 ```
 
 ```{toctree}

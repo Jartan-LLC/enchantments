@@ -10,6 +10,7 @@ Each Feature installs on its own; a few only do their full job alongside another
 | [`liza`](features/liza.md) | Liza, activated locally for each clone, with ripgrep | — (with `liza-toolchain`, context7 also needs `claude-code`) |
 | [`liza-toolchain`](features/liza-toolchain.md) | Liza's agent toolchain: code indexes, semantic search, rtk, context7 | `liza` |
 | [`codebase-memory-mcp`](features/codebase-memory-mcp.md) | the codebase-memory-mcp code graph, registered as an MCP server | `claude-code`, to register it |
+| [`container-env`](features/container-env.md) | per-device environment variables, from the `container-env` volume | — |
 
 A Feature never pulls in another: declare each one you want. Each page lists its image
 requirements.
