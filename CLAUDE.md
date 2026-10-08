@@ -1,6 +1,6 @@
 # enchantments
 
-Dev container Features for Jartan LLC's projects, each one installable on its own.
+Dev container Features for reproducible development environments.
 Written in POSIX `sh` and bash.
 
 ## Rules
@@ -30,7 +30,7 @@ make check
 
 A change under `src/`, `lib/` or `test/` is done only when the PR's `check` passes in CI.
 Don't run `devcontainer features test` locally: it writes to your real
-`claude-data`, `gh-config` and `liza-<devcontainerId>` volumes.
+`claude-data`, `container-env`, `gh-config` and `liza-<devcontainerId>` volumes.
 
 Individual targets (`make lint`, `make docs`, `make test`) speed up the inner loop; `make help` lists
 them.

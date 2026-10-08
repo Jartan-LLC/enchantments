@@ -2,8 +2,12 @@
 
 `defaultFeatures` applies to every container you open in VS Code, with no way to exclude a
 repo. Each of those containers holds your Claude login, your user-wide `~/.claude` (hooks,
-plugins, MCP servers) and your gh token, and the repo's own code (its setup, scripts and
-tests) runs as the same user beside them.
+plugins, MCP servers) and your gh token. The repo's own code (its setup, scripts and tests)
+runs as the same user beside them.
+
+With `container-env`, they also hold your per-device variables, and that code can change
+the variables exported in every other container that mounts the volume. That runs code
+there: pointing `PATH`, `LD_PRELOAD` or `BASH_ENV` into the volume is enough.
 
 ## What a bad release can do
 
@@ -36,14 +40,14 @@ and CI's tests catch broken releases; they don't stop someone who holds your gh 
 - **A name nobody has published.** A workflow in any Jartan-LLC repo can publish a package
   under that name first. [Adding a Feature](adding-a-feature.md) checks for this.
 
-A container running as root also shares the volumes: what it writes to `claude-data` or
-`gh-config` is owned by root, which a non-root container may fail to update until it's
-recreated.
+A container running as root also shares the volumes: what it writes to `claude-data`,
+`container-env` or `gh-config` is owned by root, which a non-root container may fail to
+update until it's recreated.
 
 ## Opening an untrusted repo
 
 Clear `defaultFeatures` first; opening the repo outside a container gives its code your
-whole host instead. Review its `.devcontainer/` too: any config can mount `claude-data` and
-`gh-config` by name, and its `initializeCommand` runs on your host.
+whole host instead. Review its `.devcontainer/` too: any config can mount `claude-data`,
+`container-env` and `gh-config` by name, and its `initializeCommand` runs on your host.
 
 A fine-grained gh token, limited to the repos you work in, would narrow the first route.

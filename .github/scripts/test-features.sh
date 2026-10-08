@@ -2,19 +2,19 @@
 # shellcheck source-path=SCRIPTDIR
 # Usage: test-features.sh <id> [scenario]. Runs every scenario of one Feature
 # or of _global, or only the one named, each as its own invocation on fresh
-# claude-data, gh-config and liza-rebuild volumes: the CLI removes containers
-# but never volumes, and the volume names are fixed. A scenario named
-# *-rebuild then runs again on the volumes it left, as a rebuilt container
-# would.
+# claude-data, container-env, gh-config and liza-rebuild volumes: the CLI
+# removes containers but never volumes, and the volume names are fixed. A
+# scenario named *-rebuild then runs again on the volumes it left, as a
+# rebuilt container would.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
 if [ "${CI:-}" != true ]; then
-  echo "test-features.sh deletes the claude-data, gh-config and" \
-    "liza-rebuild volumes; it runs only in CI" >&2
+  echo "test-features.sh deletes the claude-data, container-env, gh-config" \
+    "and liza-rebuild volumes; it runs only in CI" >&2
   exit 1
 fi
-volumes=(claude-data gh-config liza-rebuild)
+volumes=(claude-data container-env gh-config liza-rebuild)
 id=$1
 only=${2:-}
 scenarios=test/$id/scenarios.json

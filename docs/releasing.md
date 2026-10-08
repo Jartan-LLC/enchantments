@@ -120,7 +120,7 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 
 | Pin | Where | To update |
 |---|---|---|
-| `asset`: liza, ripgrep, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
+| `asset`: liza, ripgrep, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv, direnv | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
 | `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it |
