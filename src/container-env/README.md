@@ -41,11 +41,12 @@ A new login shell picks up a change straight away. VS Code takes the values when
 - **Only shells that read `/etc/profile` load the values:** `sh` and `bash` login shells, and whatever VS Code starts. zsh on Debian doesn't read it, and neither does a non-login shell such as a plain `docker exec`.
 - **Removing a variable takes effect when the container restarts.** Until then, shells started from VS Code inherit the old value.
 - **A tool's own configuration can override an exported value,** as an `env` block in a tool's settings file can. If a value doesn't take, check the tool's settings.
+- **A value over 128 KiB, or a name bash won't set (such as `UID`), is skipped** and reported when the container starts.
 - **Every container on the device can change the values,** `PATH` included. See the trust boundary guide: `https://github.com/Jartan-LLC/enchantments/blob/main/docs/trust-boundary.md`.
 
 ## Why there are no options
 
-Option values would be stored in the image and printed in the build log, VS Code's Settings Sync would copy them to every device, and the devcontainer CLI changes them before a Feature sees them (`https://github.com/devcontainers/cli/issues/1324`).
+Option values would be stored in the image and printed in the build log, VS Code's Settings Sync would copy them to every device, and the devcontainer CLI changes a value containing quotes, dollar signs or backslashes before a Feature sees it.
 
 ## Removal
 

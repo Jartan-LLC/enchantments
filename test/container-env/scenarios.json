@@ -4,5 +4,12 @@
     "features": {
       "container-env": {}
     }
+  },
+  "seeded": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "initializeCommand": "docker run --rm -v container-env:/v alpine sh -c \"printf seeded >/v/SEEDED && chown $(id -u):$(id -g) /v\"",
+    "features": {
+      "container-env": {}
+    }
   }
 }

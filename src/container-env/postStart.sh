@@ -9,10 +9,13 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 id=container-env
 
+if ! report=$(bash "$here/load.sh" --check); then
+  echo "Warning: $id: the loader failed; run: bash $here/load.sh --check" >&2
+fi
 while read -r kind text; do
   case $kind in
     problem) echo "Warning: $id: $text" >&2 ;;
     note) echo "$id: $text" >&2 ;;
   esac
-done < <(bash "$here/load.sh" --check)
+done <<<"$report"
 report_failures "$id"

@@ -22,4 +22,5 @@ docker volume ls -q --filter dangling=true --filter name='(^|_)liza-' | xargs -r
 ## Docker Compose
 
 Compose prefixes each Feature volume with the project name (`<project>_claude-data` and so
-on), so a Compose config's login and gh auth aren't shared with other containers.
+on), so a Compose config's login, gh auth and `container-env` values aren't shared with
+other containers.

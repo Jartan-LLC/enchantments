@@ -35,7 +35,7 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 ([the trust boundary](trust-boundary.md)), so treat the host as compromised throughout.
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
-   `claude-data`, `gh-config` or a `liza-*` volume (`docker ps -a --filter
+   `claude-data`, `container-env`, `gh-config` or a `liza-*` volume (`docker ps -a --filter
    volume=claude-data`, and likewise for the others), since the shared volume carries
    whatever the bad code planted. Don't start or attach to them again: their `postStart`
    and `postAttach` hooks re-run from the image metadata. From a clean host, or the GitHub
@@ -101,8 +101,8 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    fails where the bad release added a semver tag, and that `:1` still resolves to the fix.
    Past 5,000 downloads, only GitHub Support can remove a version.
 5. **Rebuild clean:**
-   - Remove every container step 1 stopped, then the `claude-data`, `gh-config` and all
-     `liza-*` volumes, not only the dangling ones. Do this first, so new credentials never
+   - Remove every container step 1 stopped, then the `claude-data`, `container-env`,
+     `gh-config` and all `liza-*` volumes, not only the dangling ones. Do this first, so new credentials never
      land in a volume a compromised container still mounts.
    - Rebuild the Docker host, and rotate every credential it held or forwarded into
      containers, including MCP-server keys and tokens stored in `claude-data`.
