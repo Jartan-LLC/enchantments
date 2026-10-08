@@ -1,6 +1,6 @@
 # enchantments
 
-Dev container Features for reproducible development environments in Jartan LLC's projects.
+Dev container Features for reproducible development environments.
 Written in POSIX `sh` and bash.
 
 ## Rules
