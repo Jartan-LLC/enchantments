@@ -18,7 +18,8 @@ requirements.
 ## The default set
 
 For [`defaultFeatures`](using.md), the five that make up the agent workbench:
-`claude-code`, `gh-config`, `grimoire`, `liza` and `liza-toolchain`.
+`claude-code`, `gh-config`, `grimoire`, `liza` and `liza-toolchain`. Add `container-env`
+there too for per-device variables.
 
 ## codebase-memory-mcp
 

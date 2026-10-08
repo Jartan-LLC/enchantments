@@ -2,10 +2,11 @@
 
 `defaultFeatures` applies to every container you open in VS Code, with no way to exclude a
 repo. Each of those containers holds your Claude login, your user-wide `~/.claude` (hooks,
-plugins, MCP servers) and your gh token, and the repo's own code (its setup, scripts and
-tests) runs as the same user beside them. With `container-env`, that code can also change
-the variables exported in every other container that mounts its volume, and so run code
-there: pointing `PATH`, `LD_PRELOAD` or `BASH_ENV` into the volume is enough.
+plugins, MCP servers), your gh token and, with `container-env`, your per-device variables,
+and the repo's own code (its setup, scripts and tests) runs as the same user beside them.
+With `container-env`, that code can also change the variables exported in every other
+container that mounts its volume, and so run code there: pointing `PATH`, `LD_PRELOAD` or
+`BASH_ENV` into the volume is enough.
 
 ## What a bad release can do
 

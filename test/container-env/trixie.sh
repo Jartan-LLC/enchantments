@@ -138,7 +138,7 @@ check "a readonly name doesn't stop sh loading the rest" \
 sudo rm /etc/profile.d/00-held.sh
 rm "$dir/HELD" "$dir/ZAFTER"
 
-# The .env child's own variables are reserved.
+# A reserved name and a readonly one in a .env, and the rest still loads.
 mv "$dir/.env" "$dir/.env.saved"
 printf '__container_env_n=x\nAFTER_RESERVED=1\nUID=5\n' >"$dir/.env"
 check "a .env name bash won't set is reported once" \

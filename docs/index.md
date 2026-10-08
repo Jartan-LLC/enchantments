@@ -1,7 +1,7 @@
 # enchantments
 
-[Dev container Features](https://containers.dev/features) that set up Claude Code and
-agent tools on Debian-based images.
+[Dev container Features](https://containers.dev/features) for reproducible development
+environments.
 
 ```{include} ../README.md
 :relative-docs: docs/

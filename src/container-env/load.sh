@@ -5,9 +5,9 @@
 # to eval. With --check, prints "problem <text>" and "note <text>" lines for
 # postStart instead.
 #
-# Loaded values never enter this shell, so no name can clobber the loader's
-# own variables: the .env and the caller's environment are read through
-# children.
+# Loaded values are kept as array entries, never as this shell's variables,
+# so no loaded name can clobber the loader's own: the .env and the caller's
+# environment are read through children.
 set -u
 here=$(dirname "$(readlink -f "$0")")
 dir=/mnt/enchantments/container-env
@@ -17,11 +17,11 @@ problems=()
 notes=()
 declare -A before values
 
-# The exported variables of a child bash, after it runs the code it's given,
-# as NUL-separated NAME=value pairs. The code arrives on stdin, as an argument
-# is held to 128 KiB, and the child writes the pairs with builtins only, so a
-# PATH or an oversized value the code sets can't stop it. The dump's own
-# variables, and any name starting with theirs, are left out.
+# Appended to the code a child bash reads on stdin: prints the child's
+# exported variables as NUL-separated NAME=value pairs. Stdin, because one
+# argument can't pass 128 KiB; builtins only, so a PATH or a large value the
+# code sets can't stop it. Names starting __container_env_ are the dump's own,
+# and are left out.
 # shellcheck disable=SC2016 # the child expands it
 dump='mapfile -t __container_env_names < <(compgen -e)
 for __container_env_n in "${__container_env_names[@]}"; do
@@ -68,8 +68,8 @@ if [ -f "$dir/.env" ]; then
     read_pairs values < <(printf '%s\n%s\n' "$exports" "$dump" \
       | env -i bash --noprofile --norc 2>"$errors")
     unset 'values[PWD]' 'values[SHLVL]'
-    # A name bash won't set comes back with its own value; stderr has
-    # reported it already.
+    # A name bash won't set comes back with bash's own value; the child's
+    # stderr has reported it already.
     for name in "${!values[@]}"; do
       (export "$name=") 2>/dev/null || unset 'values[$name]'
     done
@@ -101,7 +101,7 @@ done
 # The environment stays within half of ARG_MAX, taking the loaded values in
 # name order so the same ones load each time.
 budget=$(($(getconf ARG_MAX 2>/dev/null || echo 2097152) / 2))
-kib=$((budget / 1024))
+limit="$((budget / 1024)) KiB, half of ARG_MAX"
 used=0
 for name in "${!before[@]}"; do
   measure "$name" "${before[$name]}"
@@ -123,7 +123,7 @@ for name in "${names[@]}"; do
   elif [ "$new" -gt 131072 ]; then
     problems+=("$name is skipped: its value is over 128 KiB")
   elif [ $((used + new - old)) -gt "$budget" ]; then
-    problems+=("$name is skipped: the environment would pass $kib KiB")
+    problems+=("$name is skipped: the environment would pass $limit")
   else
     used=$((used + new - old))
     value=${values[$name]}

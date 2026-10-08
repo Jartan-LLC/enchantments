@@ -1,6 +1,6 @@
 # enchantments
 
-Dev container Features for Jartan LLC's projects, each one installable on its own.
+Dev container Features for reproducible development environments in Jartan LLC's projects.
 Written in POSIX `sh` and bash.
 
 ## Rules

@@ -30,7 +30,8 @@ cp "$here/profile.sh" /etc/profile.d/container-env.sh \
   || echo "Warning: $id could not hook login shells; nothing loads" >&2
 
 # Built in, not fetched at create, so every user's login shell can run it.
-# Without it, per-variable files still load, and postStart reports a .env.
+# Without it, per-variable files still load, and postStart says the .env
+# can't.
 bash "$here/install_direnv.sh" "$dest/direnv" \
   || echo "Warning: $id could not install direnv; a .env won't load" >&2
 exit 0

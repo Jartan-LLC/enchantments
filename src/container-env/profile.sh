@@ -1,7 +1,7 @@
 # shellcheck shell=sh
 # install.sh copies this to /etc/profile.d/container-env.sh. Login shells
 # source it, and VS Code takes their environment through userEnvProbe.
-# postStart reports problems, so every shell doesn't.
+# Problems are reported once, by postStart, not in every shell.
 if command -v bash >/dev/null 2>&1 \
   && [ -f /usr/local/share/enchantments/container-env/load.sh ]; then
   eval "$(bash /usr/local/share/enchantments/container-env/load.sh \
