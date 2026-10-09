@@ -25,5 +25,13 @@
       "claude-code": {},
       "gh-config": {}
     }
+  },
+  "proxied": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "initializeCommand": "docker run --rm -v container-env:/v alpine sh -c \"printf http://10.0.0.5:3456 >/v/ANTHROPIC_BASE_URL && chown -R $(id -u):$(id -g) /v\"",
+    "features": {
+      "container-env": {},
+      "claude-code": {}
+    }
   }
 }

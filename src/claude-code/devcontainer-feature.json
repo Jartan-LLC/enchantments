@@ -1,6 +1,6 @@
 {
   "id": "claude-code",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "name": "Claude Code",
   "description": "Claude Code, installed as the remote user with Anthropic's native installer so it updates itself, with its login and settings kept in the claude-data volume.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/claude-code",

@@ -90,6 +90,32 @@ check "claude is linked from /usr/local/bin" \
 check "the link and the install count as one claude" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
 
+# A base URL Claude would reach with the shared login, in scratch HOMEs, with
+# only the given auth variables set.
+start_report() { # VAR=value... -> what postStart reported
+  local probe
+  probe=$(mktemp -d)
+  env -u ANTHROPIC_BASE_URL -u CLAUDE_CODE_OAUTH_TOKEN \
+    -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_API_KEY HOME="$probe" "$@" \
+    bash "$hooks/postStart.sh" 2>/dev/null
+  cat "$probe/.cache/enchantments/claude-code.failures.reported" 2>/dev/null
+}
+warns() { start_report "$@" | grep -q 'ANTHROPIC_BASE_URL sends Claude'; }
+silent() { ! warns "$@"; }
+proxy=http://10.0.0.5:3456
+check "a proxy without a token is reported" warns ANTHROPIC_BASE_URL=$proxy
+check "the report names the host alone" test "$(
+  start_report ANTHROPIC_BASE_URL='https://user:secret@Proxy.Example:8443/v1' \
+    | grep -o 'sends Claude to [^,]*'
+)" = "sends Claude to proxy.example"
+check "Anthropic's own host is not reported" \
+  silent ANTHROPIC_BASE_URL=https://API.Anthropic.com:443/
+check "no base URL is not reported" silent
+for token in CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_AUTH_TOKEN ANTHROPIC_API_KEY; do
+  check "a proxy with $token set is not reported" \
+    silent ANTHROPIC_BASE_URL=$proxy "$token=x"
+done
+
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.
 # shellcheck source=../../src/claude-code/link_home.sh
