@@ -12,18 +12,18 @@ AST_GREP_ASSET_AARCH64='app-aarch64-unknown-linux-gnu.zip'
 AST_GREP_SHA256_AARCH64='b39cfbc58da4b869a88b8a4bc57bd5deb0d24541e704cf7c257da7b53ec81c8f'
 
 # pin asset yq repo=mikefarah/yq
-YQ_TAG='v4.53.6'
+YQ_TAG='v4.54.1'
 YQ_ASSET_X86_64='yq_linux_amd64'
-YQ_SHA256_X86_64='c5f056448f973ae7d39b5401949648a78f2dc1947d6a8eb65be60d5c504b9385'
+YQ_SHA256_X86_64='8e34fc298390875de416e6a4afcb8cabeceb25d9aa8506c1a2f9353cf702ea5f'
 YQ_ASSET_AARCH64='yq_linux_arm64'
-YQ_SHA256_AARCH64='88a1016bc1d657375a35864e4f44b6f333df8ff97b559f51bba0adcb2169df09'
+YQ_SHA256_AARCH64='189088da0c6429ec5178dfaab1a114805f6cab0b61b165ab236efedf1d57a71b'
 
 # pin asset rtk repo=rtk-ai/rtk
-RTK_TAG='v0.50.0'
+RTK_TAG='v0.51.0'
 RTK_ASSET_X86_64='rtk-x86_64-unknown-linux-musl.tar.gz'
-RTK_SHA256_X86_64='bc2b8902b0d9c796c82ef45f16ae2307e17757afeca5ee156235a3dc7bda5f89'
+RTK_SHA256_X86_64='5028d3b19a8f0990d30fec9fbb07e32782bc5698e618fb1861aad8a9ccba4eb5'
 RTK_ASSET_AARCH64='rtk-aarch64-unknown-linux-gnu.tar.gz'
-RTK_SHA256_AARCH64='d1cc49dfa2cd443fc32625444b59fe616b6c80478cca210985118347174dd758'
+RTK_SHA256_AARCH64='8d6d1aad9e69b42481eda7039507d1f7ee93698f87713cecd873d287c1931632'
 
 # pin asset mdq repo=yshavit/mdq
 MDQ_TAG='v0.10.0'
@@ -31,11 +31,11 @@ MDQ_ASSET_X86_64='mdq-linux-x64-musl.tar.gz'
 MDQ_SHA256_X86_64='673ed676382f54a21e4381d845236c776b2b71ed8dc1cc3e92cf6d66a39edb07'
 
 # pin asset uv repo=astral-sh/uv
-UV_TAG='0.12.19'
+UV_TAG='0.12.22'
 UV_ASSET_X86_64='uv-x86_64-unknown-linux-musl.tar.gz'
-UV_SHA256_X86_64='db7278c9f57981338fddff1fb250e11964bc0a4fafcb9eed8303fdb117dc067b'
+UV_SHA256_X86_64='a50fd68c653b0cfb1c85e0a7db62cb78cf5c22b6f3dcf3ae173e5f222d084470'
 UV_ASSET_AARCH64='uv-aarch64-unknown-linux-musl.tar.gz'
-UV_SHA256_AARCH64='ad8d8448a2ff642ba62c2f684d7dd22a03f8eb3fc9918c2c3e8ec975f4ed6710'
+UV_SHA256_AARCH64='228bd32c180421a94eef91378a92b2dd63c768bd278430e833250524c4a13382'
 
 # pin tag-commit scip-search repo=liza-mas/scip-search
 SCIP_SEARCH_TAG='v0.2.1'
