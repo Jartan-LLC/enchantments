@@ -419,4 +419,118 @@ sed -i '/"manifest grimoire"/d' node_modules/.bin/devcontainer
 expect "check-visibility passes when every Feature is public" 0 "" \
   .github/scripts/check-visibility.sh
 
+# --- tag-release.sh, against stub devcontainer and gh CLIs ---
+
+# A Feature's version is on GHCR when PUBLISHED lists <id>@<version>; liza's
+# lookup fails. The gh stub keeps tags as "<name> <commit>" lines in TAGS:
+# DENY makes creating that tag a 403, and MEANWHILE has another run create it
+# first.
+new_repo
+mkdir -p node_modules/.bin stubs
+cat >node_modules/.bin/devcontainer <<'EOF'
+#!/bin/bash
+id=${4%:1}
+id=${id##*/}
+[ "$id" != liza ] || exit 1
+for p in $PUBLISHED; do
+  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
+done | jq -R . | jq -s '{publishedTags: (["1"] + .)}'
+EOF
+cat >stubs/gh <<'EOF'
+#!/bin/bash
+shift
+path='' filter='' ref='' sha=''
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --paginate) ;;
+    --jq) filter=$2 && shift ;;
+    -f)
+      case $2 in
+        ref=*) ref=${2#ref=} ;;
+        sha=*) sha=${2#sha=} ;;
+      esac
+      shift
+      ;;
+    *) path=$1 ;;
+  esac
+  shift
+done
+out() { if [ -n "$filter" ]; then jq -r "$filter"; else cat; fi; }
+git=repos/example/repo/git
+case $path in
+  "$git/refs")
+    tag=${ref#refs/tags/}
+    if [ "$tag" = "${DENY:-}" ]; then
+      echo 'gh: Resource not accessible by integration (HTTP 403)' >&2
+      exit 1
+    fi
+    [ "$tag" != "${MEANWHILE:-}" ] || echo "$tag $sha" >>"$TAGS"
+    if grep -q "^$tag " "$TAGS"; then
+      echo 'gh: Reference already exists (HTTP 422)' >&2
+      exit 1
+    fi
+    echo "$tag $sha" >>"$TAGS"
+    ;;
+  "$git/ref/tags/"*)
+    line=$(grep "^${path#"$git/ref/tags/"} " "$TAGS") \
+      || { echo 'gh: Not Found (HTTP 404)' >&2 && exit 1; }
+    jq -n --arg s "${line#* }" '{object: {sha: $s}}' | out
+    ;;
+  "$git/matching-refs/tags/feature_")
+    jq -R '{ref: ("refs/tags/" + (split(" ")[0]))}' "$TAGS" | jq -s . | out
+    ;;
+  *) echo "stub gh: unexpected path $path" >&2 && exit 1 ;;
+esac
+EOF
+chmod +x node_modules/.bin/devcontainer stubs/gh
+export TAGS=$PWD/tags PUBLISHED='gh-config@2.0.0 grimoire@2.0.0'
+: >"$TAGS"
+tag() {
+  PATH=$PWD/stubs:$PATH GH_TOKEN=t GITHUB_REPOSITORY=example/repo \
+    .github/scripts/tag-release.sh "$@"
+}
+set_version gh-config 2.0.0
+set_version grimoire 2.0.0
+commit
+c1=$(git rev-parse HEAD)
+echo docs >>src/gh-config/README.md
+commit
+c2=$(git rev-parse HEAD)
+set_version gh-config 2.1.0
+commit
+
+expect "tag-release tags a published version at the commit" 0 \
+  "tagged feature_gh-config_2.0.0" tag "$c1" gh-config
+expect "on that commit" 0 "" grep -qxF "feature_gh-config_2.0.0 $c1" "$TAGS"
+expect "reading the version there, not in the working tree" 0 \
+  "feature_gh-config_2.1.0: not on GHCR" tag HEAD gh-config
+expect "a version not on GHCR isn't tagged" 0 "" test "$(wc -l <"$TAGS")" = 1
+expect "a tag already on the commit passes" 0 \
+  "feature_gh-config_2.0.0: already on this commit" tag "$c1" gh-config
+expect "a tag never moves" 1 "already points at $c1, not $c2" \
+  tag "$c2" gh-config
+out=$(DENY=feature_grimoire_2.0.0 tag "$c1" grimoire liza gh-config 2>&1)
+rc=$?
+expect "a refused tag fails the run" 0 "" test "$rc" = 1
+expect "naming the likely cause" 0 "likely cause: main's workflows changed" \
+  echo "$out"
+expect "a failed lookup fails too" 0 "the GHCR lookup failed" echo "$out"
+expect "after every id had its turn" 0 \
+  "feature_gh-config_2.0.0: already on this commit" echo "$out"
+out=$(MEANWHILE=feature_grimoire_2.0.0 tag "$c1" grimoire 2>&1)
+rc=$?
+expect "a tag made meanwhile on the commit passes" 0 \
+  "feature_grimoire_2.0.0: already on this commit" \
+  sh -c "[ $rc = 0 ] && echo \"\$1\"" _ "$out"
+expect "an id with no Feature at the commit fails" 1 "no src/nope/" \
+  tag "$c1" nope
+
+expect_not "--untagged is quiet when every published version has a tag" \
+  "::warning::" tag --untagged
+PUBLISHED="$PUBLISHED gh-config@2.1.0"
+expect "--untagged warns of a published version with no tag" 0 \
+  "::warning::feature_gh-config_2.1.0 is on GHCR but has no tag" \
+  tag --untagged
+expect_not "but not of a failed lookup" "feature_liza_" tag --untagged
+
 summary
