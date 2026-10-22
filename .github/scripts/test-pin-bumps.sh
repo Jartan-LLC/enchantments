@@ -224,6 +224,73 @@ set_version "$root/feature.json" 1.1.0
 expect "set_version writes the version" 0 '"version": "1.1.0"' \
   cat "$root/feature.json"
 
+expect "target_version rides an unpublished version" 0 1.4.0 \
+  target_version 1.4.0 minor 1.1.1
+expect "and rises past it when the level needs to" 0 1.2.0 \
+  target_version 1.1.2 minor 1.1.1
+expect "target_version raises a published version" 0 1.5.0 \
+  target_version 1.4.0 minor 1.4.0
+expect "a patch on a published version is a patch" 0 1.4.1 \
+  target_version 1.4.0 patch 1.4.0
+expect "target_version raises above a published version higher than its own" \
+  0 1.6.0 target_version 1.4.0 minor 1.5.3
+expect "with no published version, today's raise" 0 1.5.0 \
+  target_version 1.4.0 minor ''
+PUBLISHED_VERSIONS='{"demo": "1.1.1", "bad": "1.0.0; x"}'
+expect "published_of reads the version" 0 1.1.1 published_of demo
+expect "published_of drops a value that isn't X.Y.Z" 0 "" \
+  test -z "$(published_of bad)"
+expect "published_of reads a missing id as empty" 0 "" \
+  test -z "$(published_of other)"
+unset PUBLISHED_VERSIONS
+expect "published_of reads no list as empty" 0 "" \
+  test -z "$(published_of demo)"
+
+# release_change on a Feature directory at the version, entry "- New."
+release_case() { # changelog published level [version]
+  local version=${4:-1.4.0}
+  rm -rf "$root/rel" && mkdir -p "$root/rel"
+  echo "{\"id\": \"demo\", \"version\": \"$version\"}" \
+    >"$root/rel/devcontainer-feature.json"
+  printf '%b' "$1" >"$root/rel/CHANGELOG.md"
+  echo '- New.' >"$root/rel.entry"
+  release_change "$root/rel" "$version" "$3" "$root/rel.entry" "$2"
+}
+unreleased='## Unreleased\n\n- A docs fix.\n\n'
+riding="$unreleased## 1.4.0\n\n- Earlier.\n\n## 1.1.1\n\n- Shipped.\n"
+expect "release_change prints the version a ride keeps" 0 1.4.0 \
+  release_case "$riding" 1.1.1 minor
+expect "and adds the line to the unpublished entry" 0 \
+  "$(printf '## 1.4.0\n\n- Earlier.\n- New.\n- A docs fix.\n\n## 1.1.1')" \
+  cat "$root/rel/CHANGELOG.md"
+expect_not "moving Unreleased's lines out" "## Unreleased" \
+  cat "$root/rel/CHANGELOG.md"
+expect "release_change renames an unpublished entry it rises past" 0 1.2.0 \
+  release_case "$unreleased## 1.1.2\n\n- Earlier.\n\n## 1.1.1\n" 1.1.1 \
+  minor 1.1.2
+expect "folding its lines into the new entry" 0 \
+  "$(printf '## 1.2.0\n\n- Earlier.\n- New.\n- A docs fix.\n\n## 1.1.1')" \
+  cat "$root/rel/CHANGELOG.md"
+expect_not "and leaving no entry for the version never published" \
+  "## 1.1.2" cat "$root/rel/CHANGELOG.md"
+expect "with the version set" 0 '"version": "1.2.0"' \
+  cat "$root/rel/devcontainer-feature.json"
+expect "release_change on a published version adds an entry" 0 1.5.0 \
+  release_case "$riding" 1.4.0 minor
+expect "above the published one's" 0 \
+  "$(printf '## 1.5.0\n\n- New.\n- A docs fix.\n\n## 1.4.0\n\n- Earlier.')" \
+  cat "$root/rel/CHANGELOG.md"
+expect "release_change with no published version adds an entry" 0 1.4.1 \
+  release_case '## 1.4.0\n\n- Earlier.\n' '' patch
+expect "as today" 0 "$(printf '## 1.4.1\n\n- New.\n\n## 1.4.0')" \
+  cat "$root/rel/CHANGELOG.md"
+expect "release_change fails on a ride with no entry to add to" 1 "" \
+  release_case '## 1.1.1\n\n- Shipped.\n' 1.1.1 minor
+expect "leaving the changelog as it was" 0 "" \
+  test "$(cat "$root/rel/CHANGELOG.md")" = "$(printf '## 1.1.1\n\n- Shipped.')"
+expect "and the version" 0 '"version": "1.4.0"' \
+  cat "$root/rel/devcontainer-feature.json"
+
 # --- Lookups, against stubs ---------------------------------------------------
 
 # Fixtures live under $fixtures, named by the request with every character
@@ -906,6 +973,23 @@ esac
 STUB
 chmod +x "$root/e2e-bin/gh"
 echo '[]' >"$PRS"
+# The stub registry: a Feature's :1 lists each version GHCR_TAGS gives as
+# <id>@<version>.
+cat >"$root/devcontainer" <<'STUB'
+#!/bin/bash
+id=${4%:1}
+id=${id##*/}
+for p in $GHCR_TAGS; do
+  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
+done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
+STUB
+chmod +x "$root/devcontainer"
+export GHCR_TAGS=demo@1.0.0
+# Gives a checkout the stub registry, where ghcr_lib.sh looks for the CLI.
+with_registry() { # dir
+  mkdir -p "$1/node_modules/.bin"
+  cp "$root/devcontainer" "$1/node_modules/.bin/"
+}
 
 seed=$root/seed
 git init -q -b main "$seed"
@@ -926,6 +1010,7 @@ git clone -q --bare "$seed" "$origin"
 git -C "$seed" remote add origin "$origin"
 run=$root/run
 git clone -q "$origin" "$run"
+with_registry "$run"
 
 # The tool's newest aged commit, dated from now: the script sets its own
 # cutoff.
@@ -943,10 +1028,14 @@ tool_head() { # commit
   echo '{"status": "ahead"}' | serve "repos/example/tool/compare/$cur...$1"
 }
 
+# The published versions come from the stub registry, as the workflow's
+# published job gives them.
 bump() {
-  (cd "$run" && PATH=$root/e2e-bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
-    GITHUB_REPOSITORY=example/repo "$scripts/pin-bumps.sh" \
-    --report "$root/report")
+  (cd "$run" \
+    && PUBLISHED_VERSIONS=$("$scripts/published-versions.sh") \
+    && PATH=$root/e2e-bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
+      GITHUB_REPOSITORY=example/repo PUBLISHED_VERSIONS=$PUBLISHED_VERSIONS \
+      "$scripts/pin-bumps.sh" --report "$root/report")
 }
 remote_file() { git -C "$origin" show "pin-bumps/demo:src/demo/$1"; }
 pr() { jq -r ".[] | select(.number == $1) | .$2" "$PRS"; }
@@ -968,6 +1057,7 @@ release_checks() {
   local clone=$root/check
   rm -rf "$clone"
   git clone -q -b pin-bumps/demo "$origin" "$clone"
+  with_registry "$clone"
   (cd "$clone" && "$scripts/check-versions.sh" "$(git rev-parse origin/main)")
 }
 
@@ -1203,6 +1293,37 @@ git -C "$seed" push -q origin HEAD:main
 expect "once its headers parse, the run no longer fails" 0 "" bump
 expect "and reports it clean" 0 \
   "$(printf 'pins\tzzz\tok')" cat "$root/report"
+
+# A bump rides main's version while it's unpublished.
+set_version "$seed/src/demo/devcontainer-feature.json" 1.1.0
+printf '## 1.1.0\n\n- Earlier change.\n\n## 1.0.0\n\n- First release.\n' \
+  >"$seed/src/demo/CHANGELOG.md"
+commit_seed "demo 1.1.0"
+git -C "$seed" push -q origin HEAD:main
+cc=$(commit_of c)
+tool_head "$cc"
+expect "a bump under an unpublished version is pushed" 0 \
+  "pushed pin-bumps/demo" bump
+expect "keeping that version" 0 '"version": "1.1.0"' \
+  remote_file devcontainer-feature.json
+expect "adding its line to that version's entry" 0 \
+  "$(printf '## 1.1.0\n\n- Earlier change.\n- %s' "\`tool\`")" \
+  remote_file CHANGELOG.md
+expect_not "with no entry of its own" "## 1.2.0" remote_file CHANGELOG.md
+expect "and passes the version check" 0 "" release_checks
+
+# Once that version is published, the branch is rebuilt above it.
+export GHCR_TAGS="demo@1.0.0 demo@1.1.0"
+expect "a published version rebuilds the branch" 0 "pushed pin-bumps/demo" \
+  bump
+expect "raising the version" 0 '"version": "1.2.0"' \
+  remote_file devcontainer-feature.json
+expect "with an entry of its own" 0 \
+  "$(printf '## 1.2.0\n\n- %s' "\`tool\`")" remote_file CHANGELOG.md
+expect "leaving the published entry as it was" 0 \
+  "$(printf '## 1.1.0\n\n- Earlier change.\n\n## 1.0.0')" \
+  remote_file CHANGELOG.md
+expect "and passes the version check" 0 "" release_checks
 
 # --- The lock write path, end to end ------------------------------------------
 

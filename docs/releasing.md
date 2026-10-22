@@ -2,9 +2,11 @@
 
 ## Releasing a change
 
-1. In the same commit as the change, raise the Feature's `version` in its
-   `devcontainer-feature.json` (see [Versioning](#versioning)) and add a `## <version>` entry
-   to its `CHANGELOG.md`, moving any lines from `## Unreleased` into it.
+1. In the same commit as the change, release it as [Versioning](#versioning) sets out:
+   raise the Feature's `version` in its `devcontainer-feature.json` and add a
+   `## <version>` entry to its `CHANGELOG.md`, or, while main's version is unpublished,
+   add the change's line to that version's entry. Either way, move any lines from
+   `## Unreleased` into the entry.
 2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
    the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
    `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
@@ -65,10 +67,24 @@ Each Feature has its own version; raise the first level that applies:
 - **Minor:** a new option, or a pin bump with a minor or larger upstream move.
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
+The level counts from the Feature's published version, not main's. While main's version
+is unpublished, merged but not yet approved, a change rides it when the level's raise of
+the published version is no higher: add the change's line to that version's entry and keep
+the version. A change that needs a higher version renames the unpublished entry to the new
+version and adds its line there, so no entry names a version that never shipped. With
+1.1.1 published and main at 1.4.0, a minor change rides 1.4.0, and a major one makes 2.0.0
+from the `## 1.4.0` entry. Once 1.4.0 is published, the next change raises it.
+
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
-`versions` job fails a change to anything else under `src/<id>/` that doesn't raise the
-version and add its entry. Reverting a release also needs a higher version.
+`versions` job, which asks GHCR what's published, fails a change to anything else under
+`src/<id>/` that doesn't do one of those: a raise without its entry, an entry left behind
+for a version never published, or a ride whose version is published or whose lookup
+failed, which then needs a raise. Reverting a release also needs a higher version.
+
+- **A PR that rides a version you then approve** goes stale: its check passed before the
+  version was published. Before merging it, re-run its CI, whose `versions` job then asks
+  for a raise. The bots' PRs are rebuilt on their next run.
 
 ```markdown
 ## Unreleased
@@ -85,12 +101,14 @@ version and add its entry. Reverting a release also needs a higher version.
 Dependabot's updates to a Feature's `npm/package.json` and `npm/package-lock.json` aren't
 merged automatically. `dependabot-bumps.yml` finishes them hourly, and when you run
 `gh workflow run dependabot-bumps.yml`: on each PR whose commits are all Dependabot's, it
-pushes a commit raising the Feature's version as [Versioning](#versioning) sets out and
-adding its changelog entry, which lists the packages that moved. Merge the PR once `check`
-passes, as in [Releasing a change](#releasing-a-change).
+pushes a commit releasing the update as [Versioning](#versioning) sets out, with changelog
+lines listing the packages that moved. Merge the PR once `check` passes, as in
+[Releasing a change](#releasing-a-change).
 
 - **When Dependabot rebases the PR,** the commit goes, since its `[dependabot skip]` lets
   Dependabot push over it; the next run adds it again.
+- **When the version a PR was finished as is published,** the next run replaces its commit
+  with one raising the version above it.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names
@@ -100,11 +118,11 @@ passes, as in [Releasing a change](#releasing-a-change).
 
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
-days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
-as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
-non-numeric pin, and a requirement a lock adds or removes, count as a minor move, and an
-upstream major is still a minor. Merge it as in [Releasing a change](#releasing-a-change);
-nothing merges it automatically.
+days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
+[Versioning](#versioning) sets out; the first run after you publish the version it rides
+rebuilds it above that version. A commit or other non-numeric pin, and a requirement a
+lock adds or removes, count as a minor move, and an upstream major is still a minor.
+Merge it as in [Releasing a change](#releasing-a-change); nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.
@@ -123,8 +141,8 @@ nothing merges it automatically.
   them in a new PR.
 - **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
   `pin-bumps/liza`, with `liza-toolchain`'s version raise and changelog entry; the PR has
-  already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, raise
-  `liza-toolchain`'s version on `pin-bumps/liza` again.
+  already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, check
+  `liza-toolchain`'s version and entry on `pin-bumps/liza` against main's again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's

@@ -36,13 +36,32 @@ prepend_changelog() { # id text
 }
 versions() { .github/scripts/check-versions.sh "$base"; }
 
+# The stub registry: a Feature's :1 lists each version GHCR_TAGS gives as
+# <id>@<version>; a lookup of an id in GHCR_DOWN fails.
+cat >"$root/registry" <<'EOF'
+#!/bin/bash
+id=${4%:1}
+id=${id##*/}
+for d in ${GHCR_DOWN:-}; do [ "$d" != "$id" ] || exit 1; done
+for p in ${GHCR_TAGS:-}; do
+  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
+done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
+EOF
+chmod +x "$root/registry"
+with_registry() {
+  mkdir -p node_modules/.bin
+  cp "$root/registry" node_modules/.bin/devcontainer
+}
+
 # --- check-versions.sh and check-changelog.sh ---
 
 new_repo
+with_registry
 echo '# edit' >>src/gh-config/install.sh
 commit
-expect "a change without a bump fails" 1 "rise above 1.0.0, but it's 1.0.0" \
-  versions
+expect "a change without a bump fails" 1 \
+  "1.0.0 is already published, so its version must rise above it" \
+  env GHCR_TAGS=gh-config@1.0.0 .github/scripts/check-versions.sh "$base"
 
 new_repo
 echo '# edit' >>src/gh-config/install.sh
@@ -160,6 +179,77 @@ expect "check-changelog.sh rejects a bad mode" 2 "usage" \
   .github/scripts/check-changelog.sh --foo gh-config
 expect "check-versions.sh needs a base" 2 "usage" \
   .github/scripts/check-versions.sh
+
+# --- check-versions.sh against GHCR, and published-versions.sh ---
+
+add_to_entry() { # id version line
+  local log=src/$1/CHANGELOG.md
+  awk -v h="## $2" -v line="$3" '
+    $0 == h { print; getline; print; print line; next }
+    { print }' "$log" >"$log.tmp" && mv "$log.tmp" "$log"
+}
+ride() { # GHCR_TAGS [GHCR_DOWN]
+  new_repo
+  with_registry
+  echo '# edit' >>src/grimoire/install.sh
+  add_to_entry grimoire 1.0.1 '- Rides along.'
+  commit
+  GHCR_TAGS=$1 GHCR_DOWN=${2:-} versions
+}
+expect "a change riding an unpublished version passes" 0 "" \
+  ride grimoire@1.0.0
+expect "riding a published version fails" 1 \
+  "1.0.1 is already published, so its version must rise above it" \
+  ride "grimoire@1.0.0 grimoire@1.0.1"
+expect "riding fails when the lookup does" 1 \
+  "couldn't tell whether 1.0.1 is published" ride '' grimoire
+
+new_repo
+with_registry
+echo '# edit' >>src/grimoire/install.sh
+commit
+expect "a ride without its line in the entry fails" 1 \
+  "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+
+# Rising above a version that was never published.
+new_repo
+with_registry
+echo '# edit' >>src/grimoire/install.sh
+set_version grimoire 1.1.0
+prepend_changelog grimoire '## 1.1.0\n\n- Change.\n\n'
+commit
+expect "leaving an unpublished version's entry behind fails" 1 \
+  "1.0.1 was never published, so fold its '## 1.0.1' entry into '## 1.1.0'" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+expect "leaving a published version's entry passes" 0 "" \
+  env GHCR_TAGS="grimoire@1.0.0 grimoire@1.0.1" \
+  .github/scripts/check-versions.sh "$base"
+expect "a failed lookup only warns about it" 0 \
+  "::warning file=src/grimoire/CHANGELOG.md::couldn't tell whether 1.0.1" \
+  env GHCR_DOWN=grimoire .github/scripts/check-versions.sh "$base"
+sed -i '/^## 1\.0\.1$/,+1d' src/grimoire/CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "an entry folded into the new one passes" 0 "" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+
+new_repo
+with_registry
+published() {
+  GHCR_TAGS="gh-config@1.0.0 gh-config@1.10.0 gh-config@1.9.2
+    gh-config@2.0.0-rc.1 grimoire@1.0.1" GHCR_DOWN=liza \
+    .github/scripts/published-versions.sh
+}
+expect "published-versions gives the highest X.Y.Z" 0 '"gh-config":"1.10.0"' \
+  published
+expect "of each published Feature" 0 '"grimoire":"1.0.1"' published
+expect_not "leaving out a failed lookup" '"liza"' published
+expect_not "and an unpublished Feature" '"claude-code"' published
+only_grimoire() {
+  test "$(GHCR_TAGS=grimoire@1.0.1 .github/scripts/published-versions.sh)" \
+    = '{"grimoire":"1.0.1"}'
+}
+expect "as one JSON object" 0 "" only_grimoire
 
 # --- emit-features.sh ---
 

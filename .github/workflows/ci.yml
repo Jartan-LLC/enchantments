@@ -115,19 +115,29 @@ jobs:
           SCENARIO: ${{ matrix.scenario }}
         run: .github/scripts/test-features.sh "$ID" "$SCENARIO"
 
-  # A Feature's change must raise its version, with that version's changelog
-  # entry (GUARDRAILS.md). Without a base there's nothing to compare.
+  # A Feature's change must raise its version above the published one, or add
+  # to the entry of an unpublished one (GUARDRAILS.md); GHCR says which. Without
+  # a base there's nothing to compare.
   versions:
     needs: features
     if: needs.features.outputs.base != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
       - env:
           BASE: ${{ needs.features.outputs.base }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git fetch -q --depth=1 origin "$BASE"
           .github/scripts/check-versions.sh "$BASE"

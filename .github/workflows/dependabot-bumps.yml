@@ -7,8 +7,8 @@ name: Dependabot bumps
 on:
   schedule:
     # Hourly, offset from the other schedules. Free on a public repo; a private
-    # repo bills each run at least a minute, so give it a sparser schedule
-    # there.
+    # repo bills each of its jobs at least a minute, so give it a sparser
+    # schedule there.
     - cron: "23 * * * *"
   workflow_dispatch:
 
@@ -20,7 +20,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Each Feature's highest published version, for the version rule. A job of
+  # its own, so the npm packages the lookup runs never share a job with the
+  # App's token; the bot reads the result as data, and keeps only X.Y.Z values.
+  published:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout
+      packages: read # GHCR, should a package be private
+    outputs:
+      versions: ${{ steps.list.outputs.versions }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - id: list
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          versions=$(.github/scripts/published-versions.sh)
+          echo "Published: $versions"
+          echo "versions=$versions" >>"$GITHUB_OUTPUT"
+
   dependabot-bumps:
+    needs: published
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Holds the App's client ID and key, released only to main.
@@ -47,4 +77,5 @@ jobs:
       - env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          PUBLISHED_VERSIONS: ${{ needs.published.outputs.versions }}
         run: .github/scripts/dependabot-bumps.sh

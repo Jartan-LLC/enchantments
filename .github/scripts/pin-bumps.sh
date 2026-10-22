@@ -4,9 +4,10 @@
 # Feature on the branch pin-bumps/<id> (docs/releasing.md, "Pin-bump PRs").
 # --dry-run only prints each pin's current value and any newer candidate,
 # changes nothing, and exits 1 if any lookup failed. Otherwise it needs
-# GH_TOKEN (the App's), APP_SLUG and GITHUB_REPOSITORY, works on origin/main,
-# exits 1 when a Feature's update errors or its pins.sh can't be read (a
-# failed lookup is reported, not fatal), and writes a report for
+# GH_TOKEN (the App's), APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS
+# (published-versions.sh; with none, it raises main's version), works on
+# origin/main, exits 1 when a Feature's update errors or its pins.sh can't be
+# read (a failed lookup is reported, not fatal), and writes a report for
 # pin-bumps-issues.sh, one tab-separated row each:
 #   lookup <tool> ok|fail [reason]
 #   pins   <id>   ok|fail [reason]
@@ -281,7 +282,8 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version level=patch
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version
+  local level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -303,9 +305,8 @@ build_commit() { # id parent output...
   done
   version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
     | jq -r .version)
-  version=$("bump_$level" "$version")
-  set_version "$wt/src/$id/devcontainer-feature.json" "$version"
-  add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version" "$work/entry"
+  release_change "$wt/src/$id" "$version" "$level" "$work/entry" \
+    "$(published_of "$id")" >/dev/null
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
     >"$work/message"
   git -C "$wt" add -A "src/$id"
