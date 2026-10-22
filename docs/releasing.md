@@ -74,7 +74,8 @@ nothing merges it automatically.
   raises the Feature's major version and renames its changelog entry to match.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops updating it, and lists newer versions on a
-  `Not applied:` line in the PR body instead.
+  `Not applied:` line in the PR body instead. Once the PR merges, the next run proposes
+  them in a new PR.
 - **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
   `pin-bumps/liza`, with `liza-toolchain`'s version raise and changelog entry; the PR has
   already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, raise
