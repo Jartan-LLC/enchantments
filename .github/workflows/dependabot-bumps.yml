@@ -1,0 +1,50 @@
+name: Dependabot bumps
+
+# Finishes Dependabot's PRs under src/ with the version raise and changelog
+# entry the version check wants (docs/releasing.md, "Dependabot PRs under
+# src/"). It pushes as the pin-bumps App, since a push with GITHUB_TOKEN starts
+# no CI.
+on:
+  schedule:
+    # Hourly, offset from the other schedules. Free on a public repo; a private
+    # repo bills each run at least a minute, so give it a sparser schedule
+    # there.
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time: two would race on the same branches.
+concurrency:
+  group: dependabot-bumps
+  cancel-in-progress: false
+
+jobs:
+  dependabot-bumps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Holds the App's client ID and key, released only to main.
+    environment: pin-bumps
+    permissions:
+      contents: read # checkout
+    steps:
+      # main itself, not the triggering commit, as pin-bumps.yml does. The
+      # script reads Dependabot's branches as data and never runs them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.PIN_BUMPS_CLIENT_ID }}
+          private-key: ${{ secrets.PIN_BUMPS_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: read
+
+      - env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        run: .github/scripts/dependabot-bumps.sh

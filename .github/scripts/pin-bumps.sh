@@ -19,6 +19,8 @@ shopt -s inherit_errexit
 here=$(dirname "$0")
 # shellcheck source=pins_lib.sh
 . "$here/pins_lib.sh"
+# shellcheck source=app_lib.sh
+. "$here/app_lib.sh"
 # shellcheck source=pin_lookups.sh
 . "$here/pin_lookups.sh"
 # shellcheck source=feature_ids.sh
@@ -48,28 +50,6 @@ if [ "$dry_run" = 1 ]; then
 else
   trap 'rm -rf "$work"; git worktree prune' EXIT
 fi
-
-# Set by setup_app, for real runs: the App's commit identity, and the header
-# its git requests carry.
-bot_login=''
-bot_email=''
-auth=''
-
-setup_app() {
-  : "${GH_TOKEN:?}" "${APP_SLUG:?}" "${GITHUB_REPOSITORY:?}"
-  bot_login="${APP_SLUG}[bot]"
-  bot_email="$(gh api "users/$APP_SLUG%5Bbot%5D" --jq .id)+$bot_login"
-  bot_email+="@users.noreply.github.com"
-  auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" \
-    | base64 -w0)"
-  echo "::add-mask::${auth#AUTHORIZATION: basic }"
-}
-
-# Runs git with the App's auth header, in the environment rather than argv.
-git_authed() {
-  GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
-    GIT_CONFIG_VALUE_0="$auth" git "$@"
-}
 
 # The report's row kinds; the header above gives their vocabulary.
 report_lookup() { # tool ok|fail [reason]
