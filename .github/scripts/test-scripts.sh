@@ -11,8 +11,8 @@ trap 'rm -rf "$root"' EXIT
 # shellcheck source=test_lib.sh
 . "$repo/.github/scripts/test_lib.sh"
 
-# A repo whose base commit copies src/, test/ and the scripts; the change
-# commit follows. Leaves the shell in it, with $base set.
+# A repo whose base commit copies src/, test/ and the scripts, with the stub
+# registry; the change commit follows. Leaves the shell in it, with $base set.
 new_repo() {
   cd "$(mktemp -d "$root/repo.XXXX")" || exit 1
   git init -q
@@ -21,6 +21,7 @@ new_repo() {
   cp -R "$repo/src" "$repo/test" .
   mkdir -p .github lib && cp -R "$repo/.github/scripts" .github/
   echo x >lib/keep
+  with_registry
   git add -A && git commit -qm base
   base=$(git rev-parse HEAD)
 }
@@ -35,33 +36,18 @@ prepend_changelog() { # id text
   printf '%b' "$2" | cat - "$log" >"$log.tmp" && mv "$log.tmp" "$log"
 }
 versions() { .github/scripts/check-versions.sh "$base"; }
-
-# The stub registry: a Feature's :1 lists each version GHCR_TAGS gives as
-# <id>@<version>; a lookup of an id in GHCR_DOWN fails.
-cat >"$root/registry" <<'EOF'
-#!/bin/bash
-id=${4%:1}
-id=${id##*/}
-for d in ${GHCR_DOWN:-}; do [ "$d" != "$id" ] || exit 1; done
-for p in ${GHCR_TAGS:-}; do
-  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
-done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
-EOF
-chmod +x "$root/registry"
-with_registry() {
-  mkdir -p node_modules/.bin
-  cp "$root/registry" node_modules/.bin/devcontainer
-}
+# Every Feature is published at its version, unless a case says otherwise.
+GHCR_TAGS=$(jq -r '"\(.id)@\(.version)"' \
+  "$repo"/src/*/devcontainer-feature.json)
+export GHCR_TAGS
 
 # --- check-versions.sh and check-changelog.sh ---
 
 new_repo
-with_registry
 echo '# edit' >>src/gh-config/install.sh
 commit
 expect "a change without a bump fails" 1 \
-  "1.0.0 is already published, so its version must rise above it" \
-  env GHCR_TAGS=gh-config@1.0.0 .github/scripts/check-versions.sh "$base"
+  "1.0.0 is already published, so its version must rise above it" versions
 
 new_repo
 echo '# edit' >>src/gh-config/install.sh
@@ -91,7 +77,7 @@ new_repo
 set_version gh-config 1.0.1
 prepend_changelog gh-config '## Unreleased\n\n## 1.0.1\n\n- Fix.\n\n'
 commit
-expect "a bump with its entry passes" 0 "" versions
+expect_not "a bump with its entry passes" "::" versions
 
 new_repo
 for f in README.md NOTES.md CHANGELOG.md; do
@@ -190,7 +176,6 @@ add_to_entry() { # id version line
 }
 ride() { # GHCR_TAGS [GHCR_DOWN]
   new_repo
-  with_registry
   echo '# edit' >>src/grimoire/install.sh
   add_to_entry grimoire 1.0.1 '- Rides along.'
   commit
@@ -203,9 +188,10 @@ expect "riding a published version fails" 1 \
   ride "grimoire@1.0.0 grimoire@1.0.1"
 expect "riding fails when the lookup does" 1 \
   "couldn't tell whether 1.0.1 is published" ride '' grimoire
+expect "naming the lookup's cause" 1 "(503 from ghcr.io for grimoire)" \
+  ride '' grimoire
 
 new_repo
-with_registry
 echo '# edit' >>src/grimoire/install.sh
 commit
 expect "a ride without its line in the entry fails" 1 \
@@ -214,7 +200,6 @@ expect "a ride without its line in the entry fails" 1 \
 
 # Rising above a version that was never published.
 new_repo
-with_registry
 echo '# edit' >>src/grimoire/install.sh
 set_version grimoire 1.1.0
 prepend_changelog grimoire '## 1.1.0\n\n- Change.\n\n'
@@ -234,7 +219,6 @@ expect "an entry folded into the new one passes" 0 "" \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
 
 new_repo
-with_registry
 published() {
   GHCR_TAGS="gh-config@1.0.0 gh-config@1.10.0 gh-config@1.9.2
     gh-config@2.0.0-rc.1 grimoire@1.0.1" GHCR_DOWN=liza \
@@ -244,6 +228,9 @@ expect "published-versions gives the highest X.Y.Z" 0 '"gh-config":"1.10.0"' \
   published
 expect "of each published Feature" 0 '"grimoire":"1.0.1"' published
 expect_not "leaving out a failed lookup" '"liza"' published
+expect "warning of it" 0 "::warning::liza: the GHCR lookup failed" published
+expect "with its cause" 0 "raise main's version: 503 from ghcr.io for liza" \
+  published
 expect_not "and an unpublished Feature" '"claude-code"' published
 only_grimoire() {
   test "$(GHCR_TAGS=grimoire@1.0.1 .github/scripts/published-versions.sh)" \

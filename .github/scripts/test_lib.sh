@@ -43,3 +43,22 @@ summary() {
   echo "$passed passed, $failed failed"
   [ "$failed" -eq 0 ]
 }
+# Gives a checkout a stub devcontainer CLI, where ghcr_lib.sh looks for it:
+# a Feature's :1 lists each version GHCR_TAGS gives as <id>@<version>, and a
+# lookup of an id in GHCR_DOWN fails.
+with_registry() { # [dir]
+  local bin=${1:-.}/node_modules/.bin
+  mkdir -p "$bin"
+  cat >"$bin/devcontainer" <<'EOF'
+#!/bin/bash
+id=${4%:1}
+id=${id##*/}
+for d in ${GHCR_DOWN:-}; do
+  [ "$d" != "$id" ] || { echo "[t] 503 from ghcr.io for $id" >&2 && exit 1; }
+done
+for p in ${GHCR_TAGS:-}; do
+  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
+done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
+EOF
+  chmod +x "$bin/devcontainer"
+}

@@ -104,23 +104,7 @@ open_pr() { # branch edit [author-email [pr-user]]
     "$PRS" >"$PRS.tmp" && mv "$PRS.tmp" "$PRS"
 }
 
-# The stub registry: a Feature's :1 lists each version GHCR_TAGS gives as
-# <id>@<version>.
-cat >"$root/devcontainer" <<'STUB'
-#!/bin/bash
-id=${4%:1}
-id=${id##*/}
-for p in $GHCR_TAGS; do
-  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
-done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
-STUB
-chmod +x "$root/devcontainer"
 export GHCR_TAGS=demo@1.0.0
-# Gives a checkout the stub registry, where ghcr_lib.sh looks for the CLI.
-with_registry() { # dir
-  mkdir -p "$1/node_modules/.bin"
-  cp "$root/devcontainer" "$1/node_modules/.bin/"
-}
 with_registry "$run"
 
 # The published versions come from the stub registry, as the workflow's
@@ -288,5 +272,34 @@ expect "adding its lines to that version's entry" 0 \
   "$(printf '## 1.3.0\n\n- Earlier.\n- npm lock:\n  - dep-a:')" \
   show "$ridden:src/demo/CHANGELOG.md"
 expect "and passes the version check" 0 "" release_checks "$ridden"
+
+# A run whose lookup fails leaves a finished PR alone, so the outage can't
+# undo its ride.
+ridden_done=$(head_of "$ridden")
+bump_down() { GHCR_DOWN=demo bump; }
+# PR 4 still fails the run.
+expect "a failed lookup leaves a finished PR" 1 \
+  "with no published version to check it against" bump_down
+expect "with its head" 0 "" test "$(head_of "$ridden")" = "$ridden_done"
+
+# A PR finished while the lookup failed raises main's version, leaving the
+# unpublished entry behind; the next run that can look it up rides instead.
+fallback=dependabot/npm_and_yarn/src/demo/npm/fallback
+open_pr "$fallback" lock_patch
+out=$(bump_down 2>&1)
+expect "a PR finished during a failed lookup raises main's version" 0 \
+  "finished, as demo 1.3.1" echo "$out"
+expect "which the version check fails" 1 \
+  "1.3.0 was never published, so fold its '## 1.3.0' entry" \
+  release_checks "$fallback"
+out=$(bump 2>&1)
+expect "the next run finishes it again" 0 "#9: finished again, as demo 1.3.0" \
+  echo "$out"
+expect "riding main's version" 0 '"version": "1.3.0"' \
+  show "$fallback:src/demo/devcontainer-feature.json"
+expect "and passing the version check" 0 "" release_checks "$fallback"
+expect "while a PR whose rebuild matches is left" 0 "#8: already finished" \
+  echo "$out"
+expect "with its head" 0 "" test "$(head_of "$ridden")" = "$ridden_done"
 
 summary

@@ -254,7 +254,7 @@ release_case() { # changelog published level [version]
     >"$root/rel/devcontainer-feature.json"
   printf '%b' "$1" >"$root/rel/CHANGELOG.md"
   echo '- New.' >"$root/rel.entry"
-  release_change "$root/rel" "$version" "$3" "$root/rel.entry" "$2"
+  release_change "$root/rel" "$3" "$root/rel.entry" "$2"
 }
 unreleased='## Unreleased\n\n- A docs fix.\n\n'
 riding="$unreleased## 1.4.0\n\n- Earlier.\n\n## 1.1.1\n\n- Shipped.\n"
@@ -284,7 +284,8 @@ expect "release_change with no published version adds an entry" 0 1.4.1 \
   release_case '## 1.4.0\n\n- Earlier.\n' '' patch
 expect "as today" 0 "$(printf '## 1.4.1\n\n- New.\n\n## 1.4.0')" \
   cat "$root/rel/CHANGELOG.md"
-expect "release_change fails on a ride with no entry to add to" 1 "" \
+expect "release_change fails on a ride with no entry to add to" 1 \
+  "has no '## 1.4.0' entry for the unpublished 1.4.0" \
   release_case '## 1.1.1\n\n- Shipped.\n' 1.1.1 minor
 expect "leaving the changelog as it was" 0 "" \
   test "$(cat "$root/rel/CHANGELOG.md")" = "$(printf '## 1.1.1\n\n- Shipped.')"
@@ -973,23 +974,7 @@ esac
 STUB
 chmod +x "$root/e2e-bin/gh"
 echo '[]' >"$PRS"
-# The stub registry: a Feature's :1 lists each version GHCR_TAGS gives as
-# <id>@<version>.
-cat >"$root/devcontainer" <<'STUB'
-#!/bin/bash
-id=${4%:1}
-id=${id##*/}
-for p in $GHCR_TAGS; do
-  [ "${p%@*}" != "$id" ] || echo "${p#*@}"
-done | jq -R . | jq -s '{publishedTags: (["1", "latest"] + .)}'
-STUB
-chmod +x "$root/devcontainer"
 export GHCR_TAGS=demo@1.0.0
-# Gives a checkout the stub registry, where ghcr_lib.sh looks for the CLI.
-with_registry() { # dir
-  mkdir -p "$1/node_modules/.bin"
-  cp "$root/devcontainer" "$1/node_modules/.bin/"
-}
 
 seed=$root/seed
 git init -q -b main "$seed"

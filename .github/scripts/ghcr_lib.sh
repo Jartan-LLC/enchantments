@@ -27,3 +27,9 @@ ghcr_latest() { # id
   jq -r '.publishedTags[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
     <<<"$tags" | sort -V | tail -n 1
 }
+
+# Prints a failed lookup's stderr, saved in a file, on one line, without the
+# CLI's timestamps.
+ghcr_cause() { # file
+  sed 's/^\[[^]]*\] //' "$1" | paste -sd ' ' -
+}

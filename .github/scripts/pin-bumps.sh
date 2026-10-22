@@ -282,8 +282,7 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version
-  local level=patch
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -303,10 +302,8 @@ build_commit() { # id parent output...
     # Levels follow Versioning in docs/releasing.md.
     [ "$(output_level "$out")" = patch ] || level=minor
   done
-  version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
-    | jq -r .version)
-  release_change "$wt/src/$id" "$version" "$level" "$work/entry" \
-    "$(published_of "$id")" >/dev/null
+  release_change "$wt/src/$id" "$level" "$work/entry" "$(published_of "$id")" \
+    >/dev/null
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
     >"$work/message"
   git -C "$wt" add -A "src/$id"

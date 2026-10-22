@@ -100,13 +100,14 @@ npm_entry() { # base head npm-dir entry-file
 }
 
 # Finishes one PR, or says why it's left as it is. A PR it finished is
-# finished again once its version is published, replacing its commit, so the
-# PR releases above that version. Fails when the PR needs a maintainer: a
-# change it can't release, or a refused push.
+# rebuilt, and its commit replaced when the result differs: once its version
+# is published, or after a run that couldn't look the published version up
+# fell back to raising the Feature's. With no published version known, a
+# finished PR is left as it is, so an outage can't undo a ride. Fails when
+# the PR needs a maintainer: a change it can't release, or a refused push.
 finish_pr() { # number branch head
   local number=$1 branch=$2 head=$3 authors base paths id level version
-  local wt=$work/tree-$1 entry=$work/entry-$1 json out published own
-  local finished=0
+  local wt=$work/tree-$1 entry=$work/entry-$1 out published own finished=0
   if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
     echo "#$number: $branch moved since the fetch; the next run looks again"
     return 0
@@ -140,14 +141,10 @@ finish_pr() { # number branch head
     return 1
   fi
   published=$(published_of "$id")
-  if [ "$finished" = 1 ]; then
-    version=$(git show "$head:src/$id/devcontainer-feature.json" \
-      | jq -r .version)
-    if [ -z "$published" ] || version_gt "$version" "$published"; then
-      echo "#$number: already finished"
-      return 0
-    fi
-    echo "#$number: $id $version is published now, so it's finished again"
+  if [ "$finished" = 1 ] && [ -z "$published" ]; then
+    echo "#$number: already finished; with no published version to check" \
+      "it against, it's left as it is"
+    return 0
   fi
   if ! level=$(npm_entry "$base" "$own" "src/$id/npm" "$entry"); then
     echo "::error::#$number: no npm package moved, so there's nothing to" \
@@ -156,9 +153,7 @@ finish_pr() { # number branch head
   fi
 
   git worktree add -q --detach "$wt" "$own"
-  json=$wt/src/$id/devcontainer-feature.json
-  version=$(release_change "$wt/src/$id" "$(jq -r .version "$json")" \
-    "$level" "$entry" "$published")
+  version=$(release_change "$wt/src/$id" "$level" "$entry" "$published")
   {
     echo "chore($id): release the dependency update as $version" \
       "[dependabot skip]"
@@ -170,6 +165,11 @@ finish_pr() { # number branch head
     commit -q -F "$work/message"
   out=$(git -C "$wt" rev-parse HEAD)
   git worktree remove --force "$wt"
+  if [ "$finished" = 1 ] && [ "$(git rev-parse "$out^{tree}")" \
+    = "$(git rev-parse "$head^{tree}")" ]; then
+    echo "#$number: already finished"
+    return 0
+  fi
 
   # The lease: a push Dependabot made since the fetch wins.
   if ! out=$(git_authed push --force-with-lease="refs/heads/$branch:$head" \
@@ -177,7 +177,11 @@ finish_pr() { # number branch head
     echo "::error::#$number: push refused: $(tail -n 1 <<<"$out")"
     return 1
   fi
-  echo "#$number: finished, as $id $version"
+  if [ "$finished" = 1 ]; then
+    echo "#$number: finished again, as $id $version"
+  else
+    echo "#$number: finished, as $id $version"
+  fi
 }
 
 main() {

@@ -260,6 +260,12 @@ append_changelog_entry() { # file old new entry_file
     END { if (inside) finish() }' "$1" "$1" | overwrite "$1"
 }
 
+# Succeeds when a version is unpublished: above the highest published one,
+# when that's known.
+unpublished() { # version published
+  [ -n "$2" ] && version_gt "$1" "$2"
+}
+
 # The version rule (docs/releasing.md, Versioning): a change rides a
 # Feature's version while that's unpublished and at least the level's raise
 # of the published one; otherwise it takes that raise. With no published
@@ -272,7 +278,7 @@ target_version() { # version level published
     return
   fi
   raised=$("bump_$2" "$3")
-  if version_gt "$1" "$3" && ! version_gt "$raised" "$1"; then
+  if unpublished "$1" "$3" && ! version_gt "$raised" "$1"; then
     echo "$1"
   else
     echo "$raised"
@@ -291,15 +297,19 @@ published_of() { # id
 # sets the version, and adds entry_file's lines to the changelog. Lines for a
 # version never published join its entry, retitled when the version rises,
 # so no changelog entry is left for a version that never shipped. Prints the
-# version.
-release_change() { # dir version level entry_file published
-  local dir=$1 version=$2 published=$5 new
-  new=$(target_version "$version" "$3" "$published")
-  if [ -n "$published" ] && version_gt "$version" "$published"; then
-    append_changelog_entry "$dir/CHANGELOG.md" "$version" "$new" "$4" \
-      || return 1
+# version; fails, saying why, when there's no entry to add them to.
+release_change() { # dir level entry_file published
+  local dir=$1 published=$4 version new
+  version=$(jq -r .version "$dir/devcontainer-feature.json")
+  new=$(target_version "$version" "$2" "$published")
+  if unpublished "$version" "$published"; then
+    if ! append_changelog_entry "$dir/CHANGELOG.md" "$version" "$new" "$3"; then
+      echo "::error::$dir/CHANGELOG.md has no '## $version' entry for the" \
+        "unpublished $version, so there's nothing to add the change to" >&2
+      return 1
+    fi
   else
-    add_changelog_entry "$dir/CHANGELOG.md" "$new" "$4" || return 1
+    add_changelog_entry "$dir/CHANGELOG.md" "$new" "$3" || return 1
   fi
   set_version "$dir/devcontainer-feature.json" "$new"
   echo "$new"

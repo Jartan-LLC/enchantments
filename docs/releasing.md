@@ -4,9 +4,9 @@
 
 1. In the same commit as the change, release it as [Versioning](#versioning) sets out:
    raise the Feature's `version` in its `devcontainer-feature.json` and add a
-   `## <version>` entry to its `CHANGELOG.md`, or, while main's version is unpublished,
-   add the change's line to that version's entry. Either way, move any lines from
-   `## Unreleased` into the entry.
+   `## <version>` entry to its `CHANGELOG.md`, or, when the change can ride main's
+   unpublished version, add its line to that version's entry. Either way, move any lines
+   from `## Unreleased` into the entry.
 2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
    the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
    `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
@@ -68,23 +68,22 @@ Each Feature has its own version; raise the first level that applies:
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
 The level counts from the Feature's published version, not main's. While main's version
-is unpublished, merged but not yet approved, a change rides it when the level's raise of
-the published version is no higher: add the change's line to that version's entry and keep
-the version. A change that needs a higher version renames the unpublished entry to the new
-version and adds its line there, so no entry names a version that never shipped. With
-1.1.1 published and main at 1.4.0, a minor change rides 1.4.0, and a major one makes 2.0.0
-from the `## 1.4.0` entry. Once 1.4.0 is published, the next change raises it.
+isn't on GHCR yet, whether it awaits your approval or its publish failed, a change rides it
+when the level's raise of the published version is no higher: add the change's line to
+that version's entry and keep the version. A change that needs a higher version renames
+the unpublished entry to the new version and adds its line there, so no entry names a
+version that never shipped. With 1.1.1 published and main at 1.4.0, a minor change rides
+1.4.0, and a major one makes 2.0.0 from the `## 1.4.0` entry. Once 1.4.0 is published,
+the next change raises it. A Feature not yet published can't ride its `1.0.0`: GHCR's
+lookup of it fails, as an outage's does.
 
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
 `versions` job, which asks GHCR what's published, fails a change to anything else under
 `src/<id>/` that doesn't do one of those: a raise without its entry, an entry left behind
-for a version never published, or a ride whose version is published or whose lookup
-failed, which then needs a raise. Reverting a release also needs a higher version.
-
-- **A PR that rides a version you then approve** goes stale: its check passed before the
-  version was published. Before merging it, re-run its CI, whose `versions` job then asks
-  for a raise. The bots' PRs are rebuilt on their next run.
+for a version never published (when the lookup fails, it only warns of this), or a ride
+whose version is published or whose lookup failed, which then needs a raise. Reverting a
+release also needs a higher version.
 
 ```markdown
 ## Unreleased
@@ -95,6 +94,10 @@ failed, which then needs a raise. Reverting a release also needs a higher versio
 
 - What this version changes.
 ```
+
+- **A PR that rides a version you then approve** goes stale: its check passed before the
+  version was published. Before merging it, re-run its CI, whose `versions` job then asks
+  for a raise. The bots' PRs are rebuilt on their next run.
 
 ## Dependabot PRs under `src/`
 
@@ -196,8 +199,8 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
 
-For a Liza release, in the same PR, raise `liza-toolchain`'s version, and `liza`'s unless
-a pin-bump PR already has, and:
+For a Liza release, in the same PR, release `liza-toolchain` as [Versioning](#versioning)
+sets out, and `liza` too unless a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;

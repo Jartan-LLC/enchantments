@@ -19,6 +19,8 @@ base=$1
 scripts=$(dirname "$0")
 # shellcheck source=ghcr_lib.sh
 . "$scripts/ghcr_lib.sh"
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
 
 # Prints the lines of the "## <version>" entry in a changelog on stdin.
 entry() { # version
@@ -49,17 +51,20 @@ for id in $ids; do
   fi
   if base_json=$(git show "$base:$json" 2>/dev/null); then
     base_version=$(jq -r .version <<<"$base_json")
-    rc=0
+    # Whether base's version is on GHCR: 0 yes, 1 no, 2 the lookup failed.
+    published=0
+    ghcr_has "$id" "$base_version" 2>"$err" || published=$?
+    cause=$(ghcr_cause "$err")
     if [ "$head_version" = "$base_version" ]; then
-      ghcr_has "$id" "$base_version" 2>/dev/null || rc=$?
-      if [ "$rc" = 0 ]; then
+      if [ "$published" = 0 ]; then
         echo "::error file=$json::src/$id changed and $base_version is" \
           "already published, so its version must rise above it"
         failed=1
         continue
-      elif [ "$rc" = 2 ]; then
+      elif [ "$published" = 2 ]; then
         echo "::error file=$json::src/$id changed, and GHCR couldn't tell" \
-          "whether $base_version is published; raise the version above it"
+          "whether $base_version is published${cause:+ ($cause)}; raise the" \
+          "version above it"
         failed=1
         continue
       elif [ "$(git show "$base:$log" 2>/dev/null | entry "$base_version")" \
@@ -75,15 +80,15 @@ for id in $ids; do
       failed=1
       continue
     elif grep -qxF "## $base_version" "$log" 2>/dev/null; then
-      ghcr_has "$id" "$base_version" 2>/dev/null || rc=$?
-      if [ "$rc" = 1 ]; then
+      if [ "$published" = 1 ]; then
         echo "::error file=$log::$base_version was never published, so fold" \
           "its '## $base_version' entry into '## $head_version'"
         failed=1
         continue
-      elif [ "$rc" = 2 ]; then
+      elif [ "$published" = 2 ]; then
         echo "::warning file=$log::couldn't tell whether $base_version is" \
-          "published, so a '## $base_version' entry left behind isn't checked"
+          "published${cause:+ ($cause)}, so a '## $base_version' entry left" \
+          "behind isn't checked"
       fi
     fi
   fi
