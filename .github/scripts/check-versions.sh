@@ -22,6 +22,11 @@ scripts=$(dirname "$0")
 err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 
+# Succeeds when version a is semver-greater than b.
+above() { # a b
+  [ "$1" != "$2" ] && printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
 # Prints the lines of the "## <version>" entry in a changelog on stdin.
 entry() { # version
   awk -v heading="## $1" '
@@ -51,10 +56,16 @@ for id in $ids; do
   fi
   if base_json=$(git show "$base:$json" 2>/dev/null); then
     base_version=$(jq -r .version <<<"$base_json")
-    # Whether base's version is on GHCR: 0 yes, 1 no, 2 the lookup failed.
+    # Whether base's version is published, as the bots read it (pins_lib.sh,
+    # unpublished): 0 at or below GHCR's highest, 1 above it, 2 the lookup
+    # failed.
     published=0
-    ghcr_has "$id" "$base_version" 2>"$err" || published=$?
+    latest=$(ghcr_latest "$id" 2>"$err") || published=2
     cause=$(ghcr_cause "$err")
+    if [ "$published" = 0 ] \
+      && { [ -z "$latest" ] || above "$base_version" "$latest"; }; then
+      published=1
+    fi
     if [ "$head_version" = "$base_version" ]; then
       if [ "$published" = 0 ]; then
         echo "::error file=$json::src/$id changed and $base_version is" \
@@ -74,7 +85,7 @@ for id in $ids; do
         failed=1
         continue
       fi
-    elif ! printf '%s\n%s\n' "$base_version" "$head_version" | sort -V -C; then
+    elif ! above "$head_version" "$base_version"; then
       echo "::error file=$json::src/$id changed, so its version must rise" \
         "above $base_version, but it's $head_version"
       failed=1

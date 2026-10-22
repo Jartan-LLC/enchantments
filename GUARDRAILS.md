@@ -36,9 +36,9 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
 - For a Feature whose `devcontainer-feature.json` is on main, any change in its `src/<id>/`
   raises its `version` above the published one, adding that version's entry to its
   `CHANGELOG.md`, or, where the version rule lets it, adds to the entry of an unpublished
-  one; only the PR that adds a Feature writes its `## 1.0.0`. A change to only its `README.md`, `NOTES.md`
-  or `CHANGELOG.md` needs no bump: put a docs change under `## Unreleased`, and bump only
-  when it matters enough to publish on its own. CI's version check enforces this
+  one; only the PR that adds a Feature writes its `## 1.0.0`. A change to only its
+  `README.md`, `NOTES.md` or `CHANGELOG.md` needs no bump: put a docs change under
+  `## Unreleased`, and bump only when it matters enough to publish on its own. CI's version check enforces this
   (`docs/releasing.md`).
 - Write plans to `.claude/workspace/` in the project root for non-trivial changes.
 - Don't wrap things the underlying library already expresses clearly.

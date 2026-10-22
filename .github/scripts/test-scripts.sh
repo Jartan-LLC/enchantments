@@ -190,6 +190,8 @@ expect "riding fails when the lookup does" 1 \
   "couldn't tell whether 1.0.1 is published" ride '' grimoire
 expect "naming the lookup's cause" 1 "(503 from ghcr.io for grimoire)" \
   ride '' grimoire
+expect "riding a Feature never published fails as a failed lookup" 1 \
+  "couldn't tell whether 1.0.1 is published (403: access to grimoire" ride ''
 
 new_repo
 echo '# edit' >>src/grimoire/install.sh

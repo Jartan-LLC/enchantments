@@ -1,9 +1,8 @@
 name: Dependabot bumps
 
-# Finishes Dependabot's PRs under src/ with the version raise and changelog
-# entry the version check wants (docs/releasing.md, "Dependabot PRs under
-# src/"). It pushes as the pin-bumps App, since a push with GITHUB_TOKEN starts
-# no CI.
+# Finishes Dependabot's PRs under src/ with the version and changelog lines
+# the version check wants (docs/releasing.md, "Dependabot PRs under src/"). It
+# pushes as the pin-bumps App, since a push with GITHUB_TOKEN starts no CI.
 on:
   schedule:
     # Hourly, offset from the other schedules. Free on a public repo; a private

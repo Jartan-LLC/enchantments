@@ -282,7 +282,8 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header level=patch
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header published
+  local level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -302,8 +303,8 @@ build_commit() { # id parent output...
     # Levels follow Versioning in docs/releasing.md.
     [ "$(output_level "$out")" = patch ] || level=minor
   done
-  release_change "$wt/src/$id" "$level" "$work/entry" "$(published_of "$id")" \
-    >/dev/null
+  published=$(published_of "$id")
+  release_change "$wt/src/$id" "$level" "$work/entry" "$published" >/dev/null
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
     >"$work/message"
   git -C "$wt" add -A "src/$id"
@@ -342,7 +343,9 @@ push_branch() { # id remote parent commit
 
 # Brings a Feature's branch and PR in line with its newer pins (the outputs
 # with a candidate). Defers to hand edits, closes the PR when nothing is
-# newer, or rebuilds, pushes and opens or updates the PR. A refused push is
+# newer, leaves an open PR's branch alone while the published version is
+# unknown (a rebuild would fall back to raising main's version, undoing a
+# ride), or rebuilds, pushes and opens or updates the PR. A refused push is
 # reported and marked by push_branch; the caller reports every other outcome.
 update_feature() { # id output...
   local id=$1 prs open number='' title='' body='' remote parent commit out
@@ -388,6 +391,12 @@ update_feature() { # id output...
 
   remote=$(git rev-parse -q --verify "refs/remotes/origin/pin-bumps/$id" \
     || true)
+  if [ -n "$number" ] && [ -n "$remote" ] \
+    && [ -z "$(published_of "$id")" ]; then
+    echo "$id: no published version to check pin-bumps/$id against, so" \
+      "it's left as it is"
+    return 0
+  fi
   parent=$(choose_parent "$id" "$number" "$remote")
   commit=$(build_commit "$id" "$parent" "${keep[@]}")
   push_branch "$id" "$remote" "$parent" "$commit" || return 0

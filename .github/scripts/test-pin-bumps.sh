@@ -1297,6 +1297,14 @@ expect "adding its line to that version's entry" 0 \
 expect_not "with no entry of its own" "## 1.2.0" remote_file CHANGELOG.md
 expect "and passes the version check" 0 "" release_checks
 
+# A run whose lookup fails leaves the branch, so the outage can't undo the
+# ride.
+head=$(git -C "$origin" rev-parse pin-bumps/demo)
+bump_down() { GHCR_DOWN=demo bump; }
+expect "a failed lookup leaves the open PR's branch" 0 \
+  "no published version to check pin-bumps/demo against" bump_down
+expect "riding as it was" 0 "" branch_is "$head"
+
 # Once that version is published, the branch is rebuilt above it.
 export GHCR_TAGS="demo@1.0.0 demo@1.1.0"
 expect "a published version rebuilds the branch" 0 "pushed pin-bumps/demo" \

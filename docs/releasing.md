@@ -75,7 +75,8 @@ the unpublished entry to the new version and adds its line there, so no entry na
 version that never shipped. With 1.1.1 published and main at 1.4.0, a minor change rides
 1.4.0, and a major one makes 2.0.0 from the `## 1.4.0` entry. Once 1.4.0 is published,
 the next change raises it. A Feature not yet published can't ride its `1.0.0`: GHCR's
-lookup of it fails, as an outage's does.
+lookup of it fails, as an outage's does. The bots raise main's version when the lookup
+fails, and ride it again on a later run whose lookup works.
 
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
@@ -111,7 +112,9 @@ lines listing the packages that moved. Merge the PR once `check` passes, as in
 - **When Dependabot rebases the PR,** the commit goes, since its `[dependabot skip]` lets
   Dependabot push over it; the next run adds it again.
 - **When the version a PR was finished as is published,** the next run replaces its commit
-  with one raising the version above it.
+  with one raising the version above it. A PR finished while the lookup failed raises
+  main's version, which the version check rejects; the next run whose lookup works
+  replaces its commit with one that rides.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names
@@ -123,7 +126,8 @@ lines listing the packages that moved. Merge the PR once `check` passes, as in
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
 days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
 [Versioning](#versioning) sets out; the first run after you publish the version it rides
-rebuilds it above that version. A commit or other non-numeric pin, and a requirement a
+rebuilds it above that version. A run whose GHCR lookup fails leaves an open PR's branch
+as it is. A commit or other non-numeric pin, and a requirement a
 lock adds or removes, count as a minor move, and an upstream major is still a minor.
 Merge it as in [Releasing a change](#releasing-a-change); nothing merges it automatically.
 
