@@ -229,11 +229,10 @@ pr_body() { # id excluded-file output...
       "major release instead (\`docs/releasing.md\`, Pin-bump PRs)."
   fi
   echo
-  echo "\`check\` runs the Feature's tests, and merging releases it once you" \
-    "approve the \`ghcr\` deployment. To skip these versions for good, close" \
-    "this PR unmerged; newer versions are still proposed. Once you push a" \
-    "commit here, the workflow stops updating this branch, and lists newer" \
-    "versions in this description instead."
+  echo "To skip these versions for good, close this PR unmerged; newer" \
+    "versions are still proposed. Once you push a commit here, the workflow" \
+    "stops updating this branch and lists newer versions in this description" \
+    "instead; once you merge, it proposes them in a new PR."
   if [ "$id" = liza ]; then
     echo
     echo "A Liza bump also needs the hand steps in \`docs/releasing.md\`" \
