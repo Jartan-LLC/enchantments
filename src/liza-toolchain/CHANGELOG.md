@@ -1,3 +1,22 @@
+## 1.4.0
+
+- `context7`: 4.1.1 → 4.4.4
+  - @modelcontextprotocol/core: 2.0.0 → 2.3.1
+  - @modelcontextprotocol/node: 2.0.0 → 2.1.1
+  - @modelcontextprotocol/server: 2.0.0 → 2.3.1 (GHSA-jm63-cq47-j5jp, GHSA-46jr-4wx8-v453, GHSA-rvq5-wwqv-78pq)
+  - @opentelemetry/api-logs: 0.221.0 → 0.222.0
+  - @opentelemetry/core: 2.10.0, 2.11.0 → 2.11.0
+  - @opentelemetry/exporter-prometheus: 0.221.0 → 0.222.0
+  - @opentelemetry/instrumentation: 0.221.0 → 0.222.0
+  - @opentelemetry/instrumentation-runtime-node: 0.34.0 → 0.35.0
+  - @opentelemetry/resources: 2.10.0, 2.11.0 → 2.11.0
+  - @opentelemetry/sdk-metrics: 2.10.0, 2.11.0 → 2.11.0
+  - cjs-module-lexer: 2.2.1 → 2.3.0
+  - es-module-lexer: 3.0.2 → 3.0.4
+  - hono: 4.13.9 → 4.13.13 (GHSA-5r4p-p66f-jhc7)
+  - import-in-the-middle: 3.5.1 → 3.5.2
+  - zod: 4.6.5 → 4.6.7
+
 ## 1.3.0
 
 - `rtk`: v1.0.0 → v1.0.1
