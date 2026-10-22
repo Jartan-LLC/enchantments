@@ -4,6 +4,6 @@
   "dependencies": {
     "@sourcegraph/scip-python": "0.6.6",
     "@sourcegraph/scip-typescript": "0.4.0",
-    "@upstash/context7-mcp": "4.1.1"
+    "@upstash/context7-mcp": "4.4.4"
   }
 }
