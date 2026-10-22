@@ -83,7 +83,7 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
-     approved `publish` runs.
+     runs whose `approve` you approved.
 3. **Remediate:** do steps 2 and 3 of [If it's a bug](#if-its-a-bug), then confirm that
    each consumer's lockfile on its remote names no unapproved digest from step 2
    (`git grep <bad-digest> origin/main -- .devcontainer/devcontainer-lock.json` prints

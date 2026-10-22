@@ -5,8 +5,11 @@
 1. In the same commit as the change, raise the Feature's `version` in its
    `devcontainer-feature.json` (see [Versioning](#versioning)) and add a `## <version>` entry
    to its `CHANGELOG.md`, moving any lines from `## Unreleased` into it.
-2. Merge the PR. CI's run on main then waits for your approval of the `ghcr` deployment.
-   The `pending` job's log lists the Features it publishes, on its `Pending:` line.
+2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
+   the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
+   `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
+   older one still waiting when it reaches approval, and an approved run that's
+   publishing finishes before the next one starts.
 3. Before approving, check that:
    - each Feature on the `Pending:` line had its version raised since the last release, or
      is being released for the first time. Otherwise the registry lookup failed: reject
