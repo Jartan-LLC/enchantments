@@ -1132,6 +1132,25 @@ tool_head "$c8"
 expect "a newer version after a close opens a PR" 0 "demo: opened #6" bump
 expect "rebuilt on main, past the workflow change" 0 "" parent_is main
 
+# A hand-edited PR merged without its Not applied versions leaves them to the
+# next PR.
+git -C "$hand" fetch -q origin
+git -C "$hand" reset -q --hard origin/pin-bumps/demo
+echo note >"$hand/src/demo/NOTES.md"
+git -C "$hand" add -A
+git -C "$hand" -c user.name=me -c user.email=me@example.com commit -qm hand
+git -C "$hand" push -q origin pin-bumps/demo
+cb=$(commit_of b)
+tool_head "$cb"
+bump >/dev/null 2>&1
+expect "a hand-edited PR lists a newer version as not applied" 0 \
+  "Not applied: \`tool@$cb\`" pr 6 body
+set_pr 6 '.state = "closed" | .merged_at = "2026-10-07T00:00:00Z"'
+expect "once it merges, the version is proposed in a new PR" 0 \
+  "demo: opened #7" bump
+expect "rebuilt on main" 0 "" parent_is main
+expect "holding that version" 0 "$cb" remote_file pins.sh
+
 # One Feature's error fails the run only after the others had their turn.
 mkdir -p "$seed/src/aaa"
 cp "$seed/src/demo/devcontainer-feature.json" "$seed/src/demo/CHANGELOG.md" \
