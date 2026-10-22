@@ -64,6 +64,7 @@ docs: readmes  ## Regenerate the Feature READMEs, then build the docs site, warn
 test:  ## Test the CI scripts, pin-bumps included, offline against throwaway repos and stubs
 	.github/scripts/test-scripts.sh
 	.github/scripts/test-pin-bumps.sh
+	.github/scripts/test-dependabot-bumps.sh
 
 check:  ## Run every local check (lint, docs, test)
 	$(MAKE) lint docs test

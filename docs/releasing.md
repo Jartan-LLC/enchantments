@@ -47,9 +47,19 @@ version and add its entry. Reverting a release also needs a higher version.
 
 ## Dependabot PRs under `src/`
 
-Dependabot's updates to `src/liza-toolchain/npm/package-lock.json` aren't merged
-automatically, and fail the version check. Push a commit to the PR's branch that raises
-`liza-toolchain`'s version and adds its entry, then merge it.
+Dependabot's updates to a Feature's `npm/package.json` and `npm/package-lock.json` aren't
+merged automatically. `dependabot-bumps.yml` finishes them hourly, and when you run
+`gh workflow run dependabot-bumps.yml`: on each PR whose commits are all Dependabot's, it
+pushes a commit raising the Feature's version as [Versioning](#versioning) sets out and
+adding its changelog entry, which lists the packages that moved. Merge the PR once `check`
+passes, as in [Releasing a change](#releasing-a-change).
+
+- **When Dependabot rebases the PR,** the commit goes, since its `[dependabot skip]` lets
+  Dependabot push over it; the next run adds it again.
+- **To change a PR,** push commits to its branch. Once it has a commit by anyone but
+  Dependabot and the App, the workflow leaves it alone.
+- **A PR that changes anything else under `src/`** fails the workflow's run, which names
+  it, until you finish the PR by hand: raise the version and add the entry yourself.
 
 ## Pin-bump PRs
 
@@ -99,8 +109,8 @@ nothing merges it automatically.
 
 ### The pin-bump App
 
-The workflow pushes and opens PRs as a GitHub App, since PRs opened with the workflow's own
-token start no CI. To set it up, or to replace it:
+`pin-bumps.yml` and `dependabot-bumps.yml` push, and the first opens PRs, as a GitHub App,
+since pushes and PRs made with a workflow's own token start no CI. To set it up, or to replace it:
 
 1. Create a GitHub App in Jartan-LLC with repository permissions **Contents: Read and
    write** and **Pull requests: Read and write**, and no webhook. Install it only on
@@ -160,5 +170,6 @@ Node's release keys:
 ## A disabled schedule
 
 GitHub disables a public repo's scheduled workflows after 60 days without activity. If
-`gh workflow list --all` shows `ci.yml` or `pin-bumps.yml` disabled, run
+`gh workflow list --all` shows `ci.yml`, `pin-bumps.yml` or `dependabot-bumps.yml`
+disabled, run
 `gh workflow enable <file>`.

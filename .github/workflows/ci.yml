@@ -141,6 +141,7 @@ jobs:
           persist-credentials: false
       - run: .github/scripts/test-scripts.sh
       - run: .github/scripts/test-pin-bumps.sh
+      - run: .github/scripts/test-dependabot-bumps.sh
 
   # Live lookups, only on PRs that change what they read: an upstream that
   # breaks a lookup on its own would otherwise block every PR and release,
