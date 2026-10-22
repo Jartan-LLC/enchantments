@@ -8,7 +8,9 @@ fast.
 1. **Contain it:** clear `dev.containers.defaultFeatures`.
 2. **Fix it:** revert the change and give it a version higher than every published `1.x.y`
    (`devcontainer features info tags ghcr.io/jartan-llc/enchantments/<id>:1` lists them):
-   `:1` moves only to a higher version. Release it, then check that
+   `:1` moves only to a higher version. `git diff feature_<id>_<good> feature_<id>_<bad>
+   -- src/<id>` shows what the bad version changed ([Release tags](releasing.md#release-tags)).
+   Release it, then check that
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:1 --output-format json | jq -r .canonicalId`
    matches the same query for the new version.
 3. **Fix the projects that declare it:** in each repo whose
@@ -59,6 +61,13 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 
      ```bash
      gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="main" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .conditions.ref_name.include==["~DEFAULT_BRANCH"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"] and any(.rules[]; .type=="required_status_checks" and any(.parameters.required_status_checks[]; .context=="check" and .integration_id==15368))'
+     ```
+
+   - Check the `feature-tags` ruleset's content, which keeps release tags from moving:
+     this prints `true`.
+
+     ```bash
+     gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="feature-tags" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .target=="tag" and .conditions.ref_name.include==["refs/tags/feature_*"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","update"]'
      ```
 
    - Check the `ghcr` environment's content against these expected values, never against

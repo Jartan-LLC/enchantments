@@ -308,6 +308,11 @@ jobs:
           ids=$(.github/scripts/check-pending.sh)
           echo "Pending: ${ids:-none}"
           echo "ids=$ids" >>"$GITHUB_OUTPUT"
+      # A published version with no tag, which a failed tag job leaves.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: .github/scripts/tag-release.sh --untagged
 
   # The release approval. Only a run that tested the full matrix publishes:
   # test must have succeeded, not been skipped. always() stops a skipped upstream
@@ -355,6 +360,34 @@ jobs:
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node_modules/.bin/devcontainer features publish -r ghcr.io -n jartan-llc/enchantments src
+
+  # Tags what publish put on GHCR (tag-release.sh). It runs after a publish
+  # that failed partway too, so what did publish is tagged; a cancelled or
+  # skipped one has nothing to tag.
+  tag:
+    needs: [pending, publish]
+    if: always() && !cancelled() && (needs.publish.result == 'success' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          IDS: ${{ needs.pending.outputs.ids }}
+        run: |
+          read -ra ids <<<"$IDS"
+          .github/scripts/tag-release.sh "$GITHUB_SHA" "${ids[@]}"
 
   # Red until every package is public.
   visibility:
