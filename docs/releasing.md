@@ -17,13 +17,45 @@
    - you merged every change to `src/` since the last release yourself;
    - for a Feature's first release, the checks in
      [Adding a Feature](adding-a-feature.md) step 7 pass.
-4. Approve. CI's `visibility` job then checks every Feature's `:1` can be pulled without
-   credentials.
+4. Approve. CI's `tag` job then tags each version it published
+   ([Release tags](#release-tags)), and its `visibility` job checks every Feature's `:1`
+   can be pulled without credentials.
 
 A run on main publishes only when it ran every Feature's tests. A merge that changes only
 docs doesn't, so its pending version waits for the daily run, or for one you start with
 `gh workflow run ci.yml`. Those runs also build this repo's dev container, and publish only
 if their `Dev container` job passes.
+
+## Release tags
+
+Each published version has the git tag `feature_<id>_<version>` on the commit its release
+built, the naming `devcontainers/action` uses. CI's `tag` job makes it after `publish`, so
+`git diff feature_<id>_<a> feature_<id>_<b> -- src/<id>` shows what changed between two
+published versions. A tag never moves or goes: the `feature-tags` ruleset blocks deleting
+and updating `feature_*` tags, with no bypass.
+
+- **The `tag` job fails with `likely cause: main's workflows changed`,** since neither the
+  workflow's token nor yours without the `workflow` scope can tag, through the API, a
+  commit whose `.github/workflows` differ from main's tip. Tag it by hand over SSH, at the
+  commit the run built (its `GITHUB_SHA`, which the run's summary shows):
+
+  ```bash
+  git tag feature_<id>_<version> <commit>
+  git push origin feature_<id>_<version>
+  ```
+
+- **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one.
+  Tag it by hand as above, at the commit of the run that published it: the one whose
+  `Pending:` line lists the id and whose `publish` succeeded.
+- **To recreate the ruleset,** for instance after it was changed in an incident:
+
+  ```bash
+  gh api repos/Jartan-LLC/enchantments/rulesets --input - <<'EOF'
+  {"name": "feature-tags", "target": "tag", "enforcement": "active",
+   "conditions": {"ref_name": {"include": ["refs/tags/feature_*"], "exclude": []}},
+   "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}, {"type": "update"}]}
+  EOF
+  ```
 
 ## Versioning
 
