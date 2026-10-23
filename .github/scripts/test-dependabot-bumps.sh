@@ -107,14 +107,9 @@ open_pr() { # branch edit [author-email [pr-user]]
 export GHCR_TAGS=demo@1.0.0
 with_registry "$run"
 
-# The published versions come from the stub registry, as the workflow's
-# published job gives them.
 bump() {
-  (cd "$run" \
-    && PUBLISHED_VERSIONS=$("$scripts/published-versions.sh") \
-    && PATH=$root/bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
-      GITHUB_REPOSITORY=example/repo PUBLISHED_VERSIONS=$PUBLISHED_VERSIONS \
-      "$scripts/dependabot-bumps.sh")
+  (cd "$run" && PATH=$root/bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
+    GITHUB_REPOSITORY=example/repo "$scripts/dependabot-bumps.sh")
 }
 show() { git -C "$origin" show "$1"; } # rev:path
 head_of() { git -C "$origin" rev-parse "$1"; }
@@ -172,7 +167,7 @@ expect "as the App" 0 "42+pinbot[bot]@users.noreply.github.com" \
   git -C "$origin" log -1 --format=%ae "$up"
 expect "letting Dependabot rebase over it" 0 "[dependabot skip]" \
   git -C "$origin" log -1 --format=%s "$up"
-expect "a minor move raises a minor" 0 '"version": "1.1.0"' \
+expect "the version stays" 0 '"version": "1.0.0"' \
   show "$up:src/demo/devcontainer-feature.json"
 expect "the entry lists the tool" 0 "- \`demo-tool\`: 1.0.0 → 1.2.0" \
   show "$up:src/demo/CHANGELOG.md"
@@ -184,16 +179,15 @@ expect "a package added" 0 "  - dep-c: added 0.1.0" \
   show "$up:src/demo/CHANGELOG.md"
 expect_not "and not the tool twice" "  - demo-tool" \
   show "$up:src/demo/CHANGELOG.md"
-expect "under its version" 0 "$(printf '## 1.1.0\n\n- %s' "\`demo-tool\`")" \
-  show "$up:src/demo/CHANGELOG.md"
+expect "under Unreleased, as a minor" 0 "" \
+  holds "$(show "$up:src/demo/CHANGELOG.md")" \
+  "$(printf '## Unreleased\n\n### Minor\n\n- %s' "\`demo-tool\`")"
 expect "and passes the version check" 0 "" release_checks "$up"
 
 # The lock-only update.
-expect "a lock's patch moves raise a patch" 0 '"version": "1.0.1"' \
-  show "$patch:src/demo/devcontainer-feature.json"
-expect "its entry is the lock's" 0 \
-  "$(printf -- '## 1.0.1\n\n- npm lock:\n  - dep-a:')" \
-  show "$patch:src/demo/CHANGELOG.md"
+expect "a lock's patch moves are a patch" 0 "" \
+  holds "$(show "$patch:src/demo/CHANGELOG.md")" \
+  "$(printf -- '## Unreleased\n\n- npm lock:\n  - dep-a:')"
 expect "and passes the version check" 0 "" release_checks "$patch"
 
 # What it leaves.
@@ -234,85 +228,18 @@ expect "a push racing Dependabot's is refused" 1 "#7: push refused" bump
 expect "and Dependabot's stands" 0 "" \
   test "$(head_of "$race")" = "$(git -C "$racer" rev-parse HEAD)"
 
-# A finished PR whose version has since been published is finished again,
-# above it.
-up_done=$(head_of "$up")
-export GHCR_TAGS="demo@1.0.0 demo@1.1.0"
-bump >/dev/null 2>&1
-expect "a PR whose version got published is finished again" 0 "" \
-  test "$(head_of "$up^")" = "$up_head"
-expect "replacing the App's commit" 0 "" test "$(head_of "$up")" != "$up_done"
-expect "above the published version" 0 '"version": "1.2.0"' \
-  show "$up:src/demo/devcontainer-feature.json"
-expect "with an entry of its own" 0 \
-  "$(printf '## 1.2.0\n\n- %s' "\`demo-tool\`")" \
-  show "$up:src/demo/CHANGELOG.md"
-expect "and passes the version check" 0 "" release_checks "$up"
-up_done=$(head_of "$up")
-expect "a PR finished above the published version is left" 1 \
-  "#1: already finished" bump
-expect "with its head" 0 "" test "$(head_of "$up")" = "$up_done"
-
-# A PR on a main whose version is unpublished rides it.
-set_json=$seed/src/demo/devcontainer-feature.json
-jq '.version = "1.3.0"' "$set_json" >"$set_json.tmp" \
-  && mv "$set_json.tmp" "$set_json"
-printf '## 1.3.0\n\n- Earlier.\n\n## 1.0.0\n\n- First release.\n' \
+# A PR on a main with its own Unreleased line adds its lines after it.
+printf '## Unreleased\n\n- Earlier.\n\n## 1.0.0\n\n- First release.\n' \
   >"$seed/src/demo/CHANGELOG.md"
-git -C "$seed" -c user.name=t -c user.email=t@t commit -qam "demo 1.3.0"
+git -C "$seed" -c user.name=t -c user.email=t@t commit -qam "docs: earlier"
 git -C "$seed" push -q "$origin" HEAD:main
-ridden=dependabot/npm_and_yarn/src/demo/npm/ride
-open_pr "$ridden" lock_patch
+later=dependabot/npm_and_yarn/src/demo/npm/later
+open_pr "$later" lock_patch
 out=$(bump 2>&1)
-expect "a PR under an unpublished version rides it" 0 \
-  "finished, as demo 1.3.0" echo "$out"
-expect "keeping the version" 0 '"version": "1.3.0"' \
-  show "$ridden:src/demo/devcontainer-feature.json"
-expect "adding its lines to that version's entry" 0 \
-  "$(printf '## 1.3.0\n\n- Earlier.\n- npm lock:\n  - dep-a:')" \
-  show "$ridden:src/demo/CHANGELOG.md"
-expect "and passes the version check" 0 "" release_checks "$ridden"
-
-# A run whose lookup fails leaves a finished PR alone, so the outage can't
-# undo its ride.
-ridden_done=$(head_of "$ridden")
-bump_down() { GHCR_DOWN=demo bump; }
-# PR 4 still fails the run.
-expect "a failed lookup leaves a finished PR" 1 \
-  "with no published version to check it against" bump_down
-expect "with its head" 0 "" test "$(head_of "$ridden")" = "$ridden_done"
-
-# A PR finished while the lookup failed raises main's version, leaving the
-# unpublished entry behind; the next run that can look it up rides instead.
-fallback=dependabot/npm_and_yarn/src/demo/npm/fallback
-open_pr "$fallback" lock_patch
-out=$(bump_down 2>&1)
-expect "a PR finished during a failed lookup raises main's version" 0 \
-  "finished, as demo 1.3.1" echo "$out"
-expect "which the version check fails" 1 \
-  "1.3.0 was never published, so fold its '## 1.3.0' entry" \
-  release_checks "$fallback"
-out=$(bump 2>&1)
-expect "the next run finishes it again" 0 "#9: finished again, as demo 1.3.0" \
-  echo "$out"
-expect "riding main's version" 0 '"version": "1.3.0"' \
-  show "$fallback:src/demo/devcontainer-feature.json"
-expect "and passing the version check" 0 "" release_checks "$fallback"
-expect "while a PR whose rebuild matches is left" 0 "#8: already finished" \
-  echo "$out"
-expect "with its head" 0 "" test "$(head_of "$ridden")" = "$ridden_done"
-
-# An unpublished version on main with no changelog entry leaves nothing to
-# ride: the PR fails, saying why, and its branch stays.
-jq '.version = "1.4.0"' "$set_json" >"$set_json.tmp" \
-  && mv "$set_json.tmp" "$set_json"
-git -C "$seed" -c user.name=t -c user.email=t@t commit -qam "demo 1.4.0"
-git -C "$seed" push -q "$origin" HEAD:main
-bare=dependabot/npm_and_yarn/src/demo/npm/bare
-open_pr "$bare" lock_patch
-bare_head=$(head_of "$bare")
-expect "a ride with no entry to add to fails" 1 \
-  "has no '## 1.4.0' entry for the unpublished 1.4.0" bump
-expect "leaving the branch" 0 "" test "$(head_of "$bare")" = "$bare_head"
+expect "a PR after main's own Unreleased line is finished" 0 \
+  "finished, as a patch change to demo" echo "$out"
+expect "under that line" 0 "" holds "$(show "$later:src/demo/CHANGELOG.md")" \
+  "$(printf -- '## Unreleased\n\n- Earlier.\n- npm lock:\n  - dep-a:')"
+expect "and passes the version check" 0 "" release_checks "$later"
 
 summary

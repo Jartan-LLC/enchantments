@@ -253,18 +253,6 @@ set_version "$root/feature.json" 1.1.0
 expect "set_version writes the version" 0 '"version": "1.1.0"' \
   cat "$root/feature.json"
 
-expect "target_version rides an unpublished version" 0 1.4.0 \
-  target_version 1.4.0 minor 1.1.1
-expect "and rises past it when the level needs to" 0 1.2.0 \
-  target_version 1.1.2 minor 1.1.1
-expect "target_version raises a published version" 0 1.5.0 \
-  target_version 1.4.0 minor 1.4.0
-expect "a patch on a published version is a patch" 0 1.4.1 \
-  target_version 1.4.0 patch 1.4.0
-expect "target_version raises above a published version higher than its own" \
-  0 1.6.0 target_version 1.4.0 minor 1.5.3
-expect "with no published version, today's raise" 0 1.5.0 \
-  target_version 1.4.0 minor ''
 PUBLISHED_VERSIONS='{"demo": "1.1.1", "bad": "1.0.0; x"}'
 expect "published_of reads the version" 0 1.1.1 published_of demo
 expect "published_of drops a value that isn't X.Y.Z" 0 "" \
@@ -275,58 +263,29 @@ unset PUBLISHED_VERSIONS
 expect "published_of reads no list as empty" 0 "" \
   test -z "$(published_of demo)"
 
-# release_change on a Feature directory at the version, entry "- New."
-release_case() { # changelog published level [version]
-  local version=${4:-1.4.0}
-  rm -rf "$root/rel" && mkdir -p "$root/rel"
-  echo "{\"id\": \"demo\", \"version\": \"$version\"}" \
-    >"$root/rel/devcontainer-feature.json"
-  printf '%b' "$1" >"$root/rel/CHANGELOG.md"
-  echo '- New.' >"$root/rel.entry"
-  release_change "$root/rel" "$3" "$root/rel.entry" "$2"
+# add_unreleased with the entry "- New.", followed by "- More." indented.
+unreleased_add() { # changelog level
+  printf '%b' "$1" >"$root/add.md"
+  printf -- '- New.\n  - More.\n' >"$root/add.entry"
+  add_unreleased "$root/add.md" "$2" "$root/add.entry"
+  cat "$root/add.md"
 }
-unreleased='## Unreleased\n\n- A docs fix.\n\n'
-riding="$unreleased## 1.4.0\n\n- Earlier.\n\n## 1.1.1\n\n- Shipped.\n"
-expect "release_change prints the version a ride keeps" 0 1.4.0 \
-  release_case "$riding" 1.1.1 minor
-expect "and adds the line to the unpublished entry" 0 \
-  "$(printf '## 1.4.0\n\n- Earlier.\n- New.\n- A docs fix.\n\n## 1.1.1')" \
-  cat "$root/rel/CHANGELOG.md"
-expect_not "moving Unreleased's lines out" "## Unreleased" \
-  cat "$root/rel/CHANGELOG.md"
-expect "release_change renames an unpublished entry it rises past" 0 1.2.0 \
-  release_case "$unreleased## 1.1.2\n\n- Earlier.\n\n## 1.1.1\n" 1.1.1 \
-  minor 1.1.2
-expect "folding its lines into the new entry" 0 \
-  "$(printf '## 1.2.0\n\n- Earlier.\n- New.\n- A docs fix.\n\n## 1.1.1')" \
-  cat "$root/rel/CHANGELOG.md"
-expect_not "and leaving no entry for the version never published" \
-  "## 1.1.2" cat "$root/rel/CHANGELOG.md"
-expect "with the version set" 0 '"version": "1.2.0"' \
-  cat "$root/rel/devcontainer-feature.json"
-expect "release_change on a published version adds an entry" 0 1.5.0 \
-  release_case "$riding" 1.4.0 minor
-expect "above the published one's" 0 \
-  "$(printf '## 1.5.0\n\n- New.\n- A docs fix.\n\n## 1.4.0\n\n- Earlier.')" \
-  cat "$root/rel/CHANGELOG.md"
-expect "release_change with no published version adds an entry" 0 1.4.1 \
-  release_case '## 1.4.0\n\n- Earlier.\n' '' patch
-expect "as today" 0 "$(printf '## 1.4.1\n\n- New.\n\n## 1.4.0')" \
-  cat "$root/rel/CHANGELOG.md"
-minor_ride='## Unreleased\n\n### Minor\n\n- A feature.\n\n'
-minor_ride+='## 1.1.2\n\n- Earlier.\n\n## 1.1.1\n'
-expect "a line under Unreleased's ### Minor raises a ride's level" 0 1.2.0 \
-  release_case "$minor_ride" 1.1.1 patch 1.1.2
-expect "dropping the subheading from the entry" 0 "" \
-  holds "$(cat "$root/rel/CHANGELOG.md")" \
-  "$(printf '## 1.2.0\n\n- Earlier.\n- New.\n- A feature.\n\n## 1.1.1')"
-expect "release_change fails on a ride with no entry to add to" 1 \
-  "has no '## 1.4.0' entry for the unpublished 1.4.0" \
-  release_case '## 1.1.1\n\n- Shipped.\n' 1.1.1 minor
-expect "leaving the changelog as it was" 0 "" \
-  test "$(cat "$root/rel/CHANGELOG.md")" = "$(printf '## 1.1.1\n\n- Shipped.')"
-expect "and the version" 0 '"version": "1.4.0"' \
-  cat "$root/rel/devcontainer-feature.json"
+expect "add_unreleased opens the section above the entries" 0 "" \
+  holds "$(unreleased_add '## 1.0.0\n\n- First.\n' patch)" \
+  "$(printf '## Unreleased\n\n- New.\n  - More.\n\n## 1.0.0\n\n- First.')"
+expect "putting a minor change under ### Minor" 0 "" \
+  holds "$(unreleased_add '## 1.0.0\n\n- First.\n' minor)" \
+  "$(printf '## Unreleased\n\n### Minor\n\n- New.\n  - More.\n\n## 1.0.0')"
+with_minor='## Unreleased\n\n- Docs.\n\n### Minor\n\n- Feature.\n\n## 1.0.0\n'
+expect "a patch line joins the unheaded lines, above ### Minor" 0 "" \
+  holds "$(unreleased_add "$with_minor" patch)" \
+  "$(printf -- '- Docs.\n- New.\n  - More.\n\n### Minor\n\n- Feature.\n')"
+expect "a minor line follows the lines under ### Minor" 0 "" \
+  holds "$(unreleased_add "$with_minor" minor)" \
+  "$(printf -- '### Minor\n\n- Feature.\n- New.\n  - More.\n\n## 1.0.0')"
+expect "keeping ### Major below ### Minor" 0 "" \
+  holds "$(unreleased_add '## Unreleased\n\n### Major\n\n- Break.\n' minor)" \
+  "$(printf -- '### Minor\n\n- New.\n  - More.\n\n### Major\n\n- Break.')"
 
 # --- Lookups, against stubs ---------------------------------------------------
 
@@ -1049,14 +1008,10 @@ tool_head() { # commit
   echo '{"status": "ahead"}' | serve "repos/example/tool/compare/$cur...$1"
 }
 
-# The published versions come from the stub registry, as the workflow's
-# published job gives them.
 bump() {
-  (cd "$run" \
-    && PUBLISHED_VERSIONS=$("$scripts/published-versions.sh") \
-    && PATH=$root/e2e-bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
-      GITHUB_REPOSITORY=example/repo PUBLISHED_VERSIONS=$PUBLISHED_VERSIONS \
-      "$scripts/pin-bumps.sh" --report "$root/report")
+  (cd "$run" && PATH=$root/e2e-bin:$PATH GH_TOKEN=token APP_SLUG=pinbot \
+    GITHUB_REPOSITORY=example/repo \
+    "$scripts/pin-bumps.sh" --report "$root/report")
 }
 remote_file() { git -C "$origin" show "pin-bumps/demo:src/demo/$1"; }
 pr() { jq -r ".[] | select(.number == $1) | .$2" "$PRS"; }
@@ -1094,10 +1049,12 @@ expect "and pushes no branch" 1 "" \
   git -C "$origin" rev-parse -q --verify pin-bumps/demo
 expect "a newer pin opens a PR" 0 "demo: opened #1" bump
 expect "the branch holds the new pin" 0 "TOOL_COMMIT='$c3'" remote_file pins.sh
-expect "the branch raises the minor version" 0 '"version": "1.1.0"' \
+expect "the branch keeps the version" 0 '"version": "1.0.0"' \
   remote_file devcontainer-feature.json
-expect "the changelog entry lists the bump" 0 \
-  "- \`tool\`: aaaaaaaaaaaa → 333333333333" remote_file CHANGELOG.md
+expect "and lists the bump under Unreleased, as a minor" 0 "" \
+  holds "$(remote_file CHANGELOG.md)" \
+  "$(printf -- '## Unreleased\n\n### Minor\n\n- %s: %s → %s' "\`tool\`" \
+    aaaaaaaaaaaa 333333333333)"
 expect "the branch passes the version check" 0 "" release_checks
 expect "the commit is the App's" 0 \
   "42+pinbot[bot]@users.noreply.github.com" \
@@ -1315,43 +1272,18 @@ expect "once its headers parse, the run no longer fails" 0 "" bump
 expect "and reports it clean" 0 \
   "$(printf 'pins\tzzz\tok')" cat "$root/report"
 
-# A bump rides main's version while it's unpublished.
-set_version "$seed/src/demo/devcontainer-feature.json" 1.1.0
-printf '## 1.1.0\n\n- Earlier change.\n\n## 1.0.0\n\n- First release.\n' \
+# A line main added under Unreleased stays, above the bump's.
+printf '## Unreleased\n\n- A docs fix.\n\n## 1.0.0\n\n- First release.\n' \
   >"$seed/src/demo/CHANGELOG.md"
-commit_seed "demo 1.1.0"
+commit_seed "docs(demo): a docs fix"
 git -C "$seed" push -q origin HEAD:main
 cc=$(commit_of c)
 tool_head "$cc"
-expect "a bump under an unpublished version is pushed" 0 \
+expect "a bump after main's own Unreleased line is pushed" 0 \
   "pushed pin-bumps/demo" bump
-expect "keeping that version" 0 '"version": "1.1.0"' \
-  remote_file devcontainer-feature.json
-expect "adding its line to that version's entry" 0 \
-  "$(printf '## 1.1.0\n\n- Earlier change.\n- %s' "\`tool\`")" \
-  remote_file CHANGELOG.md
-expect_not "with no entry of its own" "## 1.2.0" remote_file CHANGELOG.md
-expect "and passes the version check" 0 "" release_checks
-
-# A run whose lookup fails leaves the branch, so the outage can't undo the
-# ride.
-head=$(git -C "$origin" rev-parse pin-bumps/demo)
-bump_down() { GHCR_DOWN=demo bump; }
-expect "a failed lookup leaves the open PR's branch" 0 \
-  "no published version to check pin-bumps/demo against" bump_down
-expect "riding as it was" 0 "" branch_is "$head"
-
-# Once that version is published, the branch is rebuilt above it.
-export GHCR_TAGS="demo@1.0.0 demo@1.1.0"
-expect "a published version rebuilds the branch" 0 "pushed pin-bumps/demo" \
-  bump
-expect "raising the version" 0 '"version": "1.2.0"' \
-  remote_file devcontainer-feature.json
-expect "with an entry of its own" 0 \
-  "$(printf '## 1.2.0\n\n- %s' "\`tool\`")" remote_file CHANGELOG.md
-expect "leaving the published entry as it was" 0 \
-  "$(printf '## 1.1.0\n\n- Earlier change.\n\n## 1.0.0')" \
-  remote_file CHANGELOG.md
+expect "under that line" 0 "" holds "$(remote_file CHANGELOG.md)" \
+  "$(printf -- '## Unreleased\n\n- A docs fix.\n\n### Minor\n\n- %s' \
+    "\`tool\`")"
 expect "and passes the version check" 0 "" release_checks
 
 # --- The lock write path, end to end ------------------------------------------

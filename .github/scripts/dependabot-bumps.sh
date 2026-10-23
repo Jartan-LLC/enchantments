@@ -1,15 +1,13 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
 # Finishes Dependabot's PRs under src/ (docs/releasing.md, "Dependabot PRs
-# under src/"): on each open one whose commits are all Dependabot's, or that
-# it finished before, pushes a commit, as the pin-bumps App, that releases the
-# change by the version rule (pins_lib.sh, release_change). Releases only
-# changes to a Feature's npm/package.json and npm/package-lock.json; a PR
-# changing anything else under src/ is reported and left alone. Needs
-# GH_TOKEN (the App's), APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS
-# (published-versions.sh; with none, it raises the Feature's version and
-# leaves finished PRs alone), and exits 1 when any PR failed, after every PR
-# had its turn. Run from the repository root.
+# under src/"): on each open one whose commits are all Dependabot's, pushes a
+# commit, as the pin-bumps App, that lists the change under "## Unreleased"
+# at its level (pins_lib.sh, add_unreleased). Lists only changes to a
+# Feature's npm/package.json and npm/package-lock.json; a PR changing
+# anything else under src/ is reported and left alone. Needs GH_TOKEN (the
+# App's), APP_SLUG and GITHUB_REPOSITORY, and exits 1 when any PR failed,
+# after every PR had its turn. Run from the repository root.
 set -euo pipefail
 # An error inside $(...) stops the PR too.
 shopt -s inherit_errexit
@@ -18,6 +16,8 @@ here=$(dirname "$0")
 . "$here/pins_lib.sh"
 # shellcheck source=app_lib.sh
 . "$here/app_lib.sh"
+# shellcheck source=pr_lib.sh
+. "$here/pr_lib.sh"
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"; git worktree prune' EXIT
@@ -31,13 +31,6 @@ dependabot_prs() {
       and (.head.ref | contains("/src/"))
       and .head.repo.full_name == env.GITHUB_REPOSITORY)
       | "\(.number) \(.head.ref) \(.head.sha)"'
-}
-
-# Prints the logins of a PR's commit authors, oldest first.
-pr_authors() { # number
-  gh api --paginate \
-    "repos/$GITHUB_REPOSITORY/pulls/$1/commits?per_page=100" \
-    --jq '.[] | .author.login // "?"'
 }
 
 # Prints a package.json's dependencies as {name: version}.
@@ -100,15 +93,11 @@ npm_entry() { # base head npm-dir entry-file
   echo "$level"
 }
 
-# Finishes one PR, or says why it's left as it is. A PR it finished is
-# rebuilt, and its commit replaced when the result differs: once its version
-# is published, or after a run that couldn't look the published version up
-# fell back to raising the Feature's. With no published version known, a
-# finished PR is left as it is, so an outage can't undo a ride. Fails when
-# the PR needs a maintainer: a change it can't release, or a refused push.
+# Finishes one PR, or says why it's left as it is. Fails when the PR needs a
+# maintainer: a change it can't list, or a refused push.
 finish_pr() { # number branch head
-  local number=$1 branch=$2 head=$3 authors base paths id level version
-  local wt=$work/tree-$1 entry=$work/entry-$1 out published own finished=0
+  local number=$1 branch=$2 head=$3 authors base paths id level reason
+  local wt=$work/tree-$1 entry=$work/entry-$1 out
   if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
     echo "#$number: $branch moved since the fetch; the next run looks again"
     return 0
@@ -116,18 +105,16 @@ finish_pr() { # number branch head
   authors=$(pr_authors "$number")
   if [ "$(tail -n 1 <<<"$authors")" = "$bot_login" ] \
     && ! sed '$d' <<<"$authors" | grep -qvxF 'dependabot[bot]'; then
-    finished=1
+    echo "#$number: already finished"
+    return 0
   elif grep -qvxF 'dependabot[bot]' <<<"$authors"; then
     echo "#$number: has commits by others, so it's left to them"
     return 0
   fi
-  # Dependabot's own head, under any commit of the App's.
-  own=$head
-  [ "$finished" = 0 ] || own=$(git rev-parse "$head^")
 
-  base=$(git merge-base origin/main "$own")
-  paths=$(git diff --no-renames --name-only "$base" "$own" -- src)
-  # The paths check-versions.sh wants a new version for.
+  base=$(git merge-base origin/main "$head")
+  paths=$(git diff --no-renames --name-only "$base" "$head" -- src)
+  # The paths check-versions.sh wants an Unreleased line for.
   id=$(awk -F/ 'NF > 3 || $3 !~ /^(README|NOTES|CHANGELOG)\.md$/ { print $2 }' \
     <<<"$paths" | sort -u)
   if [ -z "$id" ]; then
@@ -138,25 +125,19 @@ finish_pr() { # number branch head
     -e "src/$id/npm/package.json" -e "src/$id/npm/package-lock.json" \
     <<<"$paths"; then
     echo "::error::#$number: changes more under src/ than one Feature's npm" \
-      "files, which this script doesn't release; finish it by hand"
+      "files, which this script doesn't list; finish it by hand"
     return 1
   fi
-  published=$(published_of "$id")
-  if [ "$finished" = 1 ] && [ -z "$published" ]; then
-    echo "#$number: already finished; with no published version to check" \
-      "it against, it's left as it is"
-    return 0
-  fi
-  if ! level=$(npm_entry "$base" "$own" "src/$id/npm" "$entry"); then
+  if ! level=$(npm_entry "$base" "$head" "src/$id/npm" "$entry"); then
     echo "::error::#$number: no npm package moved, so there's nothing to" \
       "list in the changelog; finish it by hand"
     return 1
   fi
 
-  git worktree add -q --detach "$wt" "$own"
-  version=$(release_change "$wt/src/$id" "$level" "$entry" "$published")
+  git worktree add -q --detach "$wt" "$head"
+  add_unreleased "$wt/src/$id/CHANGELOG.md" "$level" "$entry"
   {
-    echo "chore($id): release the dependency update as $version" \
+    echo "chore($id): list the dependency update in the changelog" \
       "[dependabot skip]"
     echo
     cat "$entry"
@@ -166,23 +147,13 @@ finish_pr() { # number branch head
     commit -q -F "$work/message"
   out=$(git -C "$wt" rev-parse HEAD)
   git worktree remove --force "$wt"
-  if [ "$finished" = 1 ] && [ "$(git rev-parse "$out^{tree}")" \
-    = "$(git rev-parse "$head^{tree}")" ]; then
-    echo "#$number: already finished"
-    return 0
-  fi
 
   # The lease: a push Dependabot made since the fetch wins.
-  if ! out=$(git_authed push --force-with-lease="refs/heads/$branch:$head" \
-    origin "$out:refs/heads/$branch" 2>&1); then
-    echo "::error::#$number: push refused: $(tail -n 1 <<<"$out")"
+  if ! reason=$(lease_push "$branch" "$head" "$out"); then
+    echo "::error::#$number: push refused: $reason"
     return 1
   fi
-  if [ "$finished" = 1 ]; then
-    echo "#$number: finished again, as $id $version"
-  else
-    echo "#$number: finished, as $id $version"
-  fi
+  echo "#$number: finished, as a $level change to $id"
 }
 
 main() {

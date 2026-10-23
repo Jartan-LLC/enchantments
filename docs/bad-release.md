@@ -29,7 +29,7 @@ plugins' hooks run as you, with your gh token. Do step 1 of
 revert the marketplace's default branch if you control it; otherwise remove its
 `extraKnownMarketplaces` entry and its `@<name>` `enabledPlugins` keys from each affected
 repo's `.claude/settings.json`, and push. Then do steps 2, 4 (if step 2 finds a version you
-didn't approve) and 5.
+didn't release) and 5.
 
 ## If it may have been malicious
 
@@ -92,7 +92,7 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
-     runs whose `approve` you approved.
+     runs that published your releases.
 3. **Remediate:** do steps 2 and 3 of [If it's a bug](#if-its-a-bug), then confirm that
    each consumer's lockfile on its remote names no unapproved digest from step 2
    (`git grep <bad-digest> origin/main -- .devcontainer/devcontainer-lock.json` prints

@@ -14,13 +14,13 @@
    it to [Choosing Features](choosing.md).
 5. **Run `make readmes`** and commit the generated `src/<id>/README.md`, then `make check`.
 6. **Open the PR.** It needs a green `check`.
-7. **Publish it.** After the merge, CI waits for your approval of the `ghcr` deployment.
-   Before approving:
-   1. Check that the id is on the `Pending:` line of the run's `pending` job log.
-   2. Run `gh auth refresh -s read:packages`, then check that
-      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>` returns 404. Anything
-      else, 403 included, fails the check: reject the deployment. A package linked to this
-      repo proves nothing: GHCR links whatever repo the package's source label names.
+7. **Publish it.** Merging the PR publishes it. Before merging, run
+   `gh auth refresh -s read:packages`, then check that
+   `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>` returns 404. Anything
+   else, 403 included, fails the check: don't merge. A package linked to this repo proves
+   nothing: GHCR links whatever repo the package's source label names. If the run waits
+   for your approval of the `ghcr` deployment, check that the id is on the `Pending:` line
+   of its `pending` job log, and run the 404 check again.
 
    After the release, check that
    `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions --jq '[length, .[0].name]'`
@@ -29,7 +29,7 @@
    published the id: delete the package and republish. Then run
    `gh auth refresh -r read:packages`.
 
-   If no run after the merge has the id on its `Pending:` line, treat the name as taken: add
-   the Feature to no project, delete the package and republish.
+   If the merge's run doesn't have the id on its `Pending:` line, treat the name as taken:
+   add the Feature to no project, delete the package and republish.
 8. **Check that the package is public;** if it isn't, make it public in its GitHub settings.
    CI's `visibility` job fails while any package is private.

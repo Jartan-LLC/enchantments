@@ -115,9 +115,9 @@ jobs:
           SCENARIO: ${{ matrix.scenario }}
         run: .github/scripts/test-features.sh "$ID" "$SCENARIO"
 
-  # A Feature's change must raise its version above the published one, or add
-  # to the entry of an unpublished one (GUARDRAILS.md); GHCR says which. Without
-  # a base there's nothing to compare.
+  # A Feature's change adds an Unreleased line; a version change, which the
+  # release PR makes, must suit GHCR's highest version (GUARDRAILS.md).
+  # Without a base there's nothing to compare.
   versions:
     needs: features
     if: needs.features.outputs.base != ''
@@ -293,7 +293,8 @@ jobs:
             fi
           done
 
-  # The registry decides what's released (check-pending.sh).
+  # What a push to main releases: each version it changed that isn't on GHCR
+  # yet (check-pending.sh). Other runs release nothing.
   pending:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -313,10 +314,13 @@ jobs:
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - id: list
+        if: github.event_name == 'push'
         env:
+          BEFORE: ${{ github.event.before }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          ids=$(.github/scripts/check-pending.sh)
+          git fetch -q --depth=1 origin "$BEFORE"
+          ids=$(.github/scripts/check-pending.sh "$BEFORE")
           echo "Pending: ${ids:-none}"
           echo "ids=$ids" >>"$GITHUB_OUTPUT"
       # A published version with no tag, which a failed tag job leaves.
@@ -325,32 +329,17 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: .github/scripts/tag-release.sh --untagged
 
-  # The release approval. Only a run that tested the full matrix publishes:
-  # test must have succeeded, not been skipped. always() stops a skipped upstream
-  # job from skipping this. A newer run that reaches here cancels an older one
-  # still waiting for review, so the approval asked for is the newest; a run that
-  # won't publish skips this job and cancels nothing.
-  approve:
+  # Only a run that tested the full matrix publishes: test must have succeeded,
+  # not been skipped. always() stops a skipped upstream job from skipping this.
+  # The ghcr environment holds it to main, and to your approval while the
+  # environment has a required reviewer. Never cancelled: a publish finishes
+  # before the next one starts.
+  publish:
     needs: [check, pending, test]
     if: always() && !cancelled() && needs.check.result == 'success' && needs.pending.result == 'success' && needs.test.result == 'success' && github.event_name != 'pull_request' && needs.pending.outputs.ids != ''
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    environment: ghcr
-    permissions: {}
-    concurrency:
-      group: ghcr-approval
-      cancel-in-progress: true
-    steps:
-      - env:
-          IDS: ${{ needs.pending.outputs.ids }}
-        run: |
-          echo "Approved: $IDS"
-
-  # Never cancelled: an approved publish finishes before the next one starts.
-  publish:
-    needs: approve
-    runs-on: ubuntu-24.04
     timeout-minutes: 15
+    environment: ghcr
     permissions:
       contents: read
       packages: write
@@ -381,6 +370,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
+      actions: write # starting pin-bumps.yml
       contents: write
       packages: read
     steps:
@@ -399,6 +389,13 @@ jobs:
         run: |
           read -ra ids <<<"$IDS"
           .github/scripts/tag-release.sh "$GITHUB_SHA" "${ids[@]}"
+      # The release PR leaves out a Feature until its version is published:
+      # rebuild it now rather than at pin-bumps' next run. GITHUB_TOKEN's
+      # workflow_dispatch, unlike its other events, starts a run.
+      - if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pin-bumps.yml --repo "$GITHUB_REPOSITORY" --ref main
 
   # Red until every package is public.
   visibility:

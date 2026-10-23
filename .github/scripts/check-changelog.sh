@@ -1,9 +1,10 @@
 #!/bin/bash
 # Checks that a Feature's CHANGELOG.md has a non-empty "## <version>" entry for
 # the version in its devcontainer-feature.json. --bump, which the version check
-# runs, also wants "## Unreleased" empty, so a bump says what it ships;
-# --release, which publishing runs, ignores it, since a docs-only entry may
-# land while a bump awaits approval. Run from the repository root.
+# runs on a release, also wants "## Unreleased" empty, so a release says
+# what it ships; --release, which publishing and a return to the published
+# version run, ignores it, since lines for the next release may already sit
+# there. Run from the repository root.
 set -euo pipefail
 usage="usage: check-changelog.sh --bump|--release <id>"
 if [ "$#" -ne 2 ] || { [ "$1" != --bump ] && [ "$1" != --release ]; }; then

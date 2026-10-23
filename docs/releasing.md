@@ -2,32 +2,24 @@
 
 ## Releasing a change
 
-1. In the same commit as the change, release it as [Versioning](#versioning) sets out:
-   raise the Feature's `version` in its `devcontainer-feature.json` and add a
-   `## <version>` entry to its `CHANGELOG.md`, or, when the change can ride main's
-   unpublished version, add its line to that version's entry. Either way, move any lines
-   from `## Unreleased` into the entry, leaving out its `### Minor` and `### Major`
-   subheadings.
-2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
-   the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
-   `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
-   older one still waiting when it reaches approval, and an approved run that's
-   publishing finishes before the next one starts.
-3. Before approving, check that:
-   - each Feature on the `Pending:` line had its version raised since the last release, or
-     is being released for the first time. Otherwise the registry lookup failed: reject
-     the deployment and retry later;
-   - you merged every change to `src/` since the last release yourself;
+1. In the same commit as a change under `src/<id>/`, add its line under `## Unreleased`
+   in the Feature's `CHANGELOG.md`, at its level ([Versioning](#versioning)), and leave
+   its `version` alone. Merge the PR; the change waits there for the next release.
+2. To release, merge the [release PR](#release-prs). CI's run on main then publishes each
+   version that merge changed, which its `pending` job lists on its `Pending:` line.
+3. While the `ghcr` environment has a required reviewer, the run waits in its `publish`
+   job for your approval of the deployment. Before approving, check that:
+   - the `Pending:` line lists the release PR's Features, and only those;
    - for a Feature's first release, the checks in
      [Adding a Feature](adding-a-feature.md) step 7 pass.
-4. Approve. CI's `tag` job then tags each version it published
-   ([Release tags](#release-tags)), and its `visibility` job checks every Feature's `:1`
-   can be pulled without credentials.
+4. CI's `tag` job then tags each version it published ([Release tags](#release-tags))
+   and starts `pin-bumps.yml`, which rebuilds the release PR. Its `visibility` job checks
+   every Feature's `:1` can be pulled without credentials.
 
-A run on main publishes only when it ran every Feature's tests. A merge that changes only
-docs doesn't, so its pending version waits for the daily run, or for one you start with
-`gh workflow run ci.yml`. Those runs also build this repo's dev container, and publish
-only if their `Dev container` job passes.
+A run on main publishes only the versions its own push changed, so a merge after the
+release PR's doesn't publish its code under a version already released; and only when it
+ran every Feature's tests, which a change under `src/` always does. If a publish fails,
+re-run the run's failed jobs.
 
 ## Release tags
 
@@ -62,91 +54,67 @@ and updating `feature_*` tags, with no bypass.
 
 ## Versioning
 
-Each Feature has its own version; raise the first level that applies:
+Each Feature has its own version, which only the release PR raises, by the first level
+that applies to any change it releases:
 
 - **Major:** an option removed or renamed, or a change in behavior a project would notice.
 - **Minor:** a new option, or a pin bump with a minor or larger upstream move.
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
-The level counts from the Feature's published version, not main's. While main's version
-is above the highest on GHCR (it awaits your approval, or its publish failed), a change
-whose level needs no higher version rides it: add the change's line to that version's
-entry, and keep the version. A change that needs a higher version renames that entry to
-the new version and adds its line there, so no entry names a version that never shipped.
-
-For example, with 1.1.1 published and main at 1.4.0, a minor change rides 1.4.0, and a
-major one turns `## 1.4.0` into `## 2.0.0`. Once 1.4.0 is published, the next change
-raises it. A Feature never published has nothing to ride: GHCR's lookup of it fails, as
-in an outage.
-
-A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new
-version: list it under `## Unreleased` in the changelog, and it ships with the next
-release. CI's `versions` job asks GHCR what's published, and fails a change to anything
-else under `src/<id>/` that:
-
-- raises the version without its entry, or not above GHCR's highest version;
-- leaves an entry behind for a version never published (a failed lookup only warns of
-  this);
-- rides a version without adding a line to its entry;
-- rides a version that's published, or whose lookup failed: raise it instead.
-
-Reverting a release also needs a higher version.
+Each change under `src/<id>/` adds its line under `## Unreleased` in the Feature's
+changelog: a minor change's line under `### Minor`, a major one's under `### Major`; any
+other line counts as a patch. A change to only the Feature's `README.md`, `NOTES.md` or
+`CHANGELOG.md` goes there too, and ships with the next release without causing one.
 
 ```markdown
 ## Unreleased
 
-- A docs change that ships with the next release.
+- A fix.
+
+### Minor
+
+- A new option.
 
 ## 1.1.0
 
 - What this version changes.
 ```
 
-Under `## Unreleased`, put a minor change's line under `### Minor` and a major one's under
-`### Major`; any other line counts as a patch. A version's entry leaves those subheadings
-out.
+The release PR moves those lines into the new version's entry, leaving the subheadings
+out. Only the PR that adds a Feature writes its version, `1.0.0`, and its `## 1.0.0`.
+Reverting a change is a change too: it adds its own line.
 
-- **A PR that rides a version you then approve** goes stale: its check passed before the
-  version was published. Before merging it, re-run its CI, whose `versions` job then asks
-  for a raise. The bots' PRs are rebuilt on their next run.
+CI's `versions` job fails a change to anything else under `src/<id>/` that adds no line
+under `## Unreleased`. A version change must rise above GHCR's highest version, with its
+entry and nothing left under `## Unreleased`, or return to that version; either way it
+mustn't leave an entry for another version above GHCR's highest. A failed GHCR lookup
+fails a version change.
 
 ## Dependabot PRs under `src/`
 
 Dependabot's updates to a Feature's `npm/package.json` and `npm/package-lock.json` aren't
 merged automatically. `dependabot-bumps.yml` finishes them hourly, and when you run
 `gh workflow run dependabot-bumps.yml`: on each PR whose commits are all Dependabot's, it
-pushes a commit releasing the update as [Versioning](#versioning) sets out, with changelog
-lines listing the packages that moved. Merge the PR once `check` passes, as in
-[Releasing a change](#releasing-a-change).
+pushes a commit listing the packages that moved under `## Unreleased`
+([Versioning](#versioning)). Merge the PR once `check` passes; it ships with the next
+release.
 
 - **When Dependabot rebases the PR,** the commit goes, since its `[dependabot skip]` lets
   Dependabot push over it; the next run adds it again.
-- **Once a finished PR's version is published,** the next run replaces the App's commit
-  with one raising the version above it.
-- **A PR finished while GHCR's lookup failed** raises main's version, which can leave an
-  unpublished version's entry behind; the next run whose lookup works replaces the commit
-  with one that rides. Until then its check rejects that entry, or only warns if its own
-  lookup fails too: don't merge a PR with that warning.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names
-  it, until you finish the PR by hand, releasing it as [Versioning](#versioning) sets
-  out.
+  it, until you finish the PR by hand, adding its line under `## Unreleased`.
 
 ## Pin-bump PRs
 
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
-days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
-[Versioning](#versioning) sets out; the first run after you publish the version it rides
-rebuilds it above that version. A commit or other non-numeric pin, and a requirement a
-lock adds or removes, count as a minor move, and an upstream major is still a minor.
-Merge it as in [Releasing a change](#releasing-a-change); nothing merges it automatically.
-
-- **A run whose GHCR lookup fails** leaves an open PR's branch as it is. A PR it opens
-  raises main's version, which can leave an unpublished version's entry behind; the next
-  run whose lookup works rebuilds it. Until then its check rejects that entry, or only
-  warns if its own lookup fails too: don't merge a PR with that warning.
+days old, it opens one PR on the branch `pin-bumps/<id>`, which lists the bumps under
+`## Unreleased` ([Versioning](#versioning)). A commit or other non-numeric pin, and a
+requirement a lock adds or removes, count as a minor move, and an upstream major is still
+a minor. Merge it once `check` passes; it ships with the next release. Nothing merges it
+automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.
@@ -158,16 +126,14 @@ Merge it as in [Releasing a change](#releasing-a-change); nothing merges it auto
   left to propose. Unlike your close, it excludes nothing.
 - **For an upstream major,** which the PR body names, check whether the Feature itself
   changed as [Versioning](#versioning)'s Major describes. If it did, push a commit that
-  raises the Feature's major version and renames its changelog entry to match.
+  moves the bump's lines under `### Major`.
 - **To change a PR,** push commits to its branch. Once the branch has a commit the
   workflow didn't make, the workflow stops updating it, and lists newer versions on a
   `Not applied:` line in the PR body instead. Once the PR merges, the next run proposes
   them in a new PR.
 - **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
-  `pin-bumps/liza`, with `liza-toolchain` released as [Versioning](#versioning) sets
-  out; the PR has already released `liza`. If a `pin-bumps/liza-toolchain` PR merges
-  first, check `liza-toolchain`'s version and entry on `pin-bumps/liza` against main's
-  again.
+  `pin-bumps/liza`, with a line for `liza-toolchain` under its `## Unreleased`; the PR
+  has already listed `liza`'s.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
@@ -206,7 +172,7 @@ the downloaded file and the older keys. GitHub won't delete an App's only key.
 
 `pin-bumps.yml` also keeps one PR open on the branch `release`, as
 [the pin-bump App](#the-pin-bump-app), titled with each version it releases. Merging it
-releases them, as in [Releasing a change](#releasing-a-change).
+publishes them, as in [Releasing a change](#releasing-a-change).
 
 - **What it holds:** each Feature whose files, apart from `README.md`, `NOTES.md` and
   `CHANGELOG.md`, changed since its published version's
@@ -214,8 +180,8 @@ releases them, as in [Releasing a change](#releasing-a-change).
   level among its `## Unreleased` lines ([Versioning](#versioning)), and those lines
   become that version's entry.
 - **What it leaves out:** a Feature whose version on main isn't the published one, as
-  while its release is under way, and one never published. A docs-only line waits under
-  `## Unreleased` for the Feature's next release.
+  while its release is under way or waits for your approval, and one never published. A
+  docs-only line waits under `## Unreleased` for the Feature's next release.
 - **Each run** rebuilds the PR on main, unless `src/` on main hasn't moved since the PR's
   commit was built. To change a version or an entry, or to leave a Feature out, push a
   commit to `release`; the workflow then leaves the branch alone. Close the PR to have the
