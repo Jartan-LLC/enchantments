@@ -25,7 +25,8 @@ status=0
 while read -r change json; do
   id=${json#src/}
   id=${id%/devcontainer-feature.json}
-  grep -qF -- "$id" <<<"$new" && continue
+  # The whole id: liza mustn't match a line naming only liza-toolchain.
+  grep -qE -- "(^|[^a-z0-9-])$id([^a-z0-9-]|\$)" <<<"$new" && continue
   [ "$change" = A ] && how=added || how=removed
   echo "::error file=$log::src/$id was $how; add a line naming it to $log"
   status=1

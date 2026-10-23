@@ -256,6 +256,13 @@ expect "a Feature removed without a line fails" 1 "src/gh-config was removed" \
   root_log
 
 log_repo
+git rm -rq src/liza
+printf '\n- The liza-toolchain Feature.\n' >>CHANGELOG.md
+commit
+expect "a line naming a longer id doesn't count" 1 "src/liza was removed" \
+  root_log
+
+log_repo
 git mv src/gh-config src/renamed
 printf '\n- The renamed Feature.\n' >>CHANGELOG.md
 commit
