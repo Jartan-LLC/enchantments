@@ -4,9 +4,8 @@
 # or of _global, or only the one named, each as its own invocation on fresh
 # claude-data, container-env, gh-config, liza-rebuild and stripe-config
 # volumes: the CLI removes containers but never volumes, and the volume names
-# are fixed. A
-# scenario named *-rebuild then runs again on the volumes it left, as a
-# rebuilt container would.
+# are fixed. A scenario named *-rebuild then runs again on the volumes it
+# left, as a rebuilt container would.
 set -euo pipefail
 # shellcheck source=feature_ids.sh
 . "$(dirname "$0")/feature_ids.sh"
