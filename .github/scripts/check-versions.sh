@@ -7,6 +7,7 @@
 # change what it installs, so they're exempt. A higher version must be
 # semver-greater, so reverting a release can't pass by restoring an older
 # one, and mustn't leave an entry behind for a base version never published.
+# A failed GHCR lookup fails a ride, and only warns of an entry left behind.
 # GHCR is asked through the devcontainer CLI in node_modules; GITHUB_TOKEN
 # lets it see private packages. Run from the repository root, with <base>
 # fetched.
@@ -19,13 +20,10 @@ base=$1
 scripts=$(dirname "$0")
 # shellcheck source=ghcr_lib.sh
 . "$scripts/ghcr_lib.sh"
+# shellcheck source=pins_lib.sh
+. "$scripts/pins_lib.sh"
 err=$(mktemp)
 trap 'rm -f "$err"' EXIT
-
-# Succeeds when version a is semver-greater than b.
-above() { # a b
-  [ "$1" != "$2" ] && printf '%s\n%s\n' "$2" "$1" | sort -V -C
-}
 
 # Prints the lines of the "## <version>" entry in a changelog on stdin.
 entry() { # version
@@ -56,23 +54,24 @@ for id in $ids; do
   fi
   if base_json=$(git show "$base:$json" 2>/dev/null); then
     base_version=$(jq -r .version <<<"$base_json")
-    # Whether base's version is published, as the bots read it (pins_lib.sh,
-    # unpublished): 0 at or below GHCR's highest, 1 above it, 2 the lookup
-    # failed.
-    published=0
-    latest=$(ghcr_latest "$id" 2>"$err") || published=2
+    # Whether base's version is published, as the bots read it: yes, no, or
+    # unknown when the lookup failed or found no X.Y.Z.
+    latest=$(ghcr_latest "$id" 2>"$err") || latest=''
     cause=$(ghcr_cause "$err")
-    if [ "$published" = 0 ] \
-      && { [ -z "$latest" ] || above "$base_version" "$latest"; }; then
-      published=1
+    if [ -z "$latest" ]; then
+      published=unknown
+    elif unpublished "$base_version" "$latest"; then
+      published=no
+    else
+      published=yes
     fi
     if [ "$head_version" = "$base_version" ]; then
-      if [ "$published" = 0 ]; then
+      if [ "$published" = yes ]; then
         echo "::error file=$json::src/$id changed and $base_version is" \
           "already published, so its version must rise above it"
         failed=1
         continue
-      elif [ "$published" = 2 ]; then
+      elif [ "$published" = unknown ]; then
         echo "::error file=$json::src/$id changed, and GHCR couldn't tell" \
           "whether $base_version is published${cause:+ ($cause)}; raise the" \
           "version above it"
@@ -85,18 +84,18 @@ for id in $ids; do
         failed=1
         continue
       fi
-    elif ! above "$head_version" "$base_version"; then
+    elif ! version_gt "$head_version" "$base_version"; then
       echo "::error file=$json::src/$id changed, so its version must rise" \
         "above $base_version, but it's $head_version"
       failed=1
       continue
     elif grep -qxF "## $base_version" "$log" 2>/dev/null; then
-      if [ "$published" = 1 ]; then
+      if [ "$published" = no ]; then
         echo "::error file=$log::$base_version was never published, so fold" \
           "its '## $base_version' entry into '## $head_version'"
         failed=1
         continue
-      elif [ "$published" = 2 ]; then
+      elif [ "$published" = unknown ]; then
         echo "::warning file=$log::couldn't tell whether $base_version is" \
           "published${cause:+ ($cause)}, so a '## $base_version' entry left" \
           "behind isn't checked"

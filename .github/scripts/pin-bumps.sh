@@ -13,7 +13,8 @@
 #   pins   <id>   ok|fail [reason]
 #   push   <id>   ok|refused [reason]
 # "push ok" means the branch needs no maintainer: pushed, already up to date,
-# left to its hand edits, or its PR closed. Run from the repository root.
+# left to its hand edits or while the published version is unknown, or its
+# PR closed. Run from the repository root.
 set -euo pipefail
 # An error inside $(...) stops the Feature too; build_commit runs in one.
 shopt -s inherit_errexit

@@ -30,6 +30,9 @@ jobs:
 
   dependabot-bumps:
     needs: published
+    # Even when the lookup job failed: with no published versions, the bot
+    # falls back to raising main's version and leaves open PRs alone.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Holds the App's client ID and key, released only to main.

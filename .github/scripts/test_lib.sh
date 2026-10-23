@@ -46,7 +46,8 @@ summary() {
 # Gives a checkout a stub devcontainer CLI, where ghcr_lib.sh looks for it:
 # a Feature's :1 lists each version GHCR_TAGS gives as <id>@<version>. A
 # lookup of an id in GHCR_DOWN fails, and so does one of an id with no
-# version, as GHCR's 403 for a package never published does.
+# version, as GHCR's 403 for a package never published does. One of an id in
+# GHCR_GARBLED prints what isn't JSON.
 with_registry() { # [dir]
   local bin=${1:-.}/node_modules/.bin
   mkdir -p "$bin"
@@ -54,6 +55,9 @@ with_registry() { # [dir]
 #!/bin/bash
 id=${4%:1}
 id=${id##*/}
+for g in ${GHCR_GARBLED:-}; do
+  [ "$g" != "$id" ] || { echo '{"publ' && exit 0; }
+done
 for d in ${GHCR_DOWN:-}; do
   [ "$d" != "$id" ] || { echo "[t] 503 from ghcr.io for $id" >&2 && exit 1; }
 done

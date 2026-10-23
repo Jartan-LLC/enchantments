@@ -113,8 +113,9 @@ lines listing the packages that moved. Merge the PR once `check` passes, as in
   Dependabot push over it; the next run adds it again.
 - **When the version a PR was finished as is published,** the next run replaces its commit
   with one raising the version above it. A PR finished while the lookup failed raises
-  main's version, which the version check rejects; the next run whose lookup works
-  replaces its commit with one that rides.
+  main's version; if that version was unpublished, the version check rejects the entry
+  left behind, and the next run whose lookup works replaces the commit with one that
+  rides.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names
@@ -127,9 +128,9 @@ when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin 
 days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
 [Versioning](#versioning) sets out; the first run after you publish the version it rides
 rebuilds it above that version. A run whose GHCR lookup fails leaves an open PR's branch
-as it is. A commit or other non-numeric pin, and a requirement a
-lock adds or removes, count as a minor move, and an upstream major is still a minor.
-Merge it as in [Releasing a change](#releasing-a-change); nothing merges it automatically.
+as it is. A commit or other non-numeric pin, and a requirement a lock adds or removes,
+count as a minor move, and an upstream major is still a minor. Merge it as in
+[Releasing a change](#releasing-a-change); nothing merges it automatically.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.

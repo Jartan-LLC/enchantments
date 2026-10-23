@@ -12,7 +12,8 @@ trap 'rm -rf "$root"' EXIT
 . "$repo/.github/scripts/test_lib.sh"
 
 # A repo whose base commit copies src/, test/ and the scripts, with the stub
-# registry; the change commit follows. Leaves the shell in it, with $base set.
+# registry listing every Feature as published at its version; the change
+# commit follows. Leaves the shell in it, with $base set.
 new_repo() {
   cd "$(mktemp -d "$root/repo.XXXX")" || exit 1
   git init -q
@@ -21,7 +22,16 @@ new_repo() {
   cp -R "$repo/src" "$repo/test" .
   mkdir -p .github lib && cp -R "$repo/.github/scripts" .github/
   echo x >lib/keep
+  # The cases name gh-config's and grimoire's versions, so they're fixed here,
+  # where a release can't move them.
+  set_version gh-config 1.0.0
+  printf '## 1.0.0\n\n- First release.\n' >src/gh-config/CHANGELOG.md
+  set_version grimoire 1.0.1
+  printf '## 1.0.1\n\n- A fix.\n\n## 1.0.0\n\n- First release.\n' \
+    >src/grimoire/CHANGELOG.md
   with_registry
+  GHCR_TAGS=$(jq -r '"\(.id)@\(.version)"' src/*/devcontainer-feature.json)
+  export GHCR_TAGS
   git add -A && git commit -qm base
   base=$(git rev-parse HEAD)
 }
@@ -36,10 +46,6 @@ prepend_changelog() { # id text
   printf '%b' "$2" | cat - "$log" >"$log.tmp" && mv "$log.tmp" "$log"
 }
 versions() { .github/scripts/check-versions.sh "$base"; }
-# Every Feature is published at its version, unless a case says otherwise.
-GHCR_TAGS=$(jq -r '"\(.id)@\(.version)"' \
-  "$repo"/src/*/devcontainer-feature.json)
-export GHCR_TAGS
 
 # --- check-versions.sh and check-changelog.sh ---
 
@@ -192,6 +198,16 @@ expect "naming the lookup's cause" 1 "(503 from ghcr.io for grimoire)" \
   ride '' grimoire
 expect "riding a Feature never published fails as a failed lookup" 1 \
   "couldn't tell whether 1.0.1 is published (403: access to grimoire" ride ''
+expect "riding a version below the highest published one fails" 1 \
+  "1.0.1 is already published" ride "grimoire@1.0.0 grimoire@1.2.0"
+garbled_ride() { GHCR_GARBLED=grimoire ride grimoire@1.0.0; }
+expect "GHCR output that can't be parsed fails as a failed lookup" 1 \
+  "couldn't tell whether 1.0.1 is published" garbled_ride
+garbled_has() {
+  (. .github/scripts/ghcr_lib.sh \
+    && GHCR_GARBLED=grimoire ghcr_has grimoire 1.0.1)
+}
+expect "and ghcr_has reads it as one" 2 "" garbled_has
 
 new_repo
 echo '# edit' >>src/grimoire/install.sh
@@ -209,7 +225,7 @@ commit
 expect "leaving an unpublished version's entry behind fails" 1 \
   "1.0.1 was never published, so fold its '## 1.0.1' entry into '## 1.1.0'" \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
-expect "leaving a published version's entry passes" 0 "" \
+expect_not "leaving a published version's entry passes" "::" \
   env GHCR_TAGS="grimoire@1.0.0 grimoire@1.0.1" \
   .github/scripts/check-versions.sh "$base"
 expect "a failed lookup only warns about it" 0 \
@@ -234,6 +250,11 @@ expect "warning of it" 0 "::warning::liza: the GHCR lookup failed" published
 expect "with its cause" 0 "raise main's version: 503 from ghcr.io for liza" \
   published
 expect_not "and an unpublished Feature" '"claude-code"' published
+garbled_published() {
+  GHCR_GARBLED=grimoire .github/scripts/published-versions.sh
+}
+expect "GHCR output that can't be parsed warns as a failed lookup" 0 \
+  "::warning::grimoire: the GHCR lookup failed" garbled_published
 only_grimoire() {
   test "$(GHCR_TAGS=grimoire@1.0.1 .github/scripts/published-versions.sh)" \
     = '{"grimoire":"1.0.1"}'
