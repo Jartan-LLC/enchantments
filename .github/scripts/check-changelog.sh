@@ -1,10 +1,14 @@
 #!/bin/bash
+# shellcheck source-path=SCRIPTDIR
 # Checks that a Feature's CHANGELOG.md has a non-empty "## <version>" entry for
 # the version in its devcontainer-feature.json. --bump, which the version check
-# runs, also wants "## Unreleased" empty, so a bump says what it ships;
-# --release, which publishing runs, ignores it, since a docs-only entry may
-# land while a bump awaits approval. Run from the repository root.
+# runs on a release, also wants "## Unreleased" empty, so a release says
+# what it ships; --release, which publishing and a return to the published
+# version run, ignores it, since lines for the next release may already sit
+# there. Run from the repository root.
 set -euo pipefail
+# shellcheck source=pins_lib.sh
+. "$(dirname "$0")/pins_lib.sh"
 usage="usage: check-changelog.sh --bump|--release <id>"
 if [ "$#" -ne 2 ] || { [ "$1" != --bump ] && [ "$1" != --release ]; }; then
   echo "$usage" >&2
@@ -19,26 +23,17 @@ if [ ! -f "$log" ]; then
 fi
 version=$(jq -r .version "src/$id/devcontainer-feature.json")
 
-# Prints the non-blank lines under the heading "## <title>", up to the next
-# "## " heading, and fails when no line is exactly that heading.
-section() { # title
-  awk -v heading="## $1" '
-    $0 == heading { inside = 1; found = 1; next }
-    /^## / { inside = 0 }
-    inside && NF { print }
-    END { exit !found }' "$log"
-}
-
-if ! body=$(section "$version"); then
+if ! body=$(changelog_section "$log" "$version"); then
   echo "::error file=$log::no '## $version' entry for $id's version"
   exit 1
 fi
-if [ -z "$body" ]; then
+# Bare level subheadings don't count, here or under "## Unreleased".
+if [ -z "$(without_levels <<<"$body")" ]; then
   echo "::error file=$log::the '## $version' entry is empty"
   exit 1
 fi
-if [ "$mode" = --bump ] && unreleased=$(section Unreleased) \
-  && [ -n "$unreleased" ]; then
+if [ "$mode" = --bump ] && unreleased=$(changelog_section "$log" Unreleased) \
+  && [ -n "$(without_levels <<<"$unreleased")" ]; then
   echo "::error file=$log::'## Unreleased' still has entries; move them" \
     "under '## $version'"
   exit 1

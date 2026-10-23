@@ -14,22 +14,23 @@
    it to [Choosing Features](choosing.md).
 5. **Run `make readmes`** and commit the generated `src/<id>/README.md`, then `make check`.
 6. **Open the PR.** It needs a green `check`.
-7. **Publish it.** After the merge, CI waits for your approval of the `ghcr` deployment.
-   Before approving:
-   1. Check that the id is on the `Pending:` line of the run's `pending` job log.
-   2. Run `gh auth refresh -s read:packages`, then check that
-      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>` returns 404. Anything
-      else, 403 included, fails the check: reject the deployment. A package linked to this
-      repo proves nothing: GHCR links whatever repo the package's source label names.
+7. **Publish it.** Before merging, run `gh auth refresh -s read:packages`, then check
+   that `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>` returns 404.
+   Anything else, 403 included, fails the check: don't merge. A package linked to this
+   repo proves nothing: GHCR links whatever repo the package's source label names. Then
+   merge: the merge's CI run publishes the Feature. When it waits for your approval of
+   the `ghcr` deployment, check that the id is on the `Pending:` line of its `pending`
+   job log, and run the 404 check again.
 
    After the release, check that
    `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions --jq '[length, .[0].name]'`
    prints `[1,"<digest>"]`, where `<digest>` is the id's `.digest` in the last JSON line of
    the run's publish step. If that entry is `{}` instead, or the count isn't 1, someone else
-   published the id: delete the package and republish. Then run
-   `gh auth refresh -r read:packages`.
+   published the id: delete the package, then republish by re-running all jobs of the
+   merge's CI run, and approve its `publish`. Then run `gh auth refresh -r read:packages`.
 
-   If no run after the merge has the id on its `Pending:` line, treat the name as taken: add
-   the Feature to no project, delete the package and republish.
+   If the merge's run has a `Pending:` line without the id, treat the name as taken: add
+   the Feature to no project, delete the package and republish the same way. With no
+   `Pending:` line, its `pending` job failed: fix that and re-run it.
 8. **Check that the package is public;** if it isn't, make it public in its GitHub settings.
    CI's `visibility` job fails while any package is private.

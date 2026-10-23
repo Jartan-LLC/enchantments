@@ -335,7 +335,7 @@ lookup_hf_model() { # file tool
   }
   # Hugging Face dates a revision only by its commit, which the pusher sets;
   # accepted, since the model is data files and a bump still needs your
-  # merge and ghcr approval.
+  # merge, and the release PR's to ship.
   if [ "$sha" = "$revision" ] || [ "$when" -gt "$CUTOFF" ]; then
     return 0
   fi
@@ -464,7 +464,7 @@ lookup_node() { # file tool
     return 1
   }
   # nodejs.org dates a release only by its files' timestamps; accepted,
-  # since a bump still needs your merge and ghcr approval.
+  # since a bump still needs your merge, and the release PR's to ship.
   {
     cand=$(while read -r at v; do
       when=$(epoch "$at") || exit 1

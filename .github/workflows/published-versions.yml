@@ -1,9 +1,9 @@
 name: Published versions
 
-# Each Feature's highest published version, for the bots' version rule;
-# pin-bumps.yml and dependabot-bumps.yml call it. A job of its own, so the npm
-# packages the lookup runs never share a job with the App's token; the bots
-# read the result as data, and keep only X.Y.Z values.
+# Each Feature's highest published version, for the release PR; pin-bumps.yml
+# calls it. A job of its own, so the npm packages the lookup runs never share
+# a job with the App's token; release-pr.sh reads the result as data, and
+# keeps only X.Y.Z values.
 on:
   workflow_call:
     outputs:

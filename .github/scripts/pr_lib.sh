@@ -1,7 +1,7 @@
 # shellcheck shell=bash
-# The branches and PRs the pin-bumps App keeps, for pin-bumps.sh and
-# release-pr.sh. Needs GITHUB_REPOSITORY, git_authed (app_lib.sh) and a
-# work directory in $work. Sourced.
+# The branches and PRs the pin-bumps App keeps, for pin-bumps.sh,
+# release-pr.sh and dependabot-bumps.sh. Needs GITHUB_REPOSITORY, git_authed
+# (app_lib.sh) and a work directory in $work. Sourced.
 
 # Sends a JSON object built by jq from --arg pairs to a pulls endpoint, and
 # prints the PR's number.

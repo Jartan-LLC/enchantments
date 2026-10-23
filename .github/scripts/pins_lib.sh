@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # Helpers with no network: reading and writing a Feature's pins.sh and
-# checking upstream values before they're written, for pin-bumps.sh; the
-# version rule and its version and changelog edits, for the bots and
-# release-pr.sh (check-versions.sh shares unpublished and version_gt); and
-# the pin-bump PR body's machine-read lines.
+# checking upstream values before they're written, for pin-bumps.sh; levels,
+# versions and changelog edits, for the bots and release-pr.sh (the version
+# and changelog checks share version_gt, changelog_section and
+# without_levels); and the pin-bump PR body's machine-read lines.
 # Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
@@ -213,6 +213,22 @@ set_version() { # devcontainer-feature.json version
   jq --arg v "$2" '.version = $v' "$1" | overwrite "$1"
 }
 
+# Prints the non-blank lines of a changelog's "## <title>" section, up to the
+# next "## " heading; fails when no line is exactly that heading.
+changelog_section() { # file title
+  awk -v heading="## $2" '
+    $0 == heading { inside = 1; found = 1; next }
+    /^## / { inside = 0 }
+    inside && NF { print }
+    END { exit !found }' "$1"
+}
+
+# Prints stdin without its "### Minor" and "### Major" lines, which mark a
+# level rather than say anything.
+without_levels() {
+  grep -vx -e '### Minor' -e '### Major' || true
+}
+
 # Prints the level of the lines under "## Unreleased" (docs/releasing.md,
 # Versioning): patch, unless one sits under "### Minor" or "### Major";
 # nothing when there's no line.
@@ -231,15 +247,13 @@ unreleased_level() { # file
     }' "$1"
 }
 
-# Adds a "## <version>" entry holding the lines in entry_file, then any lines
-# from "## Unreleased" except its "### Minor" and "### Major" subheadings, and
-# removes that section.
-add_changelog_entry() { # file version entry_file
-  awk -v version="$2" -v entry_file="$3" '
+# Moves the lines under "## Unreleased", except its "### Minor" and
+# "### Major" subheadings, into a new "## <version>" entry in its place.
+add_changelog_entry() { # file version
+  awk -v version="$2" '
     function entry() {
       print "## " version
       print ""
-      while ((getline line < entry_file) > 0) print line
       for (i = 1; i <= n; i++) print moved[i]
       print ""
       done = 1
@@ -258,62 +272,42 @@ add_changelog_entry() { # file version entry_file
     END { if (!done) entry() }' "$1" "$1" | overwrite "$1"
 }
 
-# Adds the lines in entry_file, then any from "## Unreleased" except its level
-# subheadings (removing that section), to the end of the "## <old>" entry,
-# and retitles it "## <new>". Fails, changing nothing, when there's no such
-# entry.
-append_changelog_entry() { # file old new entry_file
-  grep -qxF "## $2" "$1" || return 1
-  awk -v old="## $2" -v new="## $3" -v entry_file="$4" '
-    function finish() {
-      if (!content) print ""
-      while ((getline line < entry_file) > 0) print line
-      for (i = 1; i <= n; i++) print moved[i]
-      inside = 0
+# Adds the lines in entry_file under "## Unreleased" (made at the top when
+# there's none), after the lines already there at that level: under
+# "### Minor" or "### Major" for those levels (docs/releasing.md,
+# Versioning). Rewrites the section, one blank line between its parts.
+add_unreleased() { # file patch|minor|major entry_file
+  awk -v level="$2" -v entry_file="$3" '
+    function part(name, heading, i) {
+      if (!count[name]) return
+      if (heading != "") { print heading; print "" }
+      for (i = 1; i <= count[name]; i++) print lines[name, i]
+      print ""
+    }
+    function section(line) {
+      while ((getline line < entry_file) > 0)
+        lines[level, ++count[level]] = line
+      print "## Unreleased"
+      print ""
+      part("patch", "")
+      part("minor", "### Minor")
+      part("major", "### Major")
+      done = 1
     }
     NR == FNR {
-      if ($0 == "## Unreleased") { unreleased = 1; next }
-      if (/^## /) unreleased = 0
-      if (unreleased && NF && $0 != "### Minor" && $0 != "### Major")
-        moved[++n] = $0
+      if ($0 == "## Unreleased") { inside = 1; name = "patch"; next }
+      if (/^## /) inside = 0
+      if (!inside || !NF) next
+      if ($0 == "### Minor") { name = "minor"; next }
+      if ($0 == "### Major") { name = "major"; next }
+      lines[name, ++count[name]] = $0
       next
     }
-    $0 == "## Unreleased" { skip = 1; next }
-    /^## / {
-      skip = 0
-      if (inside) { finish(); print "" }
-      if ($0 == old) { print new; inside = 1; blanks = 0; next }
-    }
+    $0 == "## Unreleased" { skip = 1; if (!done) section(); next }
+    /^## / { skip = 0; if (!done) section() }
     skip { next }
-    inside && !NF { blanks++; next }
-    inside { while (blanks) { print ""; blanks-- }; content = 1 }
     { print }
-    END { if (inside) finish() }' "$1" "$1" | overwrite "$1"
-}
-
-# Succeeds when a version is above the highest published one; fails when
-# that's unknown (empty).
-unpublished() { # version published
-  [ -n "$2" ] && version_gt "$1" "$2"
-}
-
-# The version rule (docs/releasing.md, Versioning): a change rides a
-# Feature's version while that's unpublished and at least the level's raise
-# of the published one; otherwise it takes that raise. With no published
-# version known, as after a failed lookup, it raises the Feature's version,
-# which is never lower than the rule's result.
-target_version() { # version level published
-  local raised
-  if [ -z "$3" ]; then
-    "bump_$2" "$1"
-    return
-  fi
-  raised=$("bump_$2" "$3")
-  if unpublished "$1" "$3" && ! version_gt "$raised" "$1"; then
-    echo "$1"
-  else
-    echo "$raised"
-  fi
+    END { if (!done) section() }' "$1" "$1" | overwrite "$1"
 }
 
 # Prints the Feature's highest published version from PUBLISHED_VERSIONS
@@ -322,31 +316,6 @@ published_of() { # id
   [ -n "${PUBLISHED_VERSIONS:-}" ] || return 0
   jq -r --arg id "$1" '.[$id] // empty
     | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$PUBLISHED_VERSIONS"
-}
-
-# Releases a change, at its level or that of any line under "## Unreleased"
-# (unreleased_level) if higher, in a Feature's directory by the version rule:
-# sets the version, and adds entry_file's lines to the changelog. Lines for a
-# version never published join its entry, retitled when the version rises,
-# so no changelog entry is left for a version that never shipped. Prints the
-# version; fails, saying why, when there's no entry to add them to.
-release_change() { # dir level entry_file published
-  local dir=$1 level=$2 published=$4 version new moved
-  version=$(jq -r .version "$dir/devcontainer-feature.json")
-  moved=$(unreleased_level "$dir/CHANGELOG.md")
-  level=$(larger_level "$level" "${moved:-patch}")
-  new=$(target_version "$version" "$level" "$published")
-  if unpublished "$version" "$published"; then
-    if ! append_changelog_entry "$dir/CHANGELOG.md" "$version" "$new" "$3"; then
-      echo "::error::$dir/CHANGELOG.md has no '## $version' entry for the" \
-        "unpublished $version, so there's nothing to add the change to" >&2
-      return 1
-    fi
-  else
-    add_changelog_entry "$dir/CHANGELOG.md" "$new" "$3" || return 1
-  fi
-  set_version "$dir/devcontainer-feature.json" "$new"
-  echo "$new"
 }
 
 # --- PR body lines ------------------------------------------------------------

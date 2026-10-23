@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Each Feature's highest published version, in a job of its own
-  # (published-versions.yml).
+  # Each Feature's highest published version, for the release PR, in a job of
+  # its own (published-versions.yml).
   published:
     # ./ runs the caller's own commit's copy. Move to $/ once actionlint
     # accepts it.
@@ -31,9 +31,8 @@ jobs:
 
   pin-bumps:
     needs: published
-    # Even when the lookup job failed: with no published versions, the bot
-    # opens new PRs, raising main's version, and leaves open PRs' branches
-    # alone.
+    # Even when the lookup job failed: pin bumps don't need it, and the
+    # release step then changes nothing.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -70,7 +69,6 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
-          PUBLISHED_VERSIONS: ${{ needs.published.outputs.versions }}
         run: .github/scripts/pin-bumps.sh --report "$RUNNER_TEMP/pin-bumps.tsv"
 
       # Even after a failed pin-bumps step, which the release PR doesn't need.

@@ -1,7 +1,7 @@
 name: Dependabot bumps
 
-# Finishes Dependabot's PRs under src/ with the version and changelog lines
-# the version check wants (docs/releasing.md, "Dependabot PRs under src/"). It
+# Finishes Dependabot's PRs under src/ with the changelog lines the version
+# check wants (docs/releasing.md, "Dependabot PRs under src/"). It
 # pushes as the pin-bumps App, since a push with GITHUB_TOKEN starts no CI.
 on:
   schedule:
@@ -19,22 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Each Feature's highest published version, in a job of its own
-  # (published-versions.yml).
-  published:
-    # ./ runs the caller's own commit's copy. Move to $/ once actionlint
-    # accepts it.
-    uses: ./.github/workflows/published-versions.yml # zizmor: ignore[self-repository]
-    permissions:
-      contents: read
-      packages: read
-
   dependabot-bumps:
-    needs: published
-    # Even when the lookup job failed: with no published versions, the bot
-    # still finishes new PRs, raising the Feature's version, and leaves finished
-    # ones alone.
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     # Holds the App's client ID and key, released only to main.
@@ -61,5 +46,4 @@ jobs:
       - env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
-          PUBLISHED_VERSIONS: ${{ needs.published.outputs.versions }}
         run: .github/scripts/dependabot-bumps.sh

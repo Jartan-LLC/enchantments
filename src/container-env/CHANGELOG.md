@@ -1,4 +1,6 @@
-## 1.1.0
+## Unreleased
+
+### Minor
 
 - `direnv`: v2.37.1 → v2.38.2
 
