@@ -1,8 +1,8 @@
 name: Pin bumps
 
 # Proposes newer upstream pins as one PR per Feature (docs/releasing.md,
-# "Pin-bump PRs"). Its PRs come from a GitHub App, since PRs opened with
-# GITHUB_TOKEN start no CI.
+# "Pin-bump PRs"), and keeps the release PR ("Release PRs"). Its PRs come from
+# a GitHub App, since PRs opened with GITHUB_TOKEN start no CI.
 on:
   schedule:
     - cron: "40 4 * * *" # daily, 04:40 UTC (offset from ci.yml and scorecard)
@@ -72,6 +72,15 @@ jobs:
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           PUBLISHED_VERSIONS: ${{ needs.published.outputs.versions }}
         run: .github/scripts/pin-bumps.sh --report "$RUNNER_TEMP/pin-bumps.tsv"
+
+      # Even after a failed pin-bumps step, which the release PR doesn't need.
+      - id: release
+        if: ${{ !cancelled() && steps.app.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          PUBLISHED_VERSIONS: ${{ needs.published.outputs.versions }}
+        run: .github/scripts/release-pr.sh --report "$RUNNER_TEMP/pin-bumps.tsv"
 
       # Even after a failed run: the report holds what it got through.
       - if: always() && steps.bump.outcome != 'skipped'

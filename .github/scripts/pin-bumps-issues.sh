@@ -1,9 +1,10 @@
 #!/bin/bash
-# Keeps pin-bumps.yml's tracking issues in step with a pin-bumps.sh report,
-# whose rows pin-bumps.sh's header gives: one issue per tool whose lookup
-# failed, and one per Feature whose # pin headers are invalid or whose
-# branch couldn't be pushed. Each is updated rather than duplicated, and
-# closed by the first run that reports that tool or Feature clean. Needs
+# Keeps pin-bumps.yml's tracking issues in step with its report, whose rows
+# the headers of pin-bumps.sh and release-pr.sh give: one issue per tool
+# whose lookup failed, one per Feature whose # pin headers are invalid, whose
+# branch couldn't be pushed, or whose release failed, and one when the
+# release branch couldn't be pushed. Each is updated rather than duplicated,
+# and closed by the first run that reports it clean. Needs
 # GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN with issues write.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}
@@ -17,11 +18,13 @@ gh label create "$label" --repo "$GITHUB_REPOSITORY" --force \
 open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
   --label "$label" --limit 200 --json number,title)
 
-title() { # lookup|pins|push tool|id
+title() { # lookup|pins|push|release|release-push tool|id|branch
   case $1 in
     lookup) echo "pin-bumps: $2 lookup failing" ;;
     pins) echo "pin-bumps: $2 pin headers invalid" ;;
     push) echo "pin-bumps: $2 push refused" ;;
+    release) echo "pin-bumps: $2 release blocked" ;;
+    release-push) echo "pin-bumps: $2 push refused" ;;
   esac
 }
 
@@ -37,6 +40,30 @@ quoted() { # text
   echo '```text'
   tr -d '\000-\037`' <<<"$1" | cut -c1-300
   echo '```'
+}
+
+# Prints a refused push's issue body: the reason, and how to rebase the
+# branch by hand.
+refused() { # branch reason
+  echo "\`pin-bumps.yml\` couldn't push \`$1\`:"
+  echo
+  quoted "$2"
+  echo
+  echo "This usually means main has changes under" \
+    "\`.github/workflows/\`, which the workflow's GitHub App has no" \
+    "permission to push. Rebase the branch by hand:"
+  echo
+  echo '```bash'
+  echo "git fetch origin"
+  echo "git switch $1"
+  echo "git rebase origin/main"
+  echo "git push --force-with-lease"
+  echo '```'
+  echo
+  echo "The next run that pushes the branch, or finds nothing to push," \
+    "closes this issue."
+  echo
+  echo "Last refusal: $RUN_URL"
 }
 
 # Opens the issue with the body file's text, or replaces an open one's body.
@@ -89,30 +116,29 @@ while IFS=$'\t' read -r what name state reason; do
       raise "$(title pins "$name")" "$body"
       ;;
     push/refused)
+      refused "pin-bumps/$name" "$reason" >"$body"
+      raise "$(title push "$name")" "$body"
+      ;;
+    release/fail)
       {
-        echo "\`pin-bumps.yml\` couldn't push \`pin-bumps/$name\`:"
+        echo "\`pin-bumps.yml\` couldn't add \`$name\` to the release PR:"
         echo
         quoted "$reason"
         echo
-        echo "This usually means main has changes under" \
-          "\`.github/workflows/\`, which the workflow's GitHub App has no" \
-          "permission to push. Rebase the branch by hand:"
+        echo "Until the cause above is fixed, the release PR leaves the" \
+          "Feature out. The next run that doesn't fail on it closes this issue."
         echo
-        echo '```bash'
-        echo "git fetch origin"
-        echo "git switch pin-bumps/$name"
-        echo "git rebase origin/main"
-        echo "git push --force-with-lease"
-        echo '```'
-        echo
-        echo "The next run that pushes the branch, or finds nothing to push," \
-          "closes this issue."
-        echo
-        echo "Last refusal: $RUN_URL"
+        echo "Last failure: $RUN_URL"
       } >"$body"
-      raise "$(title push "$name")" "$body"
+      raise "$(title release "$name")" "$body"
       ;;
-    lookup/ok | pins/ok | push/ok) settle "$(title "$what" "$name")" ;;
+    release-push/refused)
+      refused "$name" "$reason" >"$body"
+      raise "$(title release-push "$name")" "$body"
+      ;;
+    lookup/ok | pins/ok | push/ok | release/ok | release-push/ok)
+      settle "$(title "$what" "$name")"
+      ;;
     *) echo "unknown report row: $what/$state" >&2 && exit 1 ;;
   esac
 done <"$report"

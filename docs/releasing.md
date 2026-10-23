@@ -6,7 +6,8 @@
    raise the Feature's `version` in its `devcontainer-feature.json` and add a
    `## <version>` entry to its `CHANGELOG.md`, or, when the change can ride main's
    unpublished version, add its line to that version's entry. Either way, move any lines
-   from `## Unreleased` into the entry.
+   from `## Unreleased` into the entry, leaving out its `### Minor` and `### Major`
+   subheadings.
 2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
    the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
    `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
@@ -25,8 +26,8 @@
 
 A run on main publishes only when it ran every Feature's tests. A merge that changes only
 docs doesn't, so its pending version waits for the daily run, or for one you start with
-`gh workflow run ci.yml`. Those runs also build this repo's dev container, and publish only
-if their `Dev container` job passes.
+`gh workflow run ci.yml`. Those runs also build this repo's dev container, and publish
+only if their `Dev container` job passes.
 
 ## Release tags
 
@@ -78,10 +79,10 @@ major one turns `## 1.4.0` into `## 2.0.0`. Once 1.4.0 is published, the next ch
 raises it. A Feature never published has nothing to ride: GHCR's lookup of it fails, as
 in an outage.
 
-A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
-list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
-`versions` job asks GHCR what's published, and fails a change to anything else under
-`src/<id>/` that:
+A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new
+version: list it under `## Unreleased` in the changelog, and it ships with the next
+release. CI's `versions` job asks GHCR what's published, and fails a change to anything
+else under `src/<id>/` that:
 
 - raises the version without its entry, or not above GHCR's highest version;
 - leaves an entry behind for a version never published (a failed lookup only warns of
@@ -100,6 +101,10 @@ Reverting a release also needs a higher version.
 
 - What this version changes.
 ```
+
+Under `## Unreleased`, put a minor change's line under `### Minor` and a major one's under
+`### Major`; any other line counts as a patch. A version's entry leaves those subheadings
+out.
 
 - **A PR that rides a version you then approve** goes stale: its check passed before the
   version was published. Before merging it, re-run its CI, whose `versions` job then asks
@@ -160,8 +165,9 @@ Merge it as in [Releasing a change](#releasing-a-change); nothing merges it auto
   them in a new PR.
 - **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
   `pin-bumps/liza`, with `liza-toolchain` released as [Versioning](#versioning) sets
-  out; the PR has already released `liza`. If a `pin-bumps/liza-toolchain` PR merges first, check
-  `liza-toolchain`'s version and entry on `pin-bumps/liza` against main's again.
+  out; the PR has already released `liza`. If a `pin-bumps/liza-toolchain` PR merges
+  first, check `liza-toolchain`'s version and entry on `pin-bumps/liza` against main's
+  again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
@@ -196,6 +202,33 @@ replace it:
 To rotate the key, generate a new one, store it in `PIN_BUMPS_PRIVATE_KEY`, then delete
 the downloaded file and the older keys. GitHub won't delete an App's only key.
 
+## Release PRs
+
+`pin-bumps.yml` also keeps one PR open on the branch `release`, as
+[the pin-bump App](#the-pin-bump-app), titled with each version it releases. Merging it
+releases them, as in [Releasing a change](#releasing-a-change).
+
+- **What it holds:** each Feature whose files, apart from `README.md`, `NOTES.md` and
+  `CHANGELOG.md`, changed since its published version's
+  [release tag](#release-tags). Its version is the published one raised by the largest
+  level among its `## Unreleased` lines ([Versioning](#versioning)), and those lines
+  become that version's entry.
+- **What it leaves out:** a Feature whose version on main isn't the published one, as
+  while its release is under way, and one never published. A docs-only line waits under
+  `## Unreleased` for the Feature's next release.
+- **Each run** rebuilds the PR on main, unless `src/` on main hasn't moved since the PR's
+  commit was built. To change a version or an entry, or to leave a Feature out, push a
+  commit to `release`; the workflow then leaves the branch alone. Close the PR to have the
+  next run rebuild it. With nothing left to release, the workflow closes the PR, unless a
+  Feature failed that run.
+- **A `pin-bumps: <id> release blocked` issue** means the PR leaves that Feature out:
+  its GHCR lookup failed, its release tag is missing, or its files changed with no
+  `## Unreleased` line. Fix the cause the issue quotes; the next run that doesn't fail on
+  the Feature closes the issue.
+- **A `pin-bumps: release push refused` issue** is the `release` branch's
+  `push refused` issue ([Pin-bump PRs](#pin-bump-prs)): rebase it by hand, as the issue
+  says.
+
 ## Updating pins
 
 Each Feature's pins live in `src/<id>/pins.sh`, one `# pin <kind> <tool>` header per pin.
@@ -221,11 +254,11 @@ sets out, and `liza` too unless a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;
-- diff upstream `contracts/AGENT_TOOLS.md` between the old and new tags, and carry the changes
-  into `src/liza-toolchain/AGENT_TOOLS.md` and `src/liza/AGENT_TOOLS.minimal.md`. Keep the
-  minimal file's graph rows as `rg`, and every rtk mention inside the `#### RTK` section
-  (which ends at the next heading or `---`), except `rtk jq`: where rtk can't run,
-  activation drops that section and rewrites `rtk jq` as `jq`;
+- diff upstream `contracts/AGENT_TOOLS.md` between the old and new tags, and carry the
+  changes into `src/liza-toolchain/AGENT_TOOLS.md` and `src/liza/AGENT_TOOLS.minimal.md`.
+  Keep the minimal file's graph rows as `rg`, and every rtk mention inside the
+  `#### RTK` section (which ends at the next heading or `---`), except `rtk jq`: where
+  rtk can't run, activation drops that section and rewrites `rtk jq` as `jq`;
 - check `src/liza-toolchain/configure.args` against `liza toolchain configure --help`.
 
 Liza's own `liza toolchain install` isn't used: it fetches unpinned installers.
