@@ -68,7 +68,7 @@ tag_one() { # commit id
   return 1
 }
 
-# Warns about each Feature's working-tree version that's on GHCR with no tag.
+# Warns about each version on GHCR with no tag.
 # A failed lookup warns of nothing: check-pending.sh lists that id instead.
 untagged() {
   local existing id versions version tag
