@@ -1,17 +1,50 @@
 #!/bin/bash
-# Copies each pending Feature's src/<id> from its release commit
-# (check-pending.sh's "<id>@<commit>" output) into <dir>/src, which publishing
-# then reads, so each version ships as that commit had it. Run from the
-# repository root.
+# shellcheck source-path=SCRIPTDIR
+# Builds the directory publishing reads: each pending id's src/<id> from the
+# working tree, which the run tested, and every other published Feature from
+# its highest published version's tag (docs/releasing.md, Release tags).
+# Publishing skips a version that exists, but lists every Feature it's given
+# in devcontainer-collection.json, so leaving one out would drop it from
+# there. A Feature never published and not pending is left out. Fails, rather
+# than stage an incomplete collection, when a published Feature's lookup
+# fails or its tag is missing. Needs GITHUB_TOKEN to see private packages.
+# Run from the repository root, with the tags fetched.
 set -euo pipefail
-usage="usage: stage-release.sh <dir> <id>@<commit>..."
+scripts=$(dirname "$0")
+# shellcheck source=feature_ids.sh
+. "$scripts/feature_ids.sh"
+# shellcheck source=ghcr_lib.sh
+. "$scripts/ghcr_lib.sh"
+usage="usage: stage-release.sh <dir> <id>..."
 [ "$#" -ge 2 ] || { echo "$usage" >&2 && exit 2; }
 dir=$1
 shift
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
 mkdir -p "$dir/src"
-for release in "$@"; do
-  id=${release%@*}
-  commit=${release#*@}
-  [ "$id" != "$release" ] || { echo "$usage" >&2 && exit 2; }
-  git archive "$commit" "src/$id" | tar -x -C "$dir"
+ids=$(feature_ids)
+for id in "$@"; do
+  if ! grep -qxF "$id" <<<"$ids"; then
+    echo "::error::no Feature $id" >&2
+    exit 1
+  fi
+done
+for id in $ids; do
+  if printf '%s\n' "$@" | grep -qxF "$id"; then
+    cp -R "src/$id" "$dir/src/"
+    continue
+  fi
+  if ! latest=$(ghcr_latest "$id" 2>"$err"); then
+    # GHCR answers a Feature never published as it does an outage.
+    [ -n "$(git tag -l "feature_${id}_*")" ] || continue
+    echo "::error::$id: the GHCR lookup failed: $(ghcr_cause "$err")" >&2
+    exit 1
+  fi
+  [ -n "$latest" ] || continue
+  tag=feature_${id}_$latest
+  if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    echo "::error::$id: no tag $tag to stage its published $latest from" >&2
+    exit 1
+  fi
+  git archive "$tag" "src/$id" | tar -x -C "$dir"
 done

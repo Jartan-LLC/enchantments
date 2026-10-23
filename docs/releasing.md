@@ -6,26 +6,31 @@
    in the Feature's `CHANGELOG.md`, at its level ([Versioning](#versioning)), and leave
    its `version` alone. Merge the PR; the change waits there for the next release.
 2. To release, merge the [release PR](#release-prs). CI's run on main then publishes each
-   version not yet on GHCR, which its `pending` job lists on its `Pending:` line as
-   `<id>@<commit>`: the commit that set that version, whose copy of the Feature ships.
+   version that merge changed, which its `pending` job lists on its `Pending:` line.
 3. While the `ghcr` environment has a required reviewer, the run waits in its `publish`
    job for your approval of the deployment. Before approving, check that the `Pending:`
    line lists the Features your release PR or a new Feature's PR released, and only
    those; for a new Feature, also do [Adding a Feature](adding-a-feature.md) step 7.
-4. CI's `tag` job then tags each version it published at its commit
-   ([Release tags](#release-tags)), and starts `pin-bumps.yml`, which rebuilds the
-   release PR. CI's `visibility` job checks every Feature's `:1` can be pulled without
-   credentials.
+4. CI's `tag` job then tags each version it published ([Release tags](#release-tags)),
+   and starts `pin-bumps.yml`, which rebuilds the release PR. CI's `visibility` job
+   checks every Feature's `:1` can be pulled without credentials.
 
-A run on main publishes only when it ran every Feature's tests, which a change under
-`src/` always does. Code merged after a release never ships under its version: each
-version ships from the commit that set it. A publish that didn't happen, such as one
-that failed or that you rejected, waits for the next run on main, the daily one included.
+A run on main publishes only the versions its own push changed, from the commit it
+tested, and only when its `check` and every Feature's tests passed, which a change under
+`src/` always runs. Code merged after a release never ships under its version.
+
+- **A publish that didn't happen,** because it failed, you rejected it, or a newer run's
+  replaced it while it waited, leaves its version on main and off GHCR, and the daily run
+  fails, naming it. Re-run that release's CI run, or withdraw the release.
+- **To withdraw a release** before it's published, open a PR that returns the Feature's
+  `version` to the published one and moves the release's entry back under
+  `## Unreleased`. A `publish` still waiting for its approval would publish it: reject
+  that first.
 
 ## Release tags
 
-Each published version has the git tag `feature_<id>_<version>` on the commit it shipped
-from, the one that set that version, in the naming `devcontainers/action` uses. CI's `tag` job makes it after `publish`, so
+Each published version has the git tag `feature_<id>_<version>` on the commit its release
+built, the naming `devcontainers/action` uses. CI's `tag` job makes it after `publish`, so
 `git diff feature_<id>_<a> feature_<id>_<b> -- src/<id>` shows what changed between two
 published versions. A tag never moves or goes: the `feature-tags` ruleset blocks deleting
 and updating `feature_*` tags, with no bypass.
@@ -33,7 +38,7 @@ and updating `feature_*` tags, with no bypass.
 - **The `tag` job fails with `likely cause: main's workflows changed`,** since neither the
   workflow's token nor yours without the `workflow` scope can tag, through the API, a
   commit whose `.github/workflows` differ from main's tip. Tag it by hand over SSH, at the
-  commit after the id's `@` on the run's `Pending:` line:
+  commit the run built (its `GITHUB_SHA`, which the run's summary shows):
 
   ```bash
   git tag feature_<id>_<version> <commit>
@@ -41,8 +46,8 @@ and updating `feature_*` tags, with no bypass.
   ```
 
 - **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one.
-  Tag it by hand as above, at the commit after the id's `@` on the `Pending:` line of the
-  run whose `publish` published it.
+  Tag it by hand as above, at the commit of the run that published it: the one whose
+  `Pending:` line lists the id and whose `publish` succeeded.
 - **To recreate the ruleset,** for instance after it was changed in an incident:
 
   ```bash

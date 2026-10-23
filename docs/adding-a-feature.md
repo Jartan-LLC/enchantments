@@ -29,7 +29,8 @@
    published the id: delete the package and republish. Then run
    `gh auth refresh -r read:packages`.
 
-   If the merge's run doesn't have the id on its `Pending:` line, treat the name as taken:
-   add the Feature to no project, delete the package and republish.
+   If the merge's run has a `Pending:` line without the id, treat the name as taken: add
+   the Feature to no project, delete the package and republish. With no `Pending:` line,
+   its `pending` job failed: fix that and re-run it.
 8. **Check that the package is public;** if it isn't, make it public in its GitHub settings.
    CI's `visibility` job fails while any package is private.

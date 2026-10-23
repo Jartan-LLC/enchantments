@@ -122,6 +122,14 @@ commit
 expect_not "a release with its entry passes" "::" versions
 
 new_repo
+set_version gh-config 1.0.1
+prepend_changelog gh-config '## 1.0.1\n\n- Fix.\n\n'
+prepend_changelog gh-config '## Unreleased\n\n### Minor\n\n'
+commit
+expect "a bare level subheading left under Unreleased passes a release" 0 "" \
+  versions
+
+new_repo
 for f in README.md NOTES.md CHANGELOG.md; do
   echo x >>"src/gh-config/$f"
 done
@@ -495,12 +503,11 @@ export STUB_LOG=$PWD/stub.log
 
 # shellcheck source=feature_ids.sh
 . .github/scripts/feature_ids.sh
-want=$(feature_ids | grep -vx gh-config | sed "s/\$/@$base/" | paste -sd' ' -)
+want=$(feature_ids | grep -vx gh-config | paste -sd' ' -)
 out=$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh 2>/dev/null)
-if [ "$out" = "$want" ] && grep -qw "claude-code@$base" <<<"$out" \
-  && grep -qw "liza@$base" <<<"$out"; then
-  pass "check-pending lists every id not published at its version, at the" \
-    "commit that set it"
+if [ "$out" = "$want" ] && grep -qw claude-code <<<"$out" \
+  && grep -qw liza <<<"$out"; then
+  pass "check-pending lists every id not published at its version"
 else
   fail "check-pending list" "got '$out', want '$want'"
 fi
@@ -532,25 +539,43 @@ else
 fi
 mv check-changelog.keep .github/scripts/check-changelog.sh
 
-# claude-code's new version, then a commit that changes it otherwise: the
-# release commit is the first.
+# Since the base commit, only claude-code's version changes.
 set_version claude-code 1.0.2
 prepend_changelog claude-code '## 1.0.2\n\n- Fix.\n\n'
-commit
-released=$(git rev-parse HEAD)
 echo '# later' >>src/claude-code/install.sh
-jq '.description += "."' src/claude-code/devcontainer-feature.json \
-  >json.tmp && mv json.tmp src/claude-code/devcontainer-feature.json
+echo '# unreleased' >>src/gh-config/install.sh
 commit
-expect "check-pending gives a version's release commit, not a later one" 0 \
-  "claude-code@$released" \
-  env GITHUB_TOKEN=secret .github/scripts/check-pending.sh
-expect "stage-release copies each Feature from its release commit" 0 "" \
-  bash -c ".github/scripts/stage-release.sh stage claude-code@$released \
-    && ! grep -q '# later' stage/src/claude-code/install.sh \
-    && test ! -e stage/src/gh-config"
-expect "stage-release wants <id>@<commit>" 2 "usage" \
-  .github/scripts/stage-release.sh stage claude-code
+expect "with a commit, check-pending lists only versions changed since" 0 "" \
+  test "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh "$base" \
+    2>/dev/null)" = claude-code
+expect "and nothing with no version changed since" 0 "" \
+  test -z "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh HEAD \
+    2>/dev/null)"
+
+# gh-config and claude-code are published, at their tagged base versions.
+git tag feature_gh-config_1.0.0 "$base"
+git tag feature_claude-code_0.9.0 "$base"
+stage() { GITHUB_TOKEN=secret .github/scripts/stage-release.sh stage "$@"; }
+stage claude-code >/dev/null 2>&1
+expect "stage-release copies a pending Feature from the working tree" 0 \
+  "# later" cat stage/src/claude-code/install.sh
+expect "and every other published one from its tag" 0 "" \
+  test -f stage/src/gh-config/install.sh
+expect_not "without its unreleased changes" "# unreleased" \
+  cat stage/src/gh-config/install.sh
+expect "leaving out one never published" 1 "" test -e stage/src/grimoire
+rm -rf stage
+git tag -d feature_gh-config_1.0.0 >/dev/null
+expect "a published Feature with no tag fails" 1 \
+  "no tag feature_gh-config_1.0.0" stage claude-code
+git tag feature_gh-config_1.0.0 "$base"
+git tag feature_liza_0.1.0 "$base"
+expect "and so does a failed lookup of one published" 1 \
+  "::error::liza: the GHCR lookup failed" stage claude-code
+git tag -d feature_liza_0.1.0 >/dev/null
+expect "stage-release takes only Features" 1 "no Feature nope" stage nope
+expect "stage-release wants an id" 2 "usage" \
+  .github/scripts/stage-release.sh stage
 rm -rf stage
 
 : >"$STUB_LOG"

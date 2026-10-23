@@ -31,8 +31,10 @@ if [ -z "$body" ]; then
   echo "::error file=$log::the '## $version' entry is empty"
   exit 1
 fi
+# Bare level subheadings left there don't count.
 if [ "$mode" = --bump ] && unreleased=$(changelog_section "$log" Unreleased) \
-  && [ -n "$unreleased" ]; then
+  && [ -n "$unreleased" ] \
+  && grep -qvx -e '### Minor' -e '### Major' <<<"$unreleased"; then
   echo "::error file=$log::'## Unreleased' still has entries; move them" \
     "under '## $version'"
   exit 1

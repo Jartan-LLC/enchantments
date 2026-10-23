@@ -24,7 +24,8 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
 - Each Feature's `README.md` is generated from its `devcontainer-feature.json` and `NOTES.md`:
   edit those, never `README.md`, then run `make readmes` and commit the result.
 - A change under `src/<id>/` adds a line under `## Unreleased` in its `CHANGELOG.md`
-  and leaves the version alone: follow the version rule in `GUARDRAILS.md`.
+  and leaves the version alone; a change to only its `README.md`, `NOTES.md` or
+  `CHANGELOG.md` needs none. Follow the version rule in `GUARDRAILS.md`.
 - Guides: [Adding a Feature](docs/adding-a-feature.md) ·
   [Releasing](docs/releasing.md) · [A bad release](docs/bad-release.md).
 

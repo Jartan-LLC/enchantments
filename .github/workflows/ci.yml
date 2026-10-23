@@ -116,7 +116,8 @@ jobs:
         run: .github/scripts/test-features.sh "$ID" "$SCENARIO"
 
   # A Feature's change adds an Unreleased line; a version change, which the
-  # release PR makes, must suit GHCR's highest version (GUARDRAILS.md).
+  # release PR makes, must suit GHCR's highest version (docs/releasing.md,
+  # Versioning).
   # Without a base there's nothing to compare.
   versions:
     needs: features
@@ -293,9 +294,10 @@ jobs:
             fi
           done
 
-  # The registry decides what's released, each version from the commit that
-  # set it (check-pending.sh): any run on main publishes a version a missed
-  # publish left behind, and none ships code merged after a release.
+  # What a push to main releases: each version it changed that isn't on GHCR
+  # yet, from the commit its run tested (check-pending.sh). Other runs release
+  # nothing, and fail while a version on main isn't on GHCR, so a missed
+  # publish shows.
   pending:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -304,24 +306,36 @@ jobs:
       contents: read
       packages: read
     outputs:
-      releases: ${{ steps.list.outputs.releases }}
+      ids: ${{ steps.list.outputs.ids }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - id: list
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git fetch -q --depth=1 origin "$BEFORE"
+          ids=$(.github/scripts/check-pending.sh "$BEFORE")
+          echo "Pending: ${ids:-none}"
+          echo "ids=$ids" >>"$GITHUB_OUTPUT"
+      - if: github.event_name != 'push'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          releases=$(.github/scripts/check-pending.sh)
-          echo "Pending: ${releases:-none}"
-          echo "releases=$releases" >>"$GITHUB_OUTPUT"
+          missing=$(.github/scripts/check-pending.sh)
+          if [ -n "$missing" ]; then
+            echo "::error::not on GHCR: $missing; approve or re-run the CI run" \
+              "of its release, or withdraw it (docs/releasing.md)"
+            exit 1
+          fi
       # A published version with no tag, which a failed tag job leaves. Even
       # after a failed list.
       - if: ${{ !cancelled() }}
@@ -334,11 +348,11 @@ jobs:
   # not been skipped. always() stops a skipped upstream job from skipping this.
   # The ghcr environment holds it to main, and to your approval while the
   # environment has a required reviewer. A running publish finishes before the
-  # next starts; a newer run's may replace one still pending, which costs
-  # nothing, since each run publishes every version still missing.
+  # next starts, but a newer run's may replace one still pending: the
+  # scheduled run then reports its versions as missing.
   publish:
     needs: [check, pending, test]
-    if: always() && !cancelled() && needs.check.result == 'success' && needs.pending.result == 'success' && needs.test.result == 'success' && github.event_name != 'pull_request' && needs.pending.outputs.releases != ''
+    if: always() && !cancelled() && needs.check.result == 'success' && needs.pending.result == 'success' && needs.test.result == 'success' && github.event_name != 'pull_request' && needs.pending.outputs.ids != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: ghcr
@@ -359,10 +373,11 @@ jobs:
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - env:
-          RELEASES: ${{ needs.pending.outputs.releases }}
+          GITHUB_TOKEN: ${{ github.token }}
+          IDS: ${{ needs.pending.outputs.ids }}
         run: |
-          read -ra releases <<<"$RELEASES"
-          .github/scripts/stage-release.sh "$RUNNER_TEMP/release" "${releases[@]}"
+          read -ra ids <<<"$IDS"
+          .github/scripts/stage-release.sh "$RUNNER_TEMP/release" "${ids[@]}"
       # Prints each id's published tags and digest as JSON, which the
       # first-release squat check reads (docs/adding-a-feature.md).
       - env:
@@ -385,25 +400,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*
           package-manager-cache: false
       - run: npm ci --ignore-scripts
-      # Each version at its release commit.
       - env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASES: ${{ needs.pending.outputs.releases }}
+          IDS: ${{ needs.pending.outputs.ids }}
         run: |
-          read -ra releases <<<"$RELEASES"
-          status=0
-          for release in "${releases[@]}"; do
-            .github/scripts/tag-release.sh "${release#*@}" "${release%@*}" \
-              || status=1
-          done
-          exit "$status"
+          read -ra ids <<<"$IDS"
+          .github/scripts/tag-release.sh "$GITHUB_SHA" "${ids[@]}"
       # The release PR leaves out a Feature until its version is published:
       # rebuild it now rather than at pin-bumps' next run. GITHUB_TOKEN's
       # workflow_dispatch, unlike its other events, starts a run.
