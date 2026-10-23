@@ -1,14 +1,15 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
 # Finishes Dependabot's PRs under src/ (docs/releasing.md, "Dependabot PRs
-# under src/"): on each open one whose commits are all Dependabot's, pushes a
-# commit, as the pin-bumps App, that releases the change by the version rule
-# (pins_lib.sh, release_change). Releases only changes to a Feature's
-# npm/package.json and npm/package-lock.json; a PR changing anything else
-# under src/ is reported and left alone. Needs GH_TOKEN (the App's),
-# APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS (published-versions.sh;
-# with none, it raises the Feature's version), and exits 1 when any PR failed,
-# after every PR had its turn. Run from the repository root.
+# under src/"): on each open one whose commits are all Dependabot's, or that
+# it finished before, pushes a commit, as the pin-bumps App, that releases the
+# change by the version rule (pins_lib.sh, release_change). Releases only
+# changes to a Feature's npm/package.json and npm/package-lock.json; a PR
+# changing anything else under src/ is reported and left alone. Needs
+# GH_TOKEN (the App's), APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS
+# (published-versions.sh; with none, it raises the Feature's version and
+# leaves finished PRs alone), and exits 1 when any PR failed, after every PR
+# had its turn. Run from the repository root.
 set -euo pipefail
 # An error inside $(...) stops the PR too.
 shopt -s inherit_errexit

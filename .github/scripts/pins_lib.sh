@@ -1,8 +1,9 @@
 # shellcheck shell=bash
 # Helpers with no network: reading and writing a Feature's pins.sh and
 # checking upstream values before they're written, for pin-bumps.sh; the
-# version rule and its version and changelog edits, which both bots and
-# check-versions.sh use; and the pin-bump PR body's machine-read lines.
+# version rule and its version and changelog edits, for both bots, whose
+# unpublished and version_gt check-versions.sh shares; and the pin-bump PR
+# body's machine-read lines.
 # Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
@@ -262,8 +263,8 @@ append_changelog_entry() { # file old new entry_file
     END { if (inside) finish() }' "$1" "$1" | overwrite "$1"
 }
 
-# Succeeds when a version is unpublished: above the highest published one,
-# when that's known.
+# Succeeds when a version is above the highest published one; fails when
+# that's unknown (empty).
 unpublished() { # version published
   [ -n "$2" ] && version_gt "$1" "$2"
 }
@@ -272,7 +273,7 @@ unpublished() { # version published
 # Feature's version while that's unpublished and at least the level's raise
 # of the published one; otherwise it takes that raise. With no published
 # version known, as after a failed lookup, it raises the Feature's version,
-# which is never lower.
+# which is never lower than the rule's result.
 target_version() { # version level published
   local raised
   if [ -z "$3" ]; then
@@ -295,7 +296,7 @@ published_of() { # id
     | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$PUBLISHED_VERSIONS"
 }
 
-# Releases a change of level in a Feature's directory by the version rule:
+# Releases a change, at its level, in a Feature's directory by the version rule:
 # sets the version, and adds entry_file's lines to the changelog. Lines for a
 # version never published join its entry, retitled when the version rises,
 # so no changelog entry is left for a version that never shipped. Prints the

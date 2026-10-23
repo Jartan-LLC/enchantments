@@ -1,6 +1,6 @@
 name: Published versions
 
-# Each Feature's highest published version, for the bots' version rule, as
+# Each Feature's highest published version, for the bots' version rule;
 # pin-bumps.yml and dependabot-bumps.yml call it. A job of its own, so the npm
 # packages the lookup runs never share a job with the App's token; the bots
 # read the result as data, and keep only X.Y.Z values.

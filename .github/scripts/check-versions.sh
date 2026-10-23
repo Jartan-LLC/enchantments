@@ -2,14 +2,13 @@
 # shellcheck source-path=SCRIPTDIR
 # Fails when a Feature changed since <base> without a version release
 # (docs/releasing.md, Versioning): a higher version with its changelog entry,
-# or, while base's version isn't published, that version with the change
-# added to its entry. A Feature's README.md, NOTES.md and CHANGELOG.md don't
+# or, while base's version is above GHCR's highest, that version with a line
+# its entry lacked. A Feature's README.md, NOTES.md and CHANGELOG.md don't
 # change what it installs, so they're exempt. A higher version must be
-# semver-greater, so reverting a release can't pass by restoring an older
-# one, and above GHCR's highest version, and mustn't leave an entry behind for
-# a base version never published. A ride's entry must gain a line base's
-# lacks. A failed GHCR lookup fails a ride, and only warns of an entry left
-# behind.
+# semver-greater than base's, so reverting a release can't pass by restoring
+# an older one; it must also be above GHCR's highest, and mustn't leave an
+# entry behind for a base version never published. A failed GHCR lookup fails
+# a ride, and only warns of an entry left behind.
 # GHCR is asked through the devcontainer CLI in node_modules; GITHUB_TOKEN
 # lets it see private packages. Run from the repository root, with <base>
 # fetched.

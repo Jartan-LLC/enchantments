@@ -22,7 +22,8 @@ jobs:
   # Each Feature's highest published version, in a job of its own
   # (published-versions.yml).
   published:
-    # ./ runs the caller's own commit's copy. actionlint doesn't accept $/ yet.
+    # ./ runs the caller's own commit's copy. Move to $/ once actionlint
+    # accepts it.
     uses: ./.github/workflows/published-versions.yml # zizmor: ignore[self-repository]
     permissions:
       contents: read
@@ -31,7 +32,8 @@ jobs:
   pin-bumps:
     needs: published
     # Even when the lookup job failed: with no published versions, the bot
-    # falls back to raising main's version and leaves open PRs alone.
+    # opens new PRs, raising main's version, and leaves open PRs' branches
+    # alone.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
