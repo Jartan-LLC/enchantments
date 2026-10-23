@@ -1,7 +1,7 @@
 ## How it works
 
-- **When the image is built:** the pinned Stripe CLI release is installed to `/usr/local/bin/stripe`, after its sha256 is checked.
-- **Each time the container starts:** you're told if `stripe` is missing.
+- **When the image is built,** the pinned Stripe CLI release is installed to `/usr/local/bin/stripe`, after its sha256 is checked.
+- **Each time the container starts,** you're told if `stripe` is missing.
 
 ## Logging in
 
@@ -9,14 +9,10 @@
 
 The CLI reads `STRIPE_API_KEY` ahead of its login, wherever the container's environment sets it, such as `containerEnv` in `devcontainer.json`.
 
-## Removal
-
-Remove the Feature.
-
 ## Image requirements
 
 - Debian-based, with bash and `curl`.
 
 ## When something fails
 
-The container still starts, and the next start says `stripe` is missing. The download happens at image build: rebuild the container to retry it.
+The container still starts, and each start says `stripe` is missing. The install happens at image build, so the build log says why; rebuild the container to retry it.
