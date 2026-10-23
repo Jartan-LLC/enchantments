@@ -828,4 +828,13 @@ expect "and still of a Feature after one whose lookup failed" 0 \
   "::warning::feature_liza-toolchain_9.9.9 is on GHCR but has no tag" \
   tag --untagged
 
+# --- test_lib.sh's expect and expect_not ---
+
+# Each runs in a subshell, so its own pass or fail leaves the counts alone.
+out=$(expect "block" 0 $'a\nb' printf 'a\nc\n')
+expect "expect matches a multi-line want as a block" 0 "FAIL block" \
+  echo "$out"
+out=$(expect_not "block" $'a\nb' printf 'a\nc\n')
+expect "expect_not fails only on the whole block" 0 "ok   block" echo "$out"
+
 summary
