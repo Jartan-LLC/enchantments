@@ -63,7 +63,9 @@ httpx2-jsfetch==1.0 ; sys_platform == 'emscripten' \
 huggingface-hub==2.2.0 \
     --hash=sha256:1667f145dc56dc210d60966069397df9ecfca9607a5d43db88b308c89dae56b3 \
     --hash=sha256:5d1b47537394e4215cb858aa12fd493d0f7ef7f58990f5dcd24bc173107b2871
-    # via tokenizers
+    # via
+    #   model2vec
+    #   tokenizers
 idna==3.20 \
     --hash=sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44 \
     --hash=sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c
@@ -231,9 +233,9 @@ markupsafe==3.0.4 \
     --hash=sha256:fd9f8797427910198f95bced71ddfed61130d7e349213bfb8466c9c99e2c46a8 \
     --hash=sha256:fdb4ca07ab75ffadab4a8b135ad59cdbb3156b99310f3d565370da74a15d6bd3
     # via jinja2
-model2vec==0.9.0 \
-    --hash=sha256:8bcf3258d5668678739c13226a562d39eeaeb8fcac9b142bc4aceef8800d5b9d \
-    --hash=sha256:f50229cea128c9db5cfa7b2173478294be3c84e5d3d7fb8487ebd7af285383ab
+model2vec==0.10.0 \
+    --hash=sha256:47119ef1f917b4da7a0010bf10c587c923639a6af4ea51cb2d424fc329d09d2f \
+    --hash=sha256:a39c40de4f82c5e0e50c14bbb87a935c1c62094f3f0f0d8fde8e24f4a4f35b16
     # via semble
 numpy==2.5.4 \
     --hash=sha256:067374eb538c34c745436365cf7b0112595c1d326f21ce4ff340f61230239fbb \
@@ -479,9 +481,9 @@ safetensors==0.8.0 \
     --hash=sha256:fcdd41ec4628fee5799f807c73c353629130fbd942aa23d83c623dd6c9d52d78 \
     --hash=sha256:fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774
     # via model2vec
-semble==0.6.2 \
-    --hash=sha256:1207b43f26bd664fa12b14db0bb8a8b97ce95a1cf8597e8ca94922d7f3cd5a94 \
-    --hash=sha256:94110c12da424a676cdec5a32adb1faee00ffcd3f494ea9fb88b4cd7efabac9a
+semble==0.7.0 \
+    --hash=sha256:06c568d5a06f3a5352f22357d5a7ab17525d4404fddde8f1ae1405e3e87ac4a7 \
+    --hash=sha256:83a2bfeea20854d1354cfa95ed83ad580fac5dcf8ccdbd4f987da216bf5f694f
     # via -r src/liza-toolchain/semble.in
 semble-grammars==0.1.2 \
     --hash=sha256:078ae79ad15442a2922dae46620f778fa237b191ac06e9c29832f079915d4d39 \
