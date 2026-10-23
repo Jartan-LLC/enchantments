@@ -1,7 +1,10 @@
 # shellcheck shell=bash
-# Helpers for pin-bumps.sh, with no network: reading and writing a Feature's
-# pins.sh, checking upstream values before they're written, the version and
-# changelog edits a bump makes, and the PR body's machine-read lines. Sourced.
+# Helpers with no network: reading and writing a Feature's pins.sh and
+# checking upstream values before they're written, for pin-bumps.sh; the
+# version rule and its version and changelog edits, for both bots, whose
+# unpublished and version_gt check-versions.sh shares; and the pin-bump PR
+# body's machine-read lines.
+# Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
 
@@ -227,6 +230,92 @@ add_changelog_entry() { # file version entry_file
     skip { next }
     { print }
     END { if (!done) entry() }' "$1" "$1" | overwrite "$1"
+}
+
+# Adds the lines in entry_file, then any from "## Unreleased" (whose section
+# it removes), to the end of the "## <old>" entry, and retitles it
+# "## <new>". Fails, changing nothing, when there's no such entry.
+append_changelog_entry() { # file old new entry_file
+  grep -qxF "## $2" "$1" || return 1
+  awk -v old="## $2" -v new="## $3" -v entry_file="$4" '
+    function finish() {
+      if (!content) print ""
+      while ((getline line < entry_file) > 0) print line
+      for (i = 1; i <= n; i++) print moved[i]
+      inside = 0
+    }
+    NR == FNR {
+      if ($0 == "## Unreleased") { unreleased = 1; next }
+      if (/^## /) unreleased = 0
+      if (unreleased && NF) moved[++n] = $0
+      next
+    }
+    $0 == "## Unreleased" { skip = 1; next }
+    /^## / {
+      skip = 0
+      if (inside) { finish(); print "" }
+      if ($0 == old) { print new; inside = 1; blanks = 0; next }
+    }
+    skip { next }
+    inside && !NF { blanks++; next }
+    inside { while (blanks) { print ""; blanks-- }; content = 1 }
+    { print }
+    END { if (inside) finish() }' "$1" "$1" | overwrite "$1"
+}
+
+# Succeeds when a version is above the highest published one; fails when
+# that's unknown (empty).
+unpublished() { # version published
+  [ -n "$2" ] && version_gt "$1" "$2"
+}
+
+# The version rule (docs/releasing.md, Versioning): a change rides a
+# Feature's version while that's unpublished and at least the level's raise
+# of the published one; otherwise it takes that raise. With no published
+# version known, as after a failed lookup, it raises the Feature's version,
+# which is never lower than the rule's result.
+target_version() { # version level published
+  local raised
+  if [ -z "$3" ]; then
+    "bump_$2" "$1"
+    return
+  fi
+  raised=$("bump_$2" "$3")
+  if unpublished "$1" "$3" && ! version_gt "$raised" "$1"; then
+    echo "$1"
+  else
+    echo "$raised"
+  fi
+}
+
+# Prints the Feature's highest published version from PUBLISHED_VERSIONS
+# (published-versions.sh), nothing when it's not listed or isn't X.Y.Z.
+published_of() { # id
+  [ -n "${PUBLISHED_VERSIONS:-}" ] || return 0
+  jq -r --arg id "$1" '.[$id] // empty
+    | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$PUBLISHED_VERSIONS"
+}
+
+# Releases a change, at its level, in a Feature's directory by the version rule:
+# sets the version, and adds entry_file's lines to the changelog. Lines for a
+# version never published join its entry, retitled when the version rises,
+# so no changelog entry is left for a version that never shipped. Prints the
+# version; fails, saying why, when there's no entry to add them to.
+release_change() { # dir level entry_file published
+  local dir=$1 published=$4 version new
+  version=$(jq -r .version "$dir/devcontainer-feature.json")
+  new=$(target_version "$version" "$2" "$published")
+  if unpublished "$version" "$published"; then
+    if ! append_changelog_entry "$dir/CHANGELOG.md" "$version" "$new" "$3"; then
+      echo "::error::$dir/CHANGELOG.md has no '## $version' entry for the" \
+        "unpublished $version, so there's nothing to add the change to" >&2
+      return 1
+    fi
+  else
+    add_changelog_entry "$dir/CHANGELOG.md" "$new" "$3" || return 1
+  fi
+  set_version "$dir/devcontainer-feature.json" "$new"
+  echo "$new"
 }
 
 # --- PR body lines ------------------------------------------------------------

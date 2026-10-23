@@ -4,15 +4,17 @@
 # Feature on the branch pin-bumps/<id> (docs/releasing.md, "Pin-bump PRs").
 # --dry-run only prints each pin's current value and any newer candidate,
 # changes nothing, and exits 1 if any lookup failed. Otherwise it needs
-# GH_TOKEN (the App's), APP_SLUG and GITHUB_REPOSITORY, works on origin/main,
-# exits 1 when a Feature's update errors or its pins.sh can't be read (a
-# failed lookup is reported, not fatal), and writes a report for
+# GH_TOKEN (the App's), APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS
+# (published-versions.sh; with none, it raises main's version), works on
+# origin/main, exits 1 when a Feature's update errors or its pins.sh can't be
+# read (a failed lookup is reported, not fatal), and writes a report for
 # pin-bumps-issues.sh, one tab-separated row each:
 #   lookup <tool> ok|fail [reason]
 #   pins   <id>   ok|fail [reason]
 #   push   <id>   ok|refused [reason]
 # "push ok" means the branch needs no maintainer: pushed, already up to date,
-# left to its hand edits, or its PR closed. Run from the repository root.
+# left to its hand edits or while the published version is unknown, or its
+# PR closed. Run from the repository root.
 set -euo pipefail
 # An error inside $(...) stops the Feature too; build_commit runs in one.
 shopt -s inherit_errexit
@@ -281,7 +283,8 @@ choose_parent() { # id number remote
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
-  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header version level=patch
+  local id=$1 parent=$2 wt=$work/tree-$1 out tag a b header published
+  local level=patch
   shift 2
   git worktree add -q --detach "$wt" "$parent"
   : >"$work/entry"
@@ -301,11 +304,8 @@ build_commit() { # id parent output...
     # Levels follow Versioning in docs/releasing.md.
     [ "$(output_level "$out")" = patch ] || level=minor
   done
-  version=$(git show "origin/main:src/$id/devcontainer-feature.json" \
-    | jq -r .version)
-  version=$("bump_$level" "$version")
-  set_version "$wt/src/$id/devcontainer-feature.json" "$version"
-  add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version" "$work/entry"
+  published=$(published_of "$id")
+  release_change "$wt/src/$id" "$level" "$work/entry" "$published" >/dev/null
   { echo "chore($id): bump pinned tools" && echo && cat "$work/entry"; } \
     >"$work/message"
   git -C "$wt" add -A "src/$id"
@@ -344,7 +344,9 @@ push_branch() { # id remote parent commit
 
 # Brings a Feature's branch and PR in line with its newer pins (the outputs
 # with a candidate). Defers to hand edits, closes the PR when nothing is
-# newer, or rebuilds, pushes and opens or updates the PR. A refused push is
+# newer, leaves an open PR's branch alone while the published version is
+# unknown (a rebuild would fall back to raising main's version, undoing a
+# ride), or rebuilds, pushes and opens or updates the PR. A refused push is
 # reported and marked by push_branch; the caller reports every other outcome.
 update_feature() { # id output...
   local id=$1 prs open number='' title='' body='' remote parent commit out
@@ -390,6 +392,12 @@ update_feature() { # id output...
 
   remote=$(git rev-parse -q --verify "refs/remotes/origin/pin-bumps/$id" \
     || true)
+  if [ -n "$number" ] && [ -n "$remote" ] \
+    && [ -z "$(published_of "$id")" ]; then
+    echo "$id: no published version to check pin-bumps/$id against, so" \
+      "it's left as it is"
+    return 0
+  fi
   parent=$(choose_parent "$id" "$number" "$remote")
   commit=$(build_commit "$id" "$parent" "${keep[@]}")
   push_branch "$id" "$remote" "$parent" "$commit" || return 0

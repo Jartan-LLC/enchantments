@@ -11,7 +11,8 @@ trap 'rm -rf "$root"' EXIT
 # shellcheck source=test_lib.sh
 . "$repo/.github/scripts/test_lib.sh"
 
-# A repo whose base commit copies src/, test/ and the scripts; the change
+# A repo whose base commit copies src/, test/ and the scripts, with the stub
+# registry listing every Feature as published at its version; the change
 # commit follows. Leaves the shell in it, with $base set.
 new_repo() {
   cd "$(mktemp -d "$root/repo.XXXX")" || exit 1
@@ -21,6 +22,16 @@ new_repo() {
   cp -R "$repo/src" "$repo/test" .
   mkdir -p .github lib && cp -R "$repo/.github/scripts" .github/
   echo x >lib/keep
+  # The cases name gh-config's and grimoire's versions, so they're fixed here,
+  # where a release can't move them.
+  set_version gh-config 1.0.0
+  printf '## 1.0.0\n\n- First release.\n' >src/gh-config/CHANGELOG.md
+  set_version grimoire 1.0.1
+  printf '## 1.0.1\n\n- A fix.\n\n## 1.0.0\n\n- First release.\n' \
+    >src/grimoire/CHANGELOG.md
+  with_registry
+  GHCR_TAGS=$(jq -r '"\(.id)@\(.version)"' src/*/devcontainer-feature.json)
+  export GHCR_TAGS
   git add -A && git commit -qm base
   base=$(git rev-parse HEAD)
 }
@@ -41,8 +52,8 @@ versions() { .github/scripts/check-versions.sh "$base"; }
 new_repo
 echo '# edit' >>src/gh-config/install.sh
 commit
-expect "a change without a bump fails" 1 "rise above 1.0.0, but it's 1.0.0" \
-  versions
+expect "a change without a bump fails" 1 \
+  "1.0.0 is already published, so its version must rise above it" versions
 
 new_repo
 echo '# edit' >>src/gh-config/install.sh
@@ -72,7 +83,7 @@ new_repo
 set_version gh-config 1.0.1
 prepend_changelog gh-config '## Unreleased\n\n## 1.0.1\n\n- Fix.\n\n'
 commit
-expect "a bump with its entry passes" 0 "" versions
+expect_not "a bump with its entry passes" "::" versions
 
 new_repo
 for f in README.md NOTES.md CHANGELOG.md; do
@@ -160,6 +171,108 @@ expect "check-changelog.sh rejects a bad mode" 2 "usage" \
   .github/scripts/check-changelog.sh --foo gh-config
 expect "check-versions.sh needs a base" 2 "usage" \
   .github/scripts/check-versions.sh
+
+# --- check-versions.sh against GHCR, and published-versions.sh ---
+
+add_to_entry() { # id version line
+  local log=src/$1/CHANGELOG.md
+  awk -v h="## $2" -v line="$3" '
+    $0 == h { print; getline; print; print line; next }
+    { print }' "$log" >"$log.tmp" && mv "$log.tmp" "$log"
+}
+ride() { # GHCR_TAGS [GHCR_DOWN]
+  new_repo
+  echo '# edit' >>src/grimoire/install.sh
+  add_to_entry grimoire 1.0.1 '- Rides along.'
+  commit
+  GHCR_TAGS=$1 GHCR_DOWN=${2:-} versions
+}
+expect "a change riding an unpublished version passes" 0 "" \
+  ride grimoire@1.0.0
+expect "riding a published version fails" 1 \
+  "1.0.1 is already published, so its version must rise above it" \
+  ride "grimoire@1.0.0 grimoire@1.0.1"
+expect "riding fails when the lookup does" 1 \
+  "couldn't tell whether 1.0.1 is published" ride '' grimoire
+expect "naming the lookup's cause" 1 "(503 from ghcr.io for grimoire)" \
+  ride '' grimoire
+expect "riding a Feature never published fails as a failed lookup" 1 \
+  "couldn't tell whether 1.0.1 is published (403: access to grimoire" ride ''
+expect "riding a version below the highest published one fails" 1 \
+  "1.0.1 is already published" ride "grimoire@1.0.0 grimoire@1.2.0"
+garbled_ride() { GHCR_GARBLED=grimoire ride grimoire@1.0.0; }
+expect "GHCR output that can't be parsed fails as a failed lookup" 1 \
+  "couldn't tell whether 1.0.1 is published" garbled_ride
+garbled_has() {
+  (. .github/scripts/ghcr_lib.sh \
+    && GHCR_GARBLED=grimoire ghcr_has grimoire 1.0.1)
+}
+expect "and ghcr_has reads it as one" 2 "" garbled_has
+
+new_repo
+echo '# edit' >>src/grimoire/install.sh
+commit
+expect "a ride without its line in the entry fails" 1 \
+  "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+add_to_entry grimoire 1.0.1 ''
+git add -A && git commit -q --amend --no-edit
+expect "and so does one adding only a blank line" 1 \
+  "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+sed -i '/^- A fix\.$/d' src/grimoire/CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "or only removing a line" 1 "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+
+# Rising above a version that was never published.
+new_repo
+echo '# edit' >>src/grimoire/install.sh
+set_version grimoire 1.1.0
+prepend_changelog grimoire '## 1.1.0\n\n- Change.\n\n'
+commit
+expect "leaving an unpublished version's entry behind fails" 1 \
+  "1.0.1 was never published, so fold its '## 1.0.1' entry into '## 1.1.0'" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+expect_not "leaving a published version's entry passes" "::" \
+  env GHCR_TAGS="grimoire@1.0.0 grimoire@1.0.1" \
+  .github/scripts/check-versions.sh "$base"
+expect "a raise not above the highest published version fails" 1 \
+  "must rise above the published 1.2.0, but it's 1.1.0" \
+  env GHCR_TAGS="grimoire@1.0.1 grimoire@1.2.0" \
+  .github/scripts/check-versions.sh "$base"
+expect "a failed lookup only warns about it" 0 \
+  "::warning file=src/grimoire/CHANGELOG.md::couldn't tell whether 1.0.1" \
+  env GHCR_DOWN=grimoire .github/scripts/check-versions.sh "$base"
+sed -i '/^## 1\.0\.1$/,+1d' src/grimoire/CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "an entry folded into the new one passes" 0 "" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+
+new_repo
+published() {
+  GHCR_TAGS="gh-config@1.0.0 gh-config@1.10.0 gh-config@1.9.2
+    gh-config@2.0.0-rc.1 grimoire@1.0.1" GHCR_DOWN=liza \
+    .github/scripts/published-versions.sh
+}
+expect "published-versions gives the highest X.Y.Z" 0 '"gh-config":"1.10.0"' \
+  published
+expect "of each published Feature" 0 '"grimoire":"1.0.1"' published
+expect_not "leaving out a failed lookup" '"liza"' published
+expect "warning of it" 0 "::warning::liza: the GHCR lookup failed" published
+expect "with its cause" 0 "raise main's version: 503 from ghcr.io for liza" \
+  published
+expect_not "and an unpublished Feature" '"claude-code"' published
+garbled_published() {
+  GHCR_GARBLED=grimoire .github/scripts/published-versions.sh
+}
+expect "GHCR output that can't be parsed warns as a failed lookup" 0 \
+  "::warning::grimoire: the GHCR lookup failed" garbled_published
+only_grimoire() {
+  test "$(GHCR_TAGS=grimoire@1.0.1 .github/scripts/published-versions.sh)" \
+    = '{"grimoire":"1.0.1"}'
+}
+expect "as one JSON object" 0 "" only_grimoire
 
 # --- emit-features.sh ---
 

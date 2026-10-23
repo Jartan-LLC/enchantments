@@ -23,8 +23,8 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
   with `cp lib/<helper>.sh src/<id>/`.
 - Each Feature's `README.md` is generated from its `devcontainer-feature.json` and `NOTES.md`:
   edit those, never `README.md`, then run `make readmes` and commit the result.
-- A change under `src/<id>/` may need a version bump and a `CHANGELOG.md` entry: follow
-  the version rule in `GUARDRAILS.md`.
+- A change under `src/<id>/` may need a version raise, or a line in an unpublished
+  version's `CHANGELOG.md` entry: follow the version rule in `GUARDRAILS.md`.
 - Guides: [Adding a Feature](docs/adding-a-feature.md) ·
   [Releasing](docs/releasing.md) · [A bad release](docs/bad-release.md).
 
@@ -34,10 +34,10 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
 make check
 ```
 
-Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib/` or `test/` is done only when
-the PR's `check` passes in CI. Don't run `devcontainer features test` locally: it writes
-to your real `claude-data`, `container-env`, `gh-config` and `liza-<devcontainerId>`
-volumes.
+Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib/` or
+`test/` is done only when the PR's `check` passes in CI. Don't run
+`devcontainer features test` locally: it writes to your real `claude-data`,
+`container-env`, `gh-config` and `liza-<devcontainerId>` volumes.
 
 ## Conventions
 

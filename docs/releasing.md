@@ -2,9 +2,11 @@
 
 ## Releasing a change
 
-1. In the same commit as the change, raise the Feature's `version` in its
-   `devcontainer-feature.json` (see [Versioning](#versioning)) and add a `## <version>` entry
-   to its `CHANGELOG.md`, moving any lines from `## Unreleased` into it.
+1. In the same commit as the change, release it as [Versioning](#versioning) sets out:
+   raise the Feature's `version` in its `devcontainer-feature.json` and add a
+   `## <version>` entry to its `CHANGELOG.md`, or, when the change can ride main's
+   unpublished version, add its line to that version's entry. Either way, move any lines
+   from `## Unreleased` into the entry.
 2. Merge the PR. CI's run on main then waits, in its `approve` job, for your approval of
    the `ghcr` deployment. The `pending` job's log lists the Features it publishes, on its
    `Pending:` line. Approve the newest run waiting: a newer run that publishes cancels an
@@ -65,10 +67,29 @@ Each Feature has its own version; raise the first level that applies:
 - **Minor:** a new option, or a pin bump with a minor or larger upstream move.
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
+The level counts from the Feature's published version, not main's. While main's version
+is above the highest on GHCR (it awaits your approval, or its publish failed), a change
+whose level needs no higher version rides it: add the change's line to that version's
+entry, and keep the version. A change that needs a higher version renames that entry to
+the new version and adds its line there, so no entry names a version that never shipped.
+
+For example, with 1.1.1 published and main at 1.4.0, a minor change rides 1.4.0, and a
+major one turns `## 1.4.0` into `## 2.0.0`. Once 1.4.0 is published, the next change
+raises it. A Feature never published has nothing to ride: GHCR's lookup of it fails, as
+in an outage.
+
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
-`versions` job fails a change to anything else under `src/<id>/` that doesn't raise the
-version and add its entry. Reverting a release also needs a higher version.
+`versions` job asks GHCR what's published, and fails a change to anything else under
+`src/<id>/` that:
+
+- raises the version without its entry, or not above GHCR's highest version;
+- leaves an entry behind for a version never published (a failed lookup only warns of
+  this);
+- rides a version without adding a line to its entry;
+- rides a version that's published, or whose lookup failed: raise it instead.
+
+Reverting a release also needs a higher version.
 
 ```markdown
 ## Unreleased
@@ -80,31 +101,47 @@ version and add its entry. Reverting a release also needs a higher version.
 - What this version changes.
 ```
 
+- **A PR that rides a version you then approve** goes stale: its check passed before the
+  version was published. Before merging it, re-run its CI, whose `versions` job then asks
+  for a raise. The bots' PRs are rebuilt on their next run.
+
 ## Dependabot PRs under `src/`
 
 Dependabot's updates to a Feature's `npm/package.json` and `npm/package-lock.json` aren't
 merged automatically. `dependabot-bumps.yml` finishes them hourly, and when you run
 `gh workflow run dependabot-bumps.yml`: on each PR whose commits are all Dependabot's, it
-pushes a commit raising the Feature's version as [Versioning](#versioning) sets out and
-adding its changelog entry, which lists the packages that moved. Merge the PR once `check`
-passes, as in [Releasing a change](#releasing-a-change).
+pushes a commit releasing the update as [Versioning](#versioning) sets out, with changelog
+lines listing the packages that moved. Merge the PR once `check` passes, as in
+[Releasing a change](#releasing-a-change).
 
 - **When Dependabot rebases the PR,** the commit goes, since its `[dependabot skip]` lets
   Dependabot push over it; the next run adds it again.
+- **Once a finished PR's version is published,** the next run replaces the App's commit
+  with one raising the version above it.
+- **A PR finished while GHCR's lookup failed** raises main's version, which can leave an
+  unpublished version's entry behind; the next run whose lookup works replaces the commit
+  with one that rides. Until then its check rejects that entry, or only warns if its own
+  lookup fails too: don't merge a PR with that warning.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names
-  it, until you finish the PR by hand: raise the version and add the entry yourself.
+  it, until you finish the PR by hand, releasing it as [Versioning](#versioning) sets
+  out.
 
 ## Pin-bump PRs
 
 `pin-bumps.yml` checks every `pins.sh` pin daily, after each change to `src/` on main, and
 when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin at least 7
-days old, it opens one PR on the branch `pin-bumps/<id>`, which raises the Feature's version
-as [Versioning](#versioning) sets out and adds its changelog entry. A commit or other
-non-numeric pin, and a requirement a lock adds or removes, count as a minor move, and an
-upstream major is still a minor. Merge it as in [Releasing a change](#releasing-a-change);
-nothing merges it automatically.
+days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
+[Versioning](#versioning) sets out; the first run after you publish the version it rides
+rebuilds it above that version. A commit or other non-numeric pin, and a requirement a
+lock adds or removes, count as a minor move, and an upstream major is still a minor.
+Merge it as in [Releasing a change](#releasing-a-change); nothing merges it automatically.
+
+- **A run whose GHCR lookup fails** leaves an open PR's branch as it is. A PR it opens
+  raises main's version, which can leave an unpublished version's entry behind; the next
+  run whose lookup works rebuilds it. Until then its check rejects that entry, or only
+  warns if its own lookup fails too: don't merge a PR with that warning.
 
 - **To skip a version,** close the PR unmerged. Its versions go on the next PR's
   `Excluded:` list, and newer versions are still proposed.
@@ -122,9 +159,9 @@ nothing merges it automatically.
   `Not applied:` line in the PR body instead. Once the PR merges, the next run proposes
   them in a new PR.
 - **For a Liza bump,** commit the steps in [Updating pins](#updating-pins) to
-  `pin-bumps/liza`, with `liza-toolchain`'s version raise and changelog entry; the PR has
-  already raised `liza`'s. If a `pin-bumps/liza-toolchain` PR merges first, raise
-  `liza-toolchain`'s version on `pin-bumps/liza` again.
+  `pin-bumps/liza`, with `liza-toolchain` released as [Versioning](#versioning) sets
+  out; the PR has already released `liza`. If a `pin-bumps/liza-toolchain` PR merges first, check
+  `liza-toolchain`'s version and entry on `pin-bumps/liza` against main's again.
 - **A `pin-bumps: <tool> lookup failing` issue** means a run couldn't look that pin up.
   Fix the cause the issue quotes, or wait out an upstream outage; the next run that looks
   it up closes the issue. A PR that changes the pin or its lookup runs it in CI's
@@ -145,7 +182,8 @@ nothing merges it automatically.
 ### The pin-bump App
 
 `pin-bumps.yml` and `dependabot-bumps.yml` push, and the first opens PRs, as a GitHub App,
-since pushes and PRs made with a workflow's own token start no CI. To set it up, or to replace it:
+since pushes and PRs made with a workflow's own token start no CI. To set it up, or to
+replace it:
 
 1. Create a GitHub App in Jartan-LLC with repository permissions **Contents: Read and
    write** and **Pull requests: Read and write**, and no webhook. Install it only on
@@ -178,8 +216,8 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
 
-For a Liza release, in the same PR, raise `liza-toolchain`'s version, and `liza`'s unless
-a pin-bump PR already has, and:
+For a Liza release, in the same PR, release `liza-toolchain` as [Versioning](#versioning)
+sets out, and `liza` too unless a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;
@@ -206,5 +244,4 @@ Node's release keys:
 
 GitHub disables a public repo's scheduled workflows after 60 days without activity. If
 `gh workflow list --all` shows `ci.yml`, `pin-bumps.yml` or `dependabot-bumps.yml`
-disabled, run
-`gh workflow enable <file>`.
+disabled, run `gh workflow enable <file>`.

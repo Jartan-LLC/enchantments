@@ -34,11 +34,13 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
 - Every Feature lifecycle hook exits 0: it records a failure for `postStart` to report
   instead of failing the container.
 - For a Feature whose `devcontainer-feature.json` is on main, any change in its `src/<id>/`
-  raises its `version` and adds that version's entry to its `CHANGELOG.md`; only the PR
-  that adds a Feature writes its `## 1.0.0`. A change to only its `README.md`, `NOTES.md`
-  or `CHANGELOG.md` needs no bump: put a docs change under `## Unreleased`, and bump only
+  raises its `version` above the published one, adding that version's entry to its
+  `CHANGELOG.md`, or, while main's version is unpublished and the change's level needs
+  no higher one, adds its line to that version's entry; only the PR that adds a Feature
+  writes its `## 1.0.0`. A change to only its `README.md`, `NOTES.md` or `CHANGELOG.md`
+  needs no raise: put a docs change under `## Unreleased`, and raise the version only
   when it matters enough to publish on its own. CI's version check enforces this
-  (`docs/releasing.md`).
+  (`docs/releasing.md`, Versioning).
 - Write plans to `.claude/workspace/` in the project root for non-trivial changes.
 - Don't wrap things the underlying library already expresses clearly.
 - Don't speculate about fixes — investigate first, then propose.
