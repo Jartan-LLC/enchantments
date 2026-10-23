@@ -1,6 +1,4 @@
-## Unreleased
-
-### Minor
+## 1.1.0
 
 - `codebase-memory-mcp`: v0.11.0 → v0.12.0
 
