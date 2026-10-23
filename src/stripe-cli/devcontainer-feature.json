@@ -1,0 +1,9 @@
+{
+  "id": "stripe-cli",
+  "version": "1.0.0",
+  "name": "Stripe CLI",
+  "description": "Installs the Stripe CLI from a pinned release.",
+  "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/stripe-cli",
+  "licenseURL": "https://github.com/Jartan-LLC/enchantments/blob/main/LICENSE",
+  "postStartCommand": "f=/usr/local/share/enchantments/stripe-cli/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
+}

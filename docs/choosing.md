@@ -11,6 +11,7 @@ Each Feature installs on its own; a few only do their full job alongside another
 | [`grimoire`](features/grimoire.md) | grimoire's Claude Code plugins, at local scope for each clone | `claude-code`; `node` on `PATH` |
 | [`liza`](features/liza.md) | Liza, activated locally for each clone, with ripgrep | — (with `liza-toolchain`, context7 also needs `claude-code`) |
 | [`liza-toolchain`](features/liza-toolchain.md) | Liza's agent toolchain: code indexes, semantic search, rtk, context7 | `liza` |
+| [`stripe-cli`](features/stripe-cli.md) | the Stripe CLI, from a pinned release | — |
 
 A Feature never pulls in another: declare each one you want. Each page lists its image
 requirements.

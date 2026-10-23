@@ -17,6 +17,7 @@ Sections are months, newest first.
   - `liza`: Liza, rules and a multi-agent workflow for coding agents, with ripgrep.
   - `liza-toolchain`: Liza's agent tools, such as code indexes and code search.
   - `container-env`: per-device environment variables, kept out of every repo.
+- `stripe-cli`, a new Feature: the Stripe CLI from a pinned release.
 - Every Feature installs only on a Debian-based image (Ubuntu included) with
   bash; on any other it installs nothing, with a warning, and the container
   still builds.

@@ -17,6 +17,7 @@ environments.
 | [`grimoire`](src/grimoire/README.md) | Claude Code plugins from the [grimoire](https://github.com/Jartan-LLC/grimoire) marketplace |
 | [`liza`](src/liza/README.md) | [Liza](https://github.com/liza-mas/liza): rules and a multi-agent workflow for coding agents, with ripgrep |
 | [`liza-toolchain`](src/liza-toolchain/README.md) | Liza's agent tools, such as code indexes and code search |
+| [`stripe-cli`](src/stripe-cli/README.md) | the Stripe CLI, from a pinned release |
 
 ## Declaring a Feature
 
