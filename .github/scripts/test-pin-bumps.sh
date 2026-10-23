@@ -173,31 +173,23 @@ level_case "a tag pin's patch is a patch" patch "tool demo" \
 level_case "a commit pin is a minor" minor "tool demo" \
   "current $(printf 'a%.0s' {1..40})" "candidate $(printf 'b%.0s' {1..40})"
 
-# A changelog edit passes the version check's own changelog rule.
-changelog_case() { # name changelog
-  local dir
-  dir=$(mktemp -d "$root/log.XXXX")
-  last_log=$dir/src/demo/CHANGELOG.md
-  mkdir -p "$dir/src/demo"
-  echo '{"id": "demo", "version": "1.1.0"}' \
-    >"$dir/src/demo/devcontainer-feature.json"
-  printf '%b' "$2" >"$dir/src/demo/CHANGELOG.md"
-  # shellcheck disable=SC2016 # Markdown backticks
-  echo '- `uv`: 0.1.0 → 0.2.0' >"$dir/entry"
-  add_changelog_entry "$dir/src/demo/CHANGELOG.md" 1.1.0 "$dir/entry"
-  expect "$1 passes check-changelog --bump" 0 "" \
-    bash -c "cd '$dir' && '$scripts/check-changelog.sh' --bump demo"
-  expect "$1 keeps the older entry" 0 "## 1.0.0" \
-    cat "$dir/src/demo/CHANGELOG.md"
-}
-changelog_case "a changelog entry" '## 1.0.0\n\n- First release.\n'
-changelog_case "an entry over Unreleased" \
-  '## Unreleased\n\n- A docs fix.\n\n## 1.0.0\n\n- First release.\n'
+# add_changelog_entry's result passes the version check's changelog rule.
+log_dir=$(mktemp -d "$root/log.XXXX")
+last_log=$log_dir/src/demo/CHANGELOG.md
+mkdir -p "$log_dir/src/demo"
+echo '{"id": "demo", "version": "1.1.0"}' \
+  >"$log_dir/src/demo/devcontainer-feature.json"
+printf '## Unreleased\n\n- A docs fix.\n\n## 1.0.0\n\n- First release.\n' \
+  >"$last_log"
+add_changelog_entry "$last_log" 1.1.0
+expect "an entry from Unreleased passes check-changelog --bump" 0 "" \
+  bash -c "cd '$log_dir' && '$scripts/check-changelog.sh' --bump demo"
+expect "keeping the older entry" 0 "## 1.0.0" cat "$last_log"
 expect "the Unreleased line moves into the entry" 0 "- A docs fix." \
   awk '/^## 1.1.0/,/^## 1.0.0/' "$last_log"
 printf '%s\n' '## Unreleased' '' '- Fix.' '' '### Minor' '' '- Feature.' '' \
   '## 1.0.0' '' '- First release.' >"$root/sub.md"
-add_changelog_entry "$root/sub.md" 1.1.0 /dev/null
+add_changelog_entry "$root/sub.md" 1.1.0
 expect "add_changelog_entry drops Unreleased's level subheadings" 0 "" \
   holds "$(cat "$root/sub.md")" \
   "$(printf '## 1.1.0\n\n- Fix.\n- Feature.\n\n## 1.0.0')"

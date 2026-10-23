@@ -6,7 +6,8 @@ fast.
 ## If it's a bug
 
 1. **Contain it:** clear `dev.containers.defaultFeatures`.
-2. **Fix it:** revert the change and give it a version higher than every published `1.x.y`
+2. **Fix it:** revert the change, with its line under `## Unreleased`, and release it
+   through the release PR, whose version is higher than every published `1.x.y`
    (`devcontainer features info tags ghcr.io/jartan-llc/enchantments/<id>:1` lists them):
    `:1` moves only to a higher version. `git diff feature_<id>_<good> feature_<id>_<bad>
    -- src/<id>` shows what the bad version changed ([Release tags](releasing.md#release-tags)).

@@ -23,15 +23,30 @@ scripts=$(dirname "$0")
 # shellcheck source=pins_lib.sh
 . "$scripts/pins_lib.sh"
 err=$(mktemp)
-trap 'rm -f "$err"' EXIT
+old=$(mktemp)
+trap 'rm -f "$err" "$old"' EXIT
 
-# Prints the non-blank lines of the "## <title>" section in a changelog on
-# stdin, so a blank line added doesn't count as the change's line.
-section() { # title
-  awk -v heading="## $1" '
-    $0 == heading { inside = 1; next }
-    /^## / { inside = 0 }
-    inside && NF'
+# Succeeds when the changelog gains an "## Unreleased" line since base's: a
+# blank line or a bare level subheading doesn't count, and a repeated line
+# does. Lines moved there from an entry above the version, as a return to the
+# published version moves them, aren't new.
+adds_line() { # file version
+  git show "$base:$1" >"$old" 2>/dev/null || : >"$old"
+  comm -13 <(known_lines "$old" "$2") <(known_lines "$1" '') | grep -q .
+}
+
+# Prints the changelog's "## Unreleased" lines, and those of its entries above
+# the version (none when it's empty), but the level subheadings, sorted.
+known_lines() { # file version
+  local v
+  {
+    changelog_section "$1" Unreleased || true
+    if [ -n "$2" ]; then
+      sed -n 's/^## \([0-9]*\.[0-9]*\.[0-9]*\)$/\1/p' "$1" | while read -r v; do
+        if version_gt "$v" "$2"; then changelog_section "$1" "$v"; fi
+      done
+    fi
+  } | grep -vx -e '### Minor' -e '### Major' | sort || true
 }
 
 # Prints each "## X.Y.Z" heading's version in a changelog above the
@@ -68,15 +83,19 @@ for id in $ids; do
     continue
   fi
   base_version=$(jq -r .version <<<"$base_json")
-  if [ "$head_version" = "$base_version" ]; then
-    if ! grep -qvxF -f <(git show "$base:$log" 2>/dev/null \
-      | section Unreleased) <(section Unreleased <"$log"); then
-      echo "::error file=$log::src/$id changed, so add its line under" \
-        "'## Unreleased' in its CHANGELOG.md"
-      failed=1
-    fi
+  # Files a line must cover: a version change's own json doesn't count.
+  code=$(git diff --no-renames --name-only "$base" HEAD -- "src/$id" \
+    | awk -F/ -v v="$head_version" -v b="$base_version" '
+      $3 ~ /^(README|NOTES|CHANGELOG)\.md$/ && NF == 3 { next }
+      $3 == "devcontainer-feature.json" && NF == 3 && v != b { next }
+      { print }')
+  if [ -n "$code" ] && ! adds_line "$log" "$head_version"; then
+    echo "::error file=$log::src/$id changed, so add its line under" \
+      "'## Unreleased' in its CHANGELOG.md"
+    failed=1
     continue
   fi
+  [ "$head_version" != "$base_version" ] || continue
 
   # A version change: a release, or a return to the published version.
   if ! latest=$(ghcr_latest "$id" 2>"$err") || [ -z "$latest" ]; then

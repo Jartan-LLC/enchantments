@@ -78,6 +78,20 @@ expect "nor removing one" 1 "add its line under" versions
 
 new_repo
 echo '# edit' >>src/gh-config/install.sh
+prepend_changelog gh-config '## Unreleased\n\n### Minor\n\n'
+commit
+expect "nor does a bare level subheading" 1 "add its line under" versions
+
+new_repo
+prepend_changelog gh-config '## Unreleased\n\n- Same.\n\n'
+git add -A && git commit -qm earlier
+base=$(git rev-parse HEAD)
+echo '# edit' >>src/gh-config/install.sh
+sed -i 's/^- Same\.$/- Same.\n- Same./' src/gh-config/CHANGELOG.md
+commit
+expect "a line repeating one already there counts" 0 "" versions
+
+new_repo
 set_version gh-config 0.9.0
 commit
 expect "a lower version fails" 1 \
@@ -244,6 +258,10 @@ expect "a return to the published version leaving its entry fails" 1 \
 sed -i 's/^## 1\.0\.1$/## Unreleased/' src/grimoire/CHANGELOG.md
 git add -A && git commit -q --amend --no-edit
 expect "with its lines moved under Unreleased, it passes" 0 "" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+echo '# edit' >>src/grimoire/install.sh
+git add -A && git commit -q --amend --no-edit
+expect "but code changed with it needs its own line" 1 "add its line under" \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
 
 new_repo
@@ -477,11 +495,12 @@ export STUB_LOG=$PWD/stub.log
 
 # shellcheck source=feature_ids.sh
 . .github/scripts/feature_ids.sh
-want=$(feature_ids | grep -vx gh-config | paste -sd' ' -)
+want=$(feature_ids | grep -vx gh-config | sed "s/\$/@$base/" | paste -sd' ' -)
 out=$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh 2>/dev/null)
-if [ "$out" = "$want" ] && grep -qw claude-code <<<"$out" \
-  && grep -qw liza <<<"$out"; then
-  pass "check-pending lists every id not published at its version"
+if [ "$out" = "$want" ] && grep -qw "claude-code@$base" <<<"$out" \
+  && grep -qw "liza@$base" <<<"$out"; then
+  pass "check-pending lists every id not published at its version, at the" \
+    "commit that set it"
 else
   fail "check-pending list" "got '$out', want '$want'"
 fi
@@ -513,18 +532,26 @@ else
 fi
 mv check-changelog.keep .github/scripts/check-changelog.sh
 
-# Since the base commit, only claude-code's version changes.
+# claude-code's new version, then a commit that changes it otherwise: the
+# release commit is the first.
 set_version claude-code 1.0.2
 prepend_changelog claude-code '## 1.0.2\n\n- Fix.\n\n'
 commit
-expect "with a commit, check-pending lists only versions changed since" 0 "" \
-  test "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh "$base" \
-    2>/dev/null)" = claude-code
-expect "and nothing with no version changed since" 0 "" \
-  test -z "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh HEAD \
-    2>/dev/null)"
-expect "check-pending takes one commit at most" 2 "usage" \
-  .github/scripts/check-pending.sh a b
+released=$(git rev-parse HEAD)
+echo '# later' >>src/claude-code/install.sh
+jq '.description += "."' src/claude-code/devcontainer-feature.json \
+  >json.tmp && mv json.tmp src/claude-code/devcontainer-feature.json
+commit
+expect "check-pending gives a version's release commit, not a later one" 0 \
+  "claude-code@$released" \
+  env GITHUB_TOKEN=secret .github/scripts/check-pending.sh
+expect "stage-release copies each Feature from its release commit" 0 "" \
+  bash -c ".github/scripts/stage-release.sh stage claude-code@$released \
+    && ! grep -q '# later' stage/src/claude-code/install.sh \
+    && test ! -e stage/src/gh-config"
+expect "stage-release wants <id>@<commit>" 2 "usage" \
+  .github/scripts/stage-release.sh stage claude-code
+rm -rf stage
 
 : >"$STUB_LOG"
 expect "check-visibility names each private Feature" 1 \

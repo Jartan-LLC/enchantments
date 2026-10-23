@@ -102,7 +102,7 @@ build_commit() { # parent rows-file
   : >"$work/lines"
   while read -r id published version level; do
     set_version "$wt/src/$id/devcontainer-feature.json" "$version"
-    add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version" /dev/null
+    add_changelog_entry "$wt/src/$id/CHANGELOG.md" "$version"
     subject+="${subject:+, }$id $version"
     echo "- $id: $published → $version ($level)" >>"$work/lines"
   done <"$2"

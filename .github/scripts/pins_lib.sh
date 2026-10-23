@@ -213,6 +213,16 @@ set_version() { # devcontainer-feature.json version
   jq --arg v "$2" '.version = $v' "$1" | overwrite "$1"
 }
 
+# Prints the non-blank lines of a changelog's "## <title>" section, up to the
+# next "## " heading; fails when no line is exactly that heading.
+changelog_section() { # file title
+  awk -v heading="## $2" '
+    $0 == heading { inside = 1; found = 1; next }
+    /^## / { inside = 0 }
+    inside && NF { print }
+    END { exit !found }' "$1"
+}
+
 # Prints the level of the lines under "## Unreleased" (docs/releasing.md,
 # Versioning): patch, unless one sits under "### Minor" or "### Major";
 # nothing when there's no line.
@@ -231,15 +241,13 @@ unreleased_level() { # file
     }' "$1"
 }
 
-# Adds a "## <version>" entry holding the lines in entry_file, then any lines
-# from "## Unreleased" except its "### Minor" and "### Major" subheadings, and
-# removes that section.
-add_changelog_entry() { # file version entry_file
-  awk -v version="$2" -v entry_file="$3" '
+# Moves the lines under "## Unreleased", except its "### Minor" and
+# "### Major" subheadings, into a new "## <version>" entry in its place.
+add_changelog_entry() { # file version
+  awk -v version="$2" '
     function entry() {
       print "## " version
       print ""
-      while ((getline line < entry_file) > 0) print line
       for (i = 1; i <= n; i++) print moved[i]
       print ""
       done = 1

@@ -6,25 +6,26 @@
    in the Feature's `CHANGELOG.md`, at its level ([Versioning](#versioning)), and leave
    its `version` alone. Merge the PR; the change waits there for the next release.
 2. To release, merge the [release PR](#release-prs). CI's run on main then publishes each
-   version that merge changed, which its `pending` job lists on its `Pending:` line.
+   version not yet on GHCR, which its `pending` job lists on its `Pending:` line as
+   `<id>@<commit>`: the commit that set that version, whose copy of the Feature ships.
 3. While the `ghcr` environment has a required reviewer, the run waits in its `publish`
-   job for your approval of the deployment. Before approving, check that:
-   - the `Pending:` line lists the release PR's Features, and only those;
-   - for a Feature's first release, the checks in
-     [Adding a Feature](adding-a-feature.md) step 7 pass.
-4. CI's `tag` job then tags each version it published ([Release tags](#release-tags))
-   and starts `pin-bumps.yml`, which rebuilds the release PR. Its `visibility` job checks
-   every Feature's `:1` can be pulled without credentials.
+   job for your approval of the deployment. Before approving, check that the `Pending:`
+   line lists the Features your release PR or a new Feature's PR released, and only
+   those; for a new Feature, also do [Adding a Feature](adding-a-feature.md) step 7.
+4. CI's `tag` job then tags each version it published at its commit
+   ([Release tags](#release-tags)), and starts `pin-bumps.yml`, which rebuilds the
+   release PR. CI's `visibility` job checks every Feature's `:1` can be pulled without
+   credentials.
 
-A run on main publishes only the versions its own push changed, so a merge after the
-release PR's doesn't publish its code under a version already released; and only when it
-ran every Feature's tests, which a change under `src/` always does. If a publish fails,
-re-run the run's failed jobs.
+A run on main publishes only when it ran every Feature's tests, which a change under
+`src/` always does. Code merged after a release never ships under its version: each
+version ships from the commit that set it. A publish that didn't happen, such as one
+that failed or that you rejected, waits for the next run on main, the daily one included.
 
 ## Release tags
 
-Each published version has the git tag `feature_<id>_<version>` on the commit its release
-built, the naming `devcontainers/action` uses. CI's `tag` job makes it after `publish`, so
+Each published version has the git tag `feature_<id>_<version>` on the commit it shipped
+from, the one that set that version, in the naming `devcontainers/action` uses. CI's `tag` job makes it after `publish`, so
 `git diff feature_<id>_<a> feature_<id>_<b> -- src/<id>` shows what changed between two
 published versions. A tag never moves or goes: the `feature-tags` ruleset blocks deleting
 and updating `feature_*` tags, with no bypass.
@@ -32,7 +33,7 @@ and updating `feature_*` tags, with no bypass.
 - **The `tag` job fails with `likely cause: main's workflows changed`,** since neither the
   workflow's token nor yours without the `workflow` scope can tag, through the API, a
   commit whose `.github/workflows` differ from main's tip. Tag it by hand over SSH, at the
-  commit the run built (its `GITHUB_SHA`, which the run's summary shows):
+  commit after the id's `@` on the run's `Pending:` line:
 
   ```bash
   git tag feature_<id>_<version> <commit>
@@ -40,8 +41,8 @@ and updating `feature_*` tags, with no bypass.
   ```
 
 - **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one.
-  Tag it by hand as above, at the commit of the run that published it: the one whose
-  `Pending:` line lists the id and whose `publish` succeeded.
+  Tag it by hand as above, at the commit after the id's `@` on the `Pending:` line of the
+  run whose `publish` published it.
 - **To recreate the ruleset,** for instance after it was changed in an incident:
 
   ```bash
@@ -64,7 +65,8 @@ that applies to any change it releases:
 Each change under `src/<id>/` adds its line under `## Unreleased` in the Feature's
 changelog: a minor change's line under `### Minor`, a major one's under `### Major`; any
 other line counts as a patch. A change to only the Feature's `README.md`, `NOTES.md` or
-`CHANGELOG.md` goes there too, and ships with the next release without causing one.
+`CHANGELOG.md` needs no line; one listed there ships with the next release without
+causing one.
 
 ```markdown
 ## Unreleased
@@ -198,7 +200,7 @@ publishes them, as in [Releasing a change](#releasing-a-change).
 ## Updating pins
 
 Each Feature's pins live in `src/<id>/pins.sh`, one `# pin <kind> <tool>` header per pin.
-To update one by hand, pick a release at least 7 days old, then release the change as in
+To update one by hand, pick a release at least 7 days old, then list the change as in
 [Releasing a change](#releasing-a-change).
 
 | Pin | Where | To update |
@@ -215,8 +217,8 @@ To update one by hand, pick a release at least 7 days old, then release the chan
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
 
-For a Liza release, in the same PR, release `liza-toolchain` as [Versioning](#versioning)
-sets out, and `liza` too unless a pin-bump PR already has, and:
+For a Liza release, in the same PR, add lines under `## Unreleased` for `liza-toolchain`,
+and for `liza` too unless a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;

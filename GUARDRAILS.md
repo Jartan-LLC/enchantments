@@ -37,8 +37,9 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
   adds its line under `## Unreleased` in its `CHANGELOG.md`, under `### Minor` or
   `### Major` when it's that level, and leaves its `version` alone: only the release PR
   raises it, and only the PR that adds a Feature writes its `## 1.0.0`. A change to only
-  its `README.md`, `NOTES.md` or `CHANGELOG.md` needs no line. CI's version check
-  enforces this (`docs/releasing.md`, Versioning).
+  its `README.md`, `NOTES.md` or `CHANGELOG.md` needs no line, though one listed ships
+  with the next release. CI's version check enforces this (`docs/releasing.md`,
+  Versioning).
 - Write plans to `.claude/workspace/` in the project root for non-trivial changes.
 - Don't wrap things the underlying library already expresses clearly.
 - Don't speculate about fixes — investigate first, then propose.
