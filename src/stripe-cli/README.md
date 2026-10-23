@@ -22,7 +22,7 @@ Installs the Stripe CLI from a pinned release.
 
 `stripe login` keeps its login in `~/.config/stripe`, inside the container, so a rebuild loses it: run `stripe login` again. The Feature can't keep it in a volume: the CLI refuses to write its config through a symlinked folder, and a Feature can't mount a volume at a path in your home.
 
-The CLI uses an API key in `STRIPE_API_KEY` ahead of its login. To keep the key out of the repo, pass it in from your machine's environment: `"containerEnv": { "STRIPE_API_KEY": "${localEnv:STRIPE_API_KEY}" }` in `devcontainer.json`.
+The CLI uses an API key in `STRIPE_API_KEY` ahead of its login. To keep the key out of every repo, set it per device with the `container-env` Feature: `https://github.com/Jartan-LLC/enchantments/tree/main/src/container-env`. Without it, pass the key in from your machine's environment: `"containerEnv": { "STRIPE_API_KEY": "${localEnv:STRIPE_API_KEY}" }` in `devcontainer.json`.
 
 ## Image requirements
 
