@@ -11,6 +11,6 @@ check "the binary belongs to root" test "$(stat -c %U "$bin")" = root
 # stripe login saves through the same write as this, offline.
 check "stripe saves its config as the user" bash -c \
   "STRIPE_CLI_TELEMETRY_OPTOUT=1 stripe config --set color off \
-    && grep -q off ~/.config/stripe/config.toml"
+    && grep -q 'color.*off' ~/.config/stripe/config.toml"
 
 reportResults
