@@ -3,8 +3,7 @@
 # checking upstream values before they're written, for pin-bumps.sh; the
 # version rule and its version and changelog edits, for both bots and
 # release-pr.sh, whose unpublished and version_gt check-versions.sh shares;
-# and the pin-bump PR
-# body's machine-read lines.
+# and the pin-bump PR body's machine-read lines.
 # Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
@@ -259,9 +258,10 @@ add_changelog_entry() { # file version entry_file
     END { if (!done) entry() }' "$1" "$1" | overwrite "$1"
 }
 
-# Adds the lines in entry_file, then any from "## Unreleased" (whose section
-# it removes), to the end of the "## <old>" entry, and retitles it
-# "## <new>". Fails, changing nothing, when there's no such entry.
+# Adds the lines in entry_file, then any from "## Unreleased" but its level
+# subheadings (removing that section), to the end of the "## <old>" entry,
+# and retitles it "## <new>". Fails, changing nothing, when there's no such
+# entry.
 append_changelog_entry() { # file old new entry_file
   grep -qxF "## $2" "$1" || return 1
   awk -v old="## $2" -v new="## $3" -v entry_file="$4" '
@@ -274,7 +274,8 @@ append_changelog_entry() { # file old new entry_file
     NR == FNR {
       if ($0 == "## Unreleased") { unreleased = 1; next }
       if (/^## /) unreleased = 0
-      if (unreleased && NF) moved[++n] = $0
+      if (unreleased && NF && $0 != "### Minor" && $0 != "### Major")
+        moved[++n] = $0
       next
     }
     $0 == "## Unreleased" { skip = 1; next }
@@ -323,15 +324,18 @@ published_of() { # id
     | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$PUBLISHED_VERSIONS"
 }
 
-# Releases a change, at its level, in a Feature's directory by the version rule:
+# Releases a change, at its level or that of any line under "## Unreleased"
+# (unreleased_level) if higher, in a Feature's directory by the version rule:
 # sets the version, and adds entry_file's lines to the changelog. Lines for a
 # version never published join its entry, retitled when the version rises,
 # so no changelog entry is left for a version that never shipped. Prints the
 # version; fails, saying why, when there's no entry to add them to.
 release_change() { # dir level entry_file published
-  local dir=$1 published=$4 version new
+  local dir=$1 level=$2 published=$4 version new moved
   version=$(jq -r .version "$dir/devcontainer-feature.json")
-  new=$(target_version "$version" "$2" "$published")
+  moved=$(unreleased_level "$dir/CHANGELOG.md")
+  level=$(larger_level "$level" "${moved:-patch}")
+  new=$(target_version "$version" "$level" "$published")
   if unpublished "$version" "$published"; then
     if ! append_changelog_entry "$dir/CHANGELOG.md" "$version" "$new" "$3"; then
       echo "::error::$dir/CHANGELOG.md has no '## $version' entry for the" \

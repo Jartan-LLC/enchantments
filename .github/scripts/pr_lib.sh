@@ -22,8 +22,8 @@ branch_prs() { # branch
   gh api "repos/$GITHUB_REPOSITORY/pulls?$query" --jq 'sort_by(.created_at)'
 }
 
-# Prints each of the PR's commit authors' login, "?" for one GitHub can't
-# match to an account.
+# Prints the login of each commit's author on the PR, "?" for an author
+# GitHub can't match to an account.
 pr_authors() { # number
   gh api --paginate \
     "repos/$GITHUB_REPOSITORY/pulls/$1/commits?per_page=100" \

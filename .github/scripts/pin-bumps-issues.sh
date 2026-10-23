@@ -18,7 +18,7 @@ gh label create "$label" --repo "$GITHUB_REPOSITORY" --force \
 open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
   --label "$label" --limit 200 --json number,title)
 
-title() { # lookup|pins|push tool|id
+title() { # lookup|pins|push|release|release-push tool|id|branch
   case $1 in
     lookup) echo "pin-bumps: $2 lookup failing" ;;
     pins) echo "pin-bumps: $2 pin headers invalid" ;;

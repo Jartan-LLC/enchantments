@@ -47,6 +47,7 @@ case "$method $path" in
     echo "{\"number\": $n}" | out
     ;;
   "GET $pulls/"*/commits*)
+    [ -z "${COMMITS_DOWN:-}" ] || { echo "stub gh: HTTP 502" >&2 && exit 1; }
     git -C "$ORIGIN" log --format=%ae main..release \
       | sed 's/^42+pinbot\[bot\]@.*/pinbot[bot]/; t; s/.*/someone/' \
       | jq -R '{author: {login: .}}' | jq -s . | out
@@ -223,13 +224,32 @@ expect "a line under ### Major raises the major" 0 \
 release_down() { GHCR_DOWN=alpha release; }
 expect "a failed lookup of a published Feature fails" 1 \
   "::error::alpha: its GHCR lookup failed" release_down
+expect "reporting it" 0 "release${tab}alpha${tab}fail${tab}its GHCR lookup" \
+  cat "$root/report"
 expect "leaving it out of the PR" 0 "chore: release beta 3.0.0" pr 1 title
 release >/dev/null 2>&1
 
 git -C "$origin" tag -d feature_beta_2.0.0 >/dev/null
 git -C "$run" tag -d feature_beta_2.0.0 >/dev/null
 expect "a missing release tag fails" 1 "no tag feature_beta_2.0.0" release
+expect "reporting it" 0 "release${tab}beta${tab}fail${tab}there's no tag" \
+  cat "$root/report"
 git -C "$seed" push -q origin feature_beta_2.0.0
+release >/dev/null 2>&1
+
+mkdir -p "$seed/src/delta"
+echo '{' >"$seed/src/delta/devcontainer-feature.json"
+commit "a Feature whose release can't be worked out"
+push
+expect "a Feature whose release can't be worked out fails the run" 1 \
+  "::error::delta: its release couldn't be worked out" release
+expect "while the others still have their turn" 0 \
+  "release${tab}gamma${tab}ok" cat "$root/report"
+expect "and the PR is still kept" 0 "release-push${tab}release${tab}ok" \
+  cat "$root/report"
+git -C "$seed" rm -rq src/delta
+commit "remove delta"
+push
 release >/dev/null 2>&1
 
 # As after a failed published job.
@@ -254,10 +274,21 @@ tip=$(branch_tip)
 expect "a hand-edited PR is left as it is" 0 \
   "release: #1 has commits the workflow didn't make" release
 expect "branch included" 0 "" test "$(branch_tip)" = "$tip"
+# Both main versions behind what's published: nothing to release.
+release_ahead() { GHCR_TAGS="alpha@1.1.0 beta@3.0.0" release; }
+expect "even with nothing to release" 0 "release: #1 has commits" release_ahead
+expect "it stays open" 0 open pr 1 state
 jq 'map(.state = "closed")' "$PRS" >"$PRS.tmp" && mv "$PRS.tmp" "$PRS"
 expect "once it's closed, the next run rebuilds it" 0 "release: opened #2" \
   release
 expect_not "without the hand edit" "Reworded" on_branch alpha/CHANGELOG.md
+release_blind_authors() { COMMITS_DOWN=1 release; }
+tip=$(branch_tip)
+expect "a failed author lookup fails the run" 1 "stub gh: HTTP 502" \
+  release_blind_authors
+expect_not "with no ok row for the release push" \
+  "release-push${tab}release${tab}ok" cat "$root/report"
+expect "leaving the branch" 0 "" test "$(branch_tip)" = "$tip"
 
 unreleased alpha "- Another."
 echo 'echo again' >>"$seed/src/alpha/install.sh"

@@ -43,7 +43,7 @@ trap 'rm -rf "$work"; git worktree prune' EXIT
 # released, "fail <reason>" when it can't be, and nothing otherwise, saying
 # why on stderr.
 plan_feature() { # id
-  local id=$1 version published tag level changed
+  local id=$1 version published tag level changed raised
   version=$(jq -r .version "src/$id/devcontainer-feature.json")
   published=$(published_of "$id")
   if [ -z "$published" ]; then
@@ -76,7 +76,8 @@ plan_feature() { # id
       "line to release"
     return 0
   fi
-  echo "include $published $("bump_$level" "$published") $level"
+  raised=$("bump_$level" "$published")
+  echo "include $published $raised $level"
 }
 
 # Prints the PR's body: the releases, then how to act on it.
@@ -125,14 +126,15 @@ build_commit() { # parent rows-file
 # it.
 update_pr() { # rows-file
   local rows=$1 prs open number='' title='' body='' remote parent commit
-  local reason want
+  local reason want authors
   prs=$(branch_prs "$branch")
   open=$(jq -c '[.[] | select(.state == "open")] | last // empty' <<<"$prs")
   if [ -n "$open" ]; then
     number=$(jq -r .number <<<"$open")
     title=$(jq -r '.title // ""' <<<"$open")
     body=$(jq -r '.body // ""' <<<"$open")
-    if grep -qvxF "$bot_login" <<<"$(pr_authors "$number")"; then
+    authors=$(pr_authors "$number")
+    if grep -qvxF "$bot_login" <<<"$authors"; then
       echo "release: #$number has commits the workflow didn't make, so it's" \
         "left as it is"
       return 0
@@ -199,7 +201,16 @@ main() {
 
   : >"$work/rows"
   for id in $(feature_ids); do
-    plan=$(plan_feature "$id")
+    # With set -e of its own, outside any if: an error leaves this Feature
+    # out, and the others still have their turn.
+    set +e
+    plan=$(
+      set -e
+      plan_feature "$id"
+    )
+    rc=$?
+    set -e
+    [ "$rc" = 0 ] || plan="fail its release couldn't be worked out (exit $rc)"
     case $plan in
       include\ *)
         echo "$id ${plan#include }" >>"$work/rows"

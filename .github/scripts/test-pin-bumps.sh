@@ -313,6 +313,13 @@ expect "release_change with no published version adds an entry" 0 1.4.1 \
   release_case '## 1.4.0\n\n- Earlier.\n' '' patch
 expect "as today" 0 "$(printf '## 1.4.1\n\n- New.\n\n## 1.4.0')" \
   cat "$root/rel/CHANGELOG.md"
+minor_ride='## Unreleased\n\n### Minor\n\n- A feature.\n\n'
+minor_ride+='## 1.1.2\n\n- Earlier.\n\n## 1.1.1\n'
+expect "a line under Unreleased's ### Minor raises a ride's level" 0 1.2.0 \
+  release_case "$minor_ride" 1.1.1 patch 1.1.2
+expect "dropping the subheading from the entry" 0 "" \
+  holds "$(cat "$root/rel/CHANGELOG.md")" \
+  "$(printf '## 1.2.0\n\n- Earlier.\n- New.\n- A feature.\n\n## 1.1.1')"
 expect "release_change fails on a ride with no entry to add to" 1 \
   "has no '## 1.4.0' entry for the unpublished 1.4.0" \
   release_case '## 1.1.1\n\n- Shipped.\n' 1.1.1 minor
