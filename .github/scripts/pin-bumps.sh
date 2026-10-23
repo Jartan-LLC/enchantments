@@ -232,20 +232,12 @@ close_pr() { # number body
 # Opens the Feature's PR, or brings an open one's title and body up to date.
 upsert_pr() { # id number title body excluded-file output...
   local id=$1 number=$2 title=$3 body=$4 want="chore($1): bump pinned tools"
-  local excluded_file=$5
+  local excluded_file=$5 result
   shift 5
   pr_body "$id" "$excluded_file" "$@" >"$work/body"
-  if [ -z "$number" ]; then
-    number=$(pulls_api POST pulls \
-      "{title: \$t, head: \$h, base: \"main\", body: \$b}" \
-      --arg t "$want" --arg h "pin-bumps/$id" --rawfile b "$work/body")
-    echo "$id: opened #$number"
-  elif [ "$title" != "$want" ] \
-    || [ "$(cat "$work/body")" != "$(body_lf "$body")" ]; then
-    pulls_api PATCH "pulls/$number" "{title: \$t, body: \$b}" \
-      --arg t "$want" --rawfile b "$work/body" >/dev/null
-    echo "$id: updated #$number"
-  fi
+  result=$(put_pr "pin-bumps/$id" "$number" "$title" "$body" "$want" \
+    "$work/body")
+  [ -z "$result" ] || echo "$id: $result"
 }
 
 # --- The branch ---------------------------------------------------------------

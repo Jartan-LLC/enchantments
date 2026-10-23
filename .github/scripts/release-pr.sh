@@ -121,12 +121,13 @@ build_commit() { # parent rows-file
 }
 
 # Brings the release branch and PR in line with the releases: defers to hand
-# edits, closes the PR when there's nothing to release, or rebuilds, pushes
-# and opens or updates it. Fails when the push is refused, after reporting
-# it.
-update_pr() { # rows-file
-  local rows=$1 prs open number='' title='' body='' remote parent commit
-  local reason want authors
+# edits, closes the PR when there's nothing to release and no Feature failed
+# (a GHCR outage leaves it open), or rebuilds, pushes and opens or updates
+# it. Fails when the push is refused, after reporting it.
+update_pr() { # rows-file failed
+  local rows=$1 failed=$2 prs open number='' title='' body='' remote parent
+  local commit
+  local reason want authors result
   prs=$(branch_prs "$branch")
   open=$(jq -c '[.[] | select(.state == "open")] | last // empty' <<<"$prs")
   if [ -n "$open" ]; then
@@ -142,7 +143,9 @@ update_pr() { # rows-file
   fi
 
   if [ ! -s "$rows" ]; then
-    if [ -n "$number" ]; then
+    if [ -n "$number" ] && [ "$failed" = 1 ]; then
+      echo "release: a Feature failed, so #$number is left open"
+    elif [ -n "$number" ]; then
       pulls_api PATCH "pulls/$number" '{state: "closed"}' >/dev/null
       echo "release: closed #$number, nothing to release"
     fi
@@ -164,17 +167,8 @@ update_pr() { # rows-file
 
   want=$(git log -1 --format=%s "$commit")
   pr_body "$rows" >"$work/body"
-  if [ -z "$number" ]; then
-    number=$(pulls_api POST pulls \
-      "{title: \$t, head: \$h, base: \"main\", body: \$b}" \
-      --arg t "$want" --arg h "$branch" --rawfile b "$work/body")
-    echo "release: opened #$number"
-  elif [ "$title" != "$want" ] \
-    || [ "$(cat "$work/body")" != "$(body_lf "$body")" ]; then
-    pulls_api PATCH "pulls/$number" "{title: \$t, body: \$b}" \
-      --arg t "$want" --rawfile b "$work/body" >/dev/null
-    echo "release: updated #$number"
-  fi
+  result=$(put_pr "$branch" "$number" "$title" "$body" "$want" "$work/body")
+  [ -z "$result" ] || echo "release: $result"
 }
 
 main() {
@@ -221,7 +215,12 @@ main() {
         printf 'release\t%s\tfail\t%s\n' "$id" "${plan#fail }" >>"$report"
         status=1
         ;;
-      *) printf 'release\t%s\tok\t\n' "$id" >>"$report" ;;
+      '') printf 'release\t%s\tok\t\n' "$id" >>"$report" ;;
+      *)
+        echo "::error::$id: unexpected plan: $plan"
+        printf 'release\t%s\tfail\tunexpected plan\n' "$id" >>"$report"
+        status=1
+        ;;
     esac
   done
   # In a subshell with set -e of its own, since a caller's || or if would turn
@@ -229,7 +228,7 @@ main() {
   set +e
   (
     set -e
-    update_pr "$work/rows"
+    update_pr "$work/rows" "$status"
   )
   rc=$?
   set -e

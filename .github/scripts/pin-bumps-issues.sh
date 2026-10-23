@@ -2,7 +2,7 @@
 # Keeps pin-bumps.yml's tracking issues in step with its report, whose rows
 # the headers of pin-bumps.sh and release-pr.sh give: one issue per tool
 # whose lookup failed, one per Feature whose # pin headers are invalid, whose
-# branch couldn't be pushed or that the release PR leaves out, and one when
+# branch couldn't be pushed or whose release failed, and one when
 # the release branch couldn't be pushed. Each is updated rather than
 # duplicated, and closed by the first run that reports it clean. Needs
 # GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN with issues write.
@@ -126,8 +126,7 @@ while IFS=$'\t' read -r what name state reason; do
         quoted "$reason"
         echo
         echo "Until the cause above is fixed, the release PR leaves the" \
-          "Feature out. The next run that adds it, or finds nothing of it to" \
-          "release, closes this issue."
+          "Feature out. The next run that doesn't fail on it closes this issue."
         echo
         echo "Last failure: $RUN_URL"
       } >"$body"

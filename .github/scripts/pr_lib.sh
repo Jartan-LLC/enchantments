@@ -30,6 +30,24 @@ pr_authors() { # number
     --jq '.[] | .author.login // "?"'
 }
 
+# Opens a PR from the branch to main, or brings an open one's title and body
+# up to date (a body edited on GitHub may have CRLF line endings). Prints
+# "opened #<n>" or "updated #<n>" when it changed anything.
+put_pr() { # branch number title body want-title body-file
+  local branch=$1 number=$2 title=$3 body=$4 want=$5 file=$6
+  if [ -z "$number" ]; then
+    number=$(pulls_api POST pulls \
+      "{title: \$t, head: \$h, base: \"main\", body: \$b}" \
+      --arg t "$want" --arg h "$branch" --rawfile b "$file")
+    echo "opened #$number"
+  elif [ "$title" != "$want" ] \
+    || [ "$(cat "$file")" != "$(tr -d '\r' <<<"$body")" ]; then
+    pulls_api PATCH "pulls/$number" "{title: \$t, body: \$b}" \
+      --arg t "$want" --rawfile b "$file" >/dev/null
+    echo "updated #$number"
+  fi
+}
+
 # Prints the commit to rebuild on: the open PR's own parent while paths on
 # main haven't moved, else main. A push moving the branch past main's
 # workflow changes would be refused.

@@ -289,6 +289,10 @@ expect "a failed author lookup fails the run" 1 "stub gh: HTTP 502" \
 expect_not "with no ok row for the release push" \
   "release-push${tab}release${tab}ok" cat "$root/report"
 expect "leaving the branch" 0 "" test "$(branch_tip)" = "$tip"
+release_outage() { GHCR_DOWN="alpha beta" release; }
+expect "a GHCR outage fails the run" 1 \
+  "::error::alpha: its GHCR lookup failed" release_outage
+expect "but leaves the PR open" 0 open pr 2 state
 
 unreleased alpha "- Another."
 echo 'echo again' >>"$seed/src/alpha/install.sh"
