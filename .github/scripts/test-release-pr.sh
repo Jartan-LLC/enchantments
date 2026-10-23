@@ -93,8 +93,8 @@ git clone -q "$origin" "$run"
 with_registry "$run"
 export GHCR_TAGS="alpha@1.0.0 beta@2.0.0"
 
-# Adds a line under "## Unreleased" (and a subheading), in a fresh section
-# when there's none.
+# Adds a line under "## Unreleased", under the subheading when one is given,
+# in a fresh section when there's none.
 unreleased() { # id line [subheading]
   local log=$seed/src/$1/CHANGELOG.md
   if ! grep -qx '## Unreleased' "$log"; then
@@ -111,8 +111,8 @@ unreleased() { # id line [subheading]
 }
 
 # The published versions come from the stub registry, as the workflow's
-# published job gives them. The report starts empty, as pin-bumps.sh leaves
-# it for the release step.
+# published job gives them. The report starts empty each run, so a case sees
+# only its own rows.
 release() {
   : >"$root/report"
   (cd "$run" \

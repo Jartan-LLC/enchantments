@@ -1,16 +1,11 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Keeps one release PR open on the branch release (docs/releasing.md,
-# "Release PRs"). It holds every Feature whose files, apart from README.md,
-# NOTES.md and CHANGELOG.md, changed since its published version's release
-# tag: the version raised by the level of its "## Unreleased" lines
-# (pins_lib.sh, unreleased_level), and those lines moved into the version's
-# entry. A Feature whose version on main isn't the published one, as while
-# its release is under way, is left out. Needs GH_TOKEN (the App's),
-# APP_SLUG, GITHUB_REPOSITORY and PUBLISHED_VERSIONS (published-versions.sh),
-# and works on origin/main. Exits 1, after every Feature had its turn, when
-# one can't be released or the PR can't be kept, and appends to a report for
-# pin-bumps-issues.sh, one tab-separated row each:
+# Keeps the release PR on the branch release (docs/releasing.md, "Release
+# PRs"). Needs GH_TOKEN (the App's), APP_SLUG, GITHUB_REPOSITORY and
+# PUBLISHED_VERSIONS (published-versions.sh), and works on origin/main. Exits
+# 1 when PUBLISHED_VERSIONS is empty, changing nothing, or, after every
+# Feature had its turn, when one can't be released or the PR can't be kept.
+# Appends to a report for pin-bumps-issues.sh, one tab-separated row each:
 #   release      <id>    ok|fail [reason]
 #   release-push release ok|refused [reason]
 # Run from the repository root.

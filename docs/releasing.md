@@ -68,8 +68,6 @@ Each Feature has its own version; raise the first level that applies:
 - **Minor:** a new option, or a pin bump with a minor or larger upstream move.
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
-A line under `### Minor` or `### Major` in `## Unreleased` takes at least that level.
-
 The level counts from the Feature's published version, not main's. While main's version
 is above the highest on GHCR (it awaits your approval, or its publish failed), a change
 whose level needs no higher version rides it: add the change's line to that version's
@@ -103,6 +101,10 @@ Reverting a release also needs a higher version.
 
 - What this version changes.
 ```
+
+Under `## Unreleased`, put a minor change's line under `### Minor` and a major one's under
+`### Major`; any other line counts as a patch. A version's entry leaves those subheadings
+out.
 
 - **A PR that rides a version you then approve** goes stale: its check passed before the
   version was published. Before merging it, re-run its CI, whose `versions` job then asks
@@ -202,23 +204,23 @@ the downloaded file and the older keys. GitHub won't delete an App's only key.
 
 ## Release PRs
 
-On the same runs, `pin-bumps.yml` keeps one PR open on the branch `release`, as
+`pin-bumps.yml` also keeps one PR open on the branch `release`, as
 [the pin-bump App](#the-pin-bump-app), titled with each version it releases. Merging it
 releases them, as in [Releasing a change](#releasing-a-change).
 
 - **What it holds:** each Feature whose files, apart from `README.md`, `NOTES.md` and
   `CHANGELOG.md`, changed since its published version's
   [release tag](#release-tags). Its version is the published one raised by the largest
-  level among its `## Unreleased` lines, and those lines become that version's entry. A
-  line is a patch unless it sits under `### Minor` or `### Major` inside
-  `## Unreleased`; the entry drops those subheadings.
+  level among its `## Unreleased` lines ([Versioning](#versioning)), and those lines
+  become that version's entry.
 - **What it leaves out:** a Feature whose version on main isn't the published one, as
   while its release is under way, and one never published. A docs-only line waits under
   `## Unreleased` for the Feature's next release.
 - **Each run** rebuilds the PR on main, unless `src/` on main hasn't moved since the PR's
   commit was built. To change a version or an entry, or to leave a Feature out, push a
   commit to `release`; the workflow then leaves the branch alone. Close the PR to have the
-  next run rebuild it.
+  next run rebuild it. With nothing left to release, the workflow closes the PR, unless a
+  Feature failed that run.
 - **A `pin-bumps: <id> release blocked` issue** means the PR leaves that Feature out:
   its GHCR lookup failed, its release tag is missing, or its files changed with no
   `## Unreleased` line. Fix the cause the issue quotes; the next run that doesn't fail on

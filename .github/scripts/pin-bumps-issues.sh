@@ -2,9 +2,9 @@
 # Keeps pin-bumps.yml's tracking issues in step with its report, whose rows
 # the headers of pin-bumps.sh and release-pr.sh give: one issue per tool
 # whose lookup failed, one per Feature whose # pin headers are invalid, whose
-# branch couldn't be pushed or whose release failed, and one when
-# the release branch couldn't be pushed. Each is updated rather than
-# duplicated, and closed by the first run that reports it clean. Needs
+# branch couldn't be pushed, or whose release failed, and one when the
+# release branch couldn't be pushed. Each is updated rather than duplicated,
+# and closed by the first run that reports it clean. Needs
 # GITHUB_REPOSITORY, RUN_URL, and GH_TOKEN with issues write.
 set -euo pipefail
 report=${1:?usage: pin-bumps-issues.sh <report>}

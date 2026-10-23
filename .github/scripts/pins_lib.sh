@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # Helpers with no network: reading and writing a Feature's pins.sh and
 # checking upstream values before they're written, for pin-bumps.sh; the
-# version rule and its version and changelog edits, for both bots and
-# release-pr.sh, whose unpublished and version_gt check-versions.sh shares;
-# and the pin-bump PR body's machine-read lines.
+# version rule and its version and changelog edits, for the bots and
+# release-pr.sh (check-versions.sh shares unpublished and version_gt); and
+# the pin-bump PR body's machine-read lines.
 # Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
@@ -232,7 +232,7 @@ unreleased_level() { # file
 }
 
 # Adds a "## <version>" entry holding the lines in entry_file, then any lines
-# from "## Unreleased" but its "### Minor" and "### Major" subheadings, and
+# from "## Unreleased" except its "### Minor" and "### Major" subheadings, and
 # removes that section.
 add_changelog_entry() { # file version entry_file
   awk -v version="$2" -v entry_file="$3" '
@@ -258,7 +258,7 @@ add_changelog_entry() { # file version entry_file
     END { if (!done) entry() }' "$1" "$1" | overwrite "$1"
 }
 
-# Adds the lines in entry_file, then any from "## Unreleased" but its level
+# Adds the lines in entry_file, then any from "## Unreleased" except its level
 # subheadings (removing that section), to the end of the "## <old>" entry,
 # and retitles it "## <new>". Fails, changing nothing, when there's no such
 # entry.

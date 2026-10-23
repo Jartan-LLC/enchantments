@@ -30,9 +30,10 @@ pr_authors() { # number
     --jq '.[] | .author.login // "?"'
 }
 
-# Opens a PR from the branch to main, or brings an open one's title and body
-# up to date (a body edited on GitHub may have CRLF line endings). Prints
-# "opened #<n>" or "updated #<n>" when it changed anything.
+# Opens a PR from the branch to main, or brings the open PR (number, with its
+# current title and body) up to date; a body edited on GitHub may have CRLF
+# line endings. Prints "opened #<n>" or "updated #<n>" when it changed
+# anything.
 put_pr() { # branch number title body want-title body-file
   local branch=$1 number=$2 title=$3 body=$4 want=$5 file=$6
   if [ -z "$number" ]; then
