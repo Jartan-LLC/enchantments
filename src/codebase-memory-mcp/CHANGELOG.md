@@ -1,3 +1,9 @@
+## Unreleased
+
+### Minor
+
+- `codebase-memory-mcp`: v0.11.0 → v0.12.0
+
 ## 1.0.2
 
 - Claude runs without the hook's terminal.
