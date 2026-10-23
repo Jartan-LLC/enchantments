@@ -830,13 +830,16 @@ expect "and still of a Feature after one whose lookup failed" 0 \
 
 # --- test_lib.sh's expect and expect_not ---
 
-# Each runs in a subshell, so its own pass or fail leaves the counts alone.
+# The inner expect and expect_not run in $(...), so their pass or fail
+# leaves the suite's counts alone.
 out=$(expect "block" 0 $'a\nb' printf 'a\nc\n')
-expect "expect matches a multi-line want as a block" 0 "FAIL block" \
-  echo "$out"
+expect "expect fails when only part of a multi-line want holds" 0 \
+  "FAIL block" echo "$out"
 out=$(expect_not "block" $'a\nb' printf 'a\nb\n')
-expect "expect_not fails on the whole block" 0 "FAIL block" echo "$out"
+expect "expect_not fails on a whole multi-line block" 0 "FAIL block" \
+  echo "$out"
 out=$(expect_not "block" $'a\nb' printf 'a\nc\n')
-expect "but not on one of its lines" 0 "ok   block" echo "$out"
+expect "expect_not passes when only part of it holds" 0 "ok   block" \
+  echo "$out"
 
 summary
