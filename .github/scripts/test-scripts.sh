@@ -823,5 +823,9 @@ expect "--untagged still warns of it once a newer, tagged version ships" 0 \
   tag --untagged
 expect_not "but not of an older version with its tag" \
   "feature_gh-config_2.0.0" tag --untagged
+PUBLISHED="$PUBLISHED liza-toolchain@9.9.9"
+expect "and still of a Feature after one whose lookup failed" 0 \
+  "::warning::feature_liza-toolchain_9.9.9 is on GHCR but has no tag" \
+  tag --untagged
 
 summary
