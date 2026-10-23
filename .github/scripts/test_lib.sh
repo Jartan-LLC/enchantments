@@ -12,34 +12,34 @@ fail() { # name detail
   echo "FAIL $1: $2"
   failed=$((failed + 1))
 }
-# Runs a command and checks its exit status, and that its output contains
-# want (when given).
+# Runs a command and checks its exit status, and that its output holds want
+# (when given).
 expect() { # name status want command...
   local name=$1 status=$2 want=$3 out rc
   shift 3
   out=$("$@" 2>&1)
   rc=$?
-  if [ "$rc" -eq "$status" ] && { [ -z "$want" ] \
-    || grep -qF -- "$want" <<<"$out"; }; then
+  if [ "$rc" -eq "$status" ] \
+    && { [ -z "$want" ] || holds "$out" "$want"; }; then
     pass "$name"
   else
     fail "$name" "exit $rc, want $status '$want': $out"
   fi
 }
-# Runs a command that must succeed without printing unwanted.
+# Runs a command that must succeed, and whose output doesn't hold unwanted.
 expect_not() { # name unwanted command...
   local name=$1 unwanted=$2 out rc
   shift 2
   out=$("$@" 2>&1)
   rc=$?
-  if [ "$rc" -eq 0 ] && ! grep -qF -- "$unwanted" <<<"$out"; then
+  if [ "$rc" -eq 0 ] && ! holds "$out" "$unwanted"; then
     pass "$name"
   else
     fail "$name" "exit $rc, want 0 without '$unwanted': $out"
   fi
 }
-# Succeeds when text holds want whole: its lines together, in order. A
-# multi-line want in expect matches any one of its lines.
+# Succeeds when text holds want whole: every line of a multi-line want,
+# together and in order, where grep -F would match any one of them.
 holds() { # text want
   [[ $1 == *"$2"* ]]
 }
