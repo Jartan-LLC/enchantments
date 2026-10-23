@@ -69,7 +69,8 @@ tag_one() { # commit id
 }
 
 # Warns about each version on GHCR with no tag.
-# A failed lookup warns of nothing: check-pending.sh lists that id instead.
+# A failed lookup warns of nothing; check-pending.sh --report, on scheduled
+# and manual runs, fails on it instead.
 untagged() {
   local existing id versions version tag
   existing=$(gh api --paginate "$refs/matching-refs/tags/feature_" \
