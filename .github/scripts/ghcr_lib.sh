@@ -21,13 +21,20 @@ ghcr_has() { # id version
   case $rc in 0 | 1) return "$rc" ;; *) return 2 ;; esac
 }
 
+# Prints each X.Y.Z among the Feature's published tags, one per line;
+# returns 2 when the lookup fails.
+ghcr_versions() { # id
+  local tags
+  tags=$(ghcr_tags "$1") || return 2
+  jq -r '.publishedTags[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+    <<<"$tags" || return 2
+}
+
 # Prints the highest X.Y.Z among the Feature's published tags, nothing when
 # none is; returns 2 when the lookup fails.
 ghcr_latest() { # id
-  local tags versions
-  tags=$(ghcr_tags "$1") || return 2
-  versions=$(jq -r '.publishedTags[]
-    | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$tags") || return 2
+  local versions
+  versions=$(ghcr_versions "$1") || return 2
   [ -z "$versions" ] || sort -V <<<"$versions" | tail -n 1
 }
 
