@@ -1,7 +1,7 @@
 # Changelog
 
 Changes to the collection as a whole: Features added, renamed or removed, and
-changes to what this repository's docs tell you to do. What a Feature installs,
+changes to what the docs tell you to do with the Features. What a Feature installs,
 version by version, is in its own `src/<id>/CHANGELOG.md`. Maintenance lists
 changes to how this repository releases, for its maintainers.
 
@@ -23,9 +23,10 @@ Sections are months, newest first.
 
 ### Maintenance
 
-- A change to a Feature lists itself under `## Unreleased` in the Feature's
-  changelog and leaves its version alone. The release bot keeps one release PR
-  that raises each changed Feature's version and moves its lines into that
+- A change to a Feature's files, other than its `README.md`, `NOTES.md` or
+  `CHANGELOG.md`, lists itself under `## Unreleased` in the Feature's changelog
+  and leaves its version alone. `pin-bumps.yml` keeps one release PR open that
+  raises each changed Feature's version and moves its lines into that
   version's entry (#62, #63).
 - A push that brings a version not yet on GHCR publishes it from that push's
   tested commit once a maintainer approves the `ghcr` deployment; a newer run's

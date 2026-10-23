@@ -46,7 +46,7 @@ Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib
   consumers to do, adds a line to the root `CHANGELOG.md` under the current month's
   `## YYYY-MM` heading (add it if it's missing); a change to how the repository releases
   goes under that month's `### Maintenance`. CI fails a PR that adds or removes a Feature
-  without a line naming it, or, for a rename, naming both ids.
+  without a line naming it; a rename names both ids.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
 - Report security issues privately via [SECURITY.md](.github/SECURITY.md), not a public issue.

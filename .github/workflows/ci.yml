@@ -143,6 +143,7 @@ jobs:
         run: |
           git fetch -q --depth=1 origin "$BASE"
           .github/scripts/check-versions.sh "$BASE"
+      # Uses the base the step above fetched.
       - if: ${{ !cancelled() }}
         env:
           BASE: ${{ needs.features.outputs.base }}

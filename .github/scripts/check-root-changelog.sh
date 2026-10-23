@@ -1,11 +1,11 @@
 #!/bin/bash
 # Fails when a Feature was added or removed since <base> and no line new to
 # the root CHANGELOG.md names it; a rename is a removal and an addition, so
-# its line names both. A new line is one base's changelog lacks, other than a
-# blank or a heading, so a reworded line counts too. Only this is checked: a
-# change to what the docs tell consumers, which the changelog also records,
-# can't be told from a typo fix by its path. Run from the repository root,
-# with <base> fetched.
+# both ids must be named. A new line is one base's changelog lacks, other than
+# a blank or a heading, so an existing line reworded to name the Feature counts
+# too. Only this is checked: a change to what the docs tell consumers, which
+# the changelog also records, can't be told from a typo fix by its path. Run
+# from the repository root, with <base> fetched.
 set -euo pipefail
 if [ "$#" -ne 1 ]; then
   echo "usage: check-root-changelog.sh <base>" >&2
