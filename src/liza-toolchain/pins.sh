@@ -5,11 +5,11 @@
 # updates.
 
 # pin asset ast-grep repo=ast-grep/ast-grep
-AST_GREP_TAG='0.50.0'
+AST_GREP_TAG='0.51.0'
 AST_GREP_ASSET_X86_64='app-x86_64-unknown-linux-gnu.zip'
-AST_GREP_SHA256_X86_64='0fd3f489639abb8465a914b74b8779171577582318d8a940d00399f59dba81c5'
+AST_GREP_SHA256_X86_64='a7eead5552d3a8daad70f5d50d935da44bd0c138e946b5b0a96b1d38169fa639'
 AST_GREP_ASSET_AARCH64='app-aarch64-unknown-linux-gnu.zip'
-AST_GREP_SHA256_AARCH64='3a4ad22dd1dca7a4900a173de65885578617af57fa13dd93b8d345d6b352770e'
+AST_GREP_SHA256_AARCH64='73af0ebe5958acee012754a5b2826a186580ef83333092408a7a01096fc30b8b'
 
 # pin asset yq repo=mikefarah/yq
 YQ_TAG='v4.54.1'

@@ -44,6 +44,10 @@
   - hono: 4.13.9 → 4.13.13 (GHSA-5r4p-p66f-jhc7)
   - import-in-the-middle: 3.5.1 → 3.5.2
   - zod: 4.6.5 → 4.6.7
+- `ast-grep`: 0.50.0 → 0.51.0
+- `semble`: model2vec==0.9.0, semble==0.6.2 → model2vec==0.10.0, semble==0.7.0
+  - model2vec: 0.9.0 → 0.10.0
+  - semble: 0.6.2 → 0.7.0
 
 ## 1.1.1
 
