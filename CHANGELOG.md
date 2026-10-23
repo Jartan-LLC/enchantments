@@ -35,4 +35,4 @@ Sections are months, newest first.
   was built from (#57).
 - pin-bumps proposes upstream pins at least 7 days old as one PR per Feature
   (#13). Dependabot's PRs under `src/` get their `## Unreleased` line pushed by
-  the pin-bumps App (#53).
+  the pin-bump App (#53).

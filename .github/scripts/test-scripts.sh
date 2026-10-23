@@ -241,6 +241,10 @@ expect "a Feature added without a root changelog line fails" 1 \
 printf '\n## 2026-11\n' >>CHANGELOG.md
 git add -A && git commit -q --amend --no-edit
 expect "a heading alone doesn't count" 1 "src/new-one was added" root_log
+sed -i 's/^- Earlier\.$/- Earlier, reworded./' CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "nor a new line that doesn't name it" 1 "src/new-one was added" \
+  root_log
 printf '\n- The new-one Feature.\n' >>CHANGELOG.md
 git add -A && git commit -q --amend --no-edit
 expect "a Feature added with its line passes" 0 "" root_log
@@ -250,6 +254,27 @@ git rm -rq src/gh-config
 commit
 expect "a Feature removed without a line fails" 1 "src/gh-config was removed" \
   root_log
+
+log_repo
+git mv src/gh-config src/renamed
+printf '\n- The renamed Feature.\n' >>CHANGELOG.md
+commit
+expect "a rename's line names the old id too" 1 "src/gh-config was removed" \
+  root_log
+if ! root_log 2>&1 | grep -q src/renamed; then
+  pass "and passes the new one"
+else
+  fail "and passes the new one" "$(root_log 2>&1)"
+fi
+sed -i 's/^- The renamed Feature\.$/- gh-config is now renamed./' CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "a rename whose line names both passes" 0 "" root_log
+
+new_repo
+cp -R src/gh-config src/new-one
+printf '# Changelog\n\n## 2026-10\n\n- The new-one Feature.\n' >CHANGELOG.md
+commit
+expect "a base without the changelog passes with the new line" 0 "" root_log
 
 log_repo
 echo '# edit' >>src/gh-config/install.sh
