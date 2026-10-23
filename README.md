@@ -42,7 +42,8 @@ included, in both places, so a Feature declared twice runs once.
 
 [Choosing Features](docs/choosing.md) · [Using and removing](docs/using.md) ·
 [What persists](docs/persistence.md) · [Trust boundary](docs/trust-boundary.md) ·
-[Troubleshooting](docs/troubleshooting.md) · [Contributing](CONTRIBUTING.md)
+[Troubleshooting](docs/troubleshooting.md) · [Changelog](CHANGELOG.md) ·
+[Contributing](CONTRIBUTING.md)
 
 ## License
 

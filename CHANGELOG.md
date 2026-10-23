@@ -1,0 +1,38 @@
+# Changelog
+
+Changes to the collection as a whole: Features added, renamed or removed, and
+changes to what this repository's docs tell you to do. What a Feature installs,
+version by version, is in its own `src/<id>/CHANGELOG.md`. Maintenance lists
+changes to how this repository releases, for its maintainers.
+
+Sections are months, newest first.
+
+## 2026-10
+
+- The first Features, each declared as `ghcr.io/jartan-llc/enchantments/<id>:1`:
+  - `claude-code`: Claude Code, self-updating, with its login kept across rebuilds.
+  - `codebase-memory-mcp`: a code graph Claude Code can query.
+  - `gh-config`: the GitHub CLI's login, kept across rebuilds (`gh` not included).
+  - `grimoire`: Claude Code plugins from the grimoire marketplace.
+  - `liza`: Liza, rules and a multi-agent workflow for coding agents, with ripgrep.
+  - `liza-toolchain`: Liza's agent tools, such as code indexes and code search.
+  - `container-env`: per-device environment variables, kept out of every repo.
+- Every Feature installs only on a Debian-based image (Ubuntu included) with
+  bash; on any other it installs nothing, with a warning, and the container
+  still builds.
+
+### Maintenance
+
+- A change to a Feature lists itself under `## Unreleased` in the Feature's
+  changelog and leaves its version alone. The release bot keeps one release PR
+  that raises each changed Feature's version and moves its lines into that
+  version's entry (#62, #63).
+- A push that brings a version not yet on GHCR publishes it from that push's
+  tested commit once a maintainer approves the `ghcr` deployment; a newer run's
+  publish may replace one still waiting (#10, #55, #63). Scheduled and manual
+  runs fail while a version on main isn't on GHCR (#63).
+- Each published version is tagged `feature_<id>_<version>` at the commit it
+  was built from (#57).
+- pin-bumps proposes upstream pins at least 7 days old as one PR per Feature
+  (#13). Dependabot's PRs under `src/` get their `## Unreleased` line pushed by
+  the pin-bumps App (#53).

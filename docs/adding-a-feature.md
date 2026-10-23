@@ -10,8 +10,9 @@
    else, add a `pins.sh` entry of one of the kinds in [Updating pins](releasing.md#updating-pins).
    Either way, add a row to that table saying how to update it.
 4. **Document it:** copy a sibling's `docs/features/<id>.md` and add it to the Features
-   toctree in `docs/index.md`, add a row to the Feature list in the root `README.md`, and add
-   it to [Choosing Features](choosing.md).
+   toctree in `docs/index.md`, add a row to the Feature list in the root `README.md`, add
+   it to [Choosing Features](choosing.md), and add a line for it to the root
+   `CHANGELOG.md`.
 5. **Run `make readmes`** and commit the generated `src/<id>/README.md`, then `make check`.
 6. **Open the PR.** It needs a green `check`.
 7. **Publish it.** Before merging, run `gh auth refresh -s read:packages`, then check

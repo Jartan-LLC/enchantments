@@ -40,6 +40,9 @@ every Claude Code session loads it; Liza agents also enforce the tiers (Liza's `
   its `README.md`, `NOTES.md` or `CHANGELOG.md` needs no line, though one listed under
   `## Unreleased` ships with the next release. CI's version check enforces this
   (`docs/releasing.md`, Versioning).
+- A Feature added, renamed or removed, a change to what the docs tell consumers to do,
+  or a change to how the repository releases adds its line to the root `CHANGELOG.md` (`CONTRIBUTING.md`,
+  Conventions). CI checks it only for a Feature added or removed.
 - Write plans to `.claude/workspace/` in the project root for non-trivial changes.
 - Don't wrap things the underlying library already expresses clearly.
 - Don't speculate about fixes — investigate first, then propose.
