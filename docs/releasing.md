@@ -51,9 +51,12 @@ and updating `feature_*` tags, with no bypass.
   Feature with no tag yet whose main version is the published one, it uses the commit
   that set that version; for any other untagged one, every publish fails until you tag
   it.
-- **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one.
-  Tag it by hand as above, at the commit of the run that published it: the one whose
-  `Pending:` line lists the id and whose `publish` succeeded.
+- **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one,
+  for main's version or an older one. Tag it by hand as above, at the commit of the run
+  that published it: the one whose `Pending:` line lists the id, whose `publish`
+  succeeded, and whose commit has that version
+  (`git show <commit>:src/<id>/devcontainer-feature.json | jq -r .version`). A newer
+  release's run lists the id too, and a tag on its commit can't be moved.
 - **To recreate the ruleset,** for instance after it was changed in an incident:
 
   ```bash

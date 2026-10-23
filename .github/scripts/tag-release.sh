@@ -5,7 +5,7 @@
 #     it's on GHCR, the tag feature_<id>_<version> on <commit>. Exits 1 if any
 #     id failed, after every id had its turn.
 #   tag-release.sh --untagged  warns about each published version on GHCR
-#     with no tag; a Feature whose lookup fails is skipped.
+#     with no tag.
 # Tags are made through the git refs API, so the checkout holds no git
 # credential, and never move: one already on another commit is an error.
 # Needs GH_TOKEN (contents: write to tag) and GITHUB_REPOSITORY, and
