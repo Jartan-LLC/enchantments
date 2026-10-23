@@ -8,7 +8,6 @@ A rebuild replaces the container. These volumes outlive it:
 | `container-env` | the variables `container-env` exports | every container with `container-env` |
 | `gh-config` | the GitHub CLI's login | every container with `gh-config` |
 | `liza-<devcontainerId>` | Liza and its toolchain | one opened config |
-| `stripe-config` | the Stripe CLI's login | every container with `stripe-cli` |
 
 ## The Liza volumes
 

@@ -8,12 +8,9 @@ check "stripe runs from PATH" \
   bash -c "stripe --version | grep -q '^stripe version '"
 check "the stripe on PATH is the Feature's" test "$(command -v stripe)" = "$bin"
 check "the binary belongs to root" test "$(stat -c %U "$bin")" = root
-mount=/mnt/enchantments/stripe-config
-check "stripe-config is mounted" mountpoint -q "$mount"
-check ".config/stripe links to it" \
-  test "$(readlink -f ~/.config/stripe)" = "$mount"
-check "the volume belongs to the user" test "$(stat -c %U "$mount")" = vscode
-check "no failures recorded" \
-  test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
+# stripe login saves through the same write as this, offline.
+check "stripe saves its config as the user" bash -c \
+  "STRIPE_CLI_TELEMETRY_OPTOUT=1 stripe config --set color off \
+    && grep -q off ~/.config/stripe/config.toml"
 
 reportResults

@@ -15,8 +15,7 @@ links() {
       = /mnt/enchantments/claude-data/claude.json ] \
     && test -f ~/.claude.json \
     && [ "$(readlink -f ~/.config/gh)" = /mnt/enchantments/gh-config ] \
-    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ] \
-    && [ "$(readlink -f ~/.config/stripe)" = /mnt/enchantments/stripe-config ]
+    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ]
 }
 activated() {
   [ "$(readlink -f CLAUDE.local.md)" = "$(readlink -f ~/.liza/CORE.md)" ] \

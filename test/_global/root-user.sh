@@ -15,8 +15,7 @@ links() {
       = /mnt/enchantments/claude-data/claude.json ] \
     && test -f ~/.claude.json \
     && [ "$(readlink -f ~/.config/gh)" = /mnt/enchantments/gh-config ] \
-    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ] \
-    && [ "$(readlink -f ~/.config/stripe)" = /mnt/enchantments/stripe-config ]
+    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ]
 }
 activated() {
   [ "$(readlink -f CLAUDE.local.md)" = "$(readlink -f ~/.liza/CORE.md)" ] \
@@ -59,9 +58,9 @@ container_env_loads() {
 }
 check "container-env loads in root's login shells" container_env_loads
 
-# initializeCommand seeded claude-data, gh-config and stripe-config as the
-# runner's user, as a non-root container leaves them. Root never re-owns one:
-# that would lock the non-root containers out of their 0600 files.
+# initializeCommand seeded claude-data and gh-config as the runner's user, as a
+# non-root container leaves them. Root never re-owns one: that would lock the
+# non-root containers out of their 0600 files.
 keeps_owner() { # mount
   local owner
   owner=$(stat -c %u "$1/.seed")
@@ -69,8 +68,6 @@ keeps_owner() { # mount
 }
 check "claude-data keeps its owner" keeps_owner /mnt/enchantments/claude-data
 check "gh-config keeps its owner" keeps_owner /mnt/enchantments/gh-config
-check "stripe-config keeps its owner" \
-  keeps_owner /mnt/enchantments/stripe-config
 
 # base:trixie has no node, so grimoire's warning is the only one.
 reports=~/.cache/enchantments

@@ -38,7 +38,7 @@ make check
 Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib/` or
 `test/` is done only when the PR's `check` passes in CI. Don't run
 `devcontainer features test` locally: it writes to your real `claude-data`,
-`container-env`, `gh-config`, `liza-<devcontainerId>` and `stripe-config` volumes.
+`container-env`, `gh-config` and `liza-<devcontainerId>` volumes.
 
 ## Conventions
 
