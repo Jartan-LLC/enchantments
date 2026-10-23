@@ -4,8 +4,8 @@
 #   tag-release.sh <commit> <id>...  gives each id's version at <commit>, once
 #     it's on GHCR, the tag feature_<id>_<version> on <commit>. Exits 1 if any
 #     id failed, after every id had its turn.
-#   tag-release.sh --untagged  warns about each Feature whose version in the
-#     working tree is on GHCR but has no tag.
+#   tag-release.sh --untagged  warns about each published version on GHCR
+#     with no tag.
 # Tags are made through the git refs API, so the checkout holds no git
 # credential, and never move: one already on another commit is an error.
 # Needs GH_TOKEN (contents: write to tag) and GITHUB_REPOSITORY, and
@@ -68,19 +68,21 @@ tag_one() { # commit id
   return 1
 }
 
-# Warns about each Feature's working-tree version that's on GHCR with no tag.
-# A failed lookup warns of nothing: check-pending.sh lists that id instead.
+# Warns about each version on GHCR with no tag.
+# A failed lookup warns of nothing; check-pending.sh --report, on scheduled
+# and manual runs, fails on it instead.
 untagged() {
-  local existing id version tag
+  local existing id versions version tag
   existing=$(gh api --paginate "$refs/matching-refs/tags/feature_" \
     --jq '.[].ref | sub("^refs/tags/"; "")')
   for id in $(feature_ids); do
-    version=$(jq -r .version "src/$id/devcontainer-feature.json")
-    tag=feature_${id}_$version
-    if ! grep -qxF "$tag" <<<"$existing" && ghcr_has "$id" "$version"; then
+    versions=$(ghcr_versions "$id") || continue
+    for version in $versions; do
+      tag=feature_${id}_$version
+      grep -qxF "$tag" <<<"$existing" && continue
       echo "::warning::$tag is on GHCR but has no tag; tag it by hand" \
         "(docs/releasing.md, Release tags)"
-    fi
+    done
   done
 }
 

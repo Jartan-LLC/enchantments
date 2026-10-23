@@ -814,5 +814,18 @@ expect "--untagged warns of a published version with no tag" 0 \
   "::warning::feature_gh-config_2.1.0 is on GHCR but has no tag" \
   tag --untagged
 expect_not "but not of a failed lookup" "feature_liza_" tag --untagged
+PUBLISHED="$PUBLISHED gh-config@2.2.0"
+set_version gh-config 2.2.0
+commit
+echo "feature_gh-config_2.2.0 $(git rev-parse HEAD)" >>"$TAGS"
+expect "--untagged still warns of it once a newer, tagged version ships" 0 \
+  "::warning::feature_gh-config_2.1.0 is on GHCR but has no tag" \
+  tag --untagged
+expect_not "but not of an older version with its tag" \
+  "feature_gh-config_2.0.0" tag --untagged
+PUBLISHED="$PUBLISHED liza-toolchain@9.9.9"
+expect "and still of a Feature after one whose lookup failed" 0 \
+  "::warning::feature_liza-toolchain_9.9.9 is on GHCR but has no tag" \
+  tag --untagged
 
 summary
