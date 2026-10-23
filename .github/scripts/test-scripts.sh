@@ -220,6 +220,10 @@ git add -A && git commit -q --amend --no-edit
 expect "and so does one adding only a blank line" 1 \
   "add its change to the '## 1.0.1' entry" \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+sed -i '/^- A fix\.$/d' src/grimoire/CHANGELOG.md
+git add -A && git commit -q --amend --no-edit
+expect "or only removing a line" 1 "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
 
 # Rising above a version that was never published.
 new_repo

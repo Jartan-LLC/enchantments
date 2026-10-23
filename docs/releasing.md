@@ -68,11 +68,11 @@ Each Feature has its own version; raise the first level that applies:
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
 The level counts from the Feature's published version, not main's. While main's version
-isn't on GHCR yet, whether it awaits your approval or its publish failed, a change rides it
-when the level's raise of the published version is no higher: add the change's line to
-that version's entry and keep the version. A change that needs a higher version renames
-the unpublished entry to the new version and adds its line there, so no entry names a
-version that never shipped. With 1.1.1 published and main at 1.4.0, a minor change rides
+is above the highest on GHCR, whether it awaits your approval or its publish failed, a
+change rides it when the level's raise of the published version is no higher: add the
+change's line to that version's entry and keep the version. A change that needs a higher
+version renames the unpublished entry to the new version and adds its line there, so no
+entry names a version that never shipped. With 1.1.1 published and main at 1.4.0, a minor change rides
 1.4.0, and a major one makes 2.0.0 from the `## 1.4.0` entry. Once 1.4.0 is published,
 the next change raises it. A Feature not yet published can't ride its `1.0.0`: GHCR's
 lookup of it fails, as an outage's does. The bots raise main's version when the lookup
@@ -81,10 +81,11 @@ fails, and ride it again on a later run whose lookup works.
 A change to a Feature's `README.md`, `NOTES.md` or `CHANGELOG.md` alone needs no new version:
 list it under `## Unreleased` in the changelog, and it ships with the next release. CI's
 `versions` job, which asks GHCR what's published, fails a change to anything else under
-`src/<id>/` that doesn't do one of those: a raise without its entry, an entry left behind
-for a version never published (when the lookup fails, it only warns of this), or a ride
-whose version is published or whose lookup failed, which then needs a raise. Reverting a
-release also needs a higher version.
+`src/<id>/` that doesn't do one of those: a raise without its entry or not above GHCR's
+highest version, an entry left behind for a version never published (when the lookup
+fails, it only warns of this), a ride adding no line to its entry, or a ride whose version
+is published or whose lookup failed, which then needs a raise. Reverting a release also
+needs a higher version.
 
 ```markdown
 ## Unreleased
@@ -129,7 +130,10 @@ when you run `gh workflow run pin-bumps.yml`. For each Feature with a newer pin 
 days old, it opens one PR on the branch `pin-bumps/<id>`, which releases the bumps as
 [Versioning](#versioning) sets out; the first run after you publish the version it rides
 rebuilds it above that version. A run whose GHCR lookup fails leaves an open PR's branch
-as it is. A commit or other non-numeric pin, and a requirement a lock adds or removes,
+as it is, but a PR it opens raises main's version, which can leave an unpublished
+version's entry behind; the next run whose lookup works rebuilds it. Until then its check
+rejects that entry, or only warns if its own lookup fails too: don't merge a PR with
+that warning. A commit or other non-numeric pin, and a requirement a lock adds or removes,
 count as a minor move, and an upstream major is still a minor. Merge it as in
 [Releasing a change](#releasing-a-change); nothing merges it automatically.
 
