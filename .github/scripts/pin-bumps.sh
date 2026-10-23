@@ -23,6 +23,8 @@ here=$(dirname "$0")
 . "$here/pins_lib.sh"
 # shellcheck source=app_lib.sh
 . "$here/app_lib.sh"
+# shellcheck source=pr_lib.sh
+. "$here/pr_lib.sh"
 # shellcheck source=pin_lookups.sh
 . "$here/pin_lookups.sh"
 # shellcheck source=feature_ids.sh
@@ -145,24 +147,6 @@ print_pin() { # id kind output
 
 # --- Pull requests ------------------------------------------------------------
 
-# Sends a JSON object built by jq from --arg pairs to a pulls endpoint, and
-# prints the PR's number.
-pulls_api() { # method path jq-filter args...
-  local method=$1 path=$2 filter=$3
-  shift 3
-  jq -n "$@" "$filter" >"$work/request.json"
-  gh api -X "$method" "repos/$GITHUB_REPOSITORY/$path" \
-    --input "$work/request.json" --jq .number
-}
-
-# Prints the Feature's PRs, oldest first, found by the owner-qualified head
-# so a fork's same-named branch never counts.
-feature_prs() { # id
-  local query="head=${GITHUB_REPOSITORY%%/*}:pin-bumps/$1"
-  query+="&state=all&per_page=100"
-  gh api "repos/$GITHUB_REPOSITORY/pulls?$query" --jq 'sort_by(.created_at)'
-}
-
 # Prints the keys never to propose again: the latest PR's Excluded: line,
 # and its held versions when it was closed unmerged.
 exclusions() { # prs-json
@@ -266,20 +250,6 @@ upsert_pr() { # id number title body excluded-file output...
 
 # --- The branch ---------------------------------------------------------------
 
-# Prints the commit to rebuild on: the open PR's own parent while the
-# Feature's files on main haven't moved, else main. A push moving the branch
-# past main's workflow changes would be refused.
-choose_parent() { # id number remote
-  local main
-  main=$(git rev-parse origin/main)
-  if [ -n "$2" ] && [ -n "$3" ] \
-    && git diff --quiet "$3^" "$main" -- "src/$1" "test/$1"; then
-    git rev-parse "$3^"
-  else
-    echo "$main"
-  fi
-}
-
 # Commits the bumps on the parent as the App, in a checkout of its own, and
 # prints the commit.
 build_commit() { # id parent output...
@@ -318,24 +288,17 @@ build_commit() { # id parent output...
 # Pushes the commit unless the branch already holds its tree on its parent.
 # Fails when the push was refused, which it reports and marks in
 # $work/<id>.refused: the branch and PR then stay as they are, for a
-# maintainer. The usual cause is main's workflow changes, which the App,
-# with no workflows permission, can't push.
+# maintainer.
 push_branch() { # id remote parent commit
-  local id=$1 remote=$2 parent=$3 commit=$4 out reason
-  if [ -n "$remote" ] && [ "$(git rev-parse "$remote^")" = "$parent" ] \
-    && [ "$(git rev-parse "$remote^{tree}")" \
-      = "$(git rev-parse "$commit^{tree}")" ]; then
+  local id=$1 remote=$2 parent=$3 commit=$4 reason
+  if holds_commit "$remote" "$parent" "$commit"; then
     echo "$id: pin-bumps/$id unchanged"
     return 0
   fi
-  if out=$(git_authed push \
-    --force-with-lease="refs/heads/pin-bumps/$id:$remote" origin \
-    "$commit:refs/heads/pin-bumps/$id" 2>&1); then
+  if reason=$(lease_push "pin-bumps/$id" "$remote" "$commit"); then
     echo "$id: pushed pin-bumps/$id"
     return 0
   fi
-  reason=$(grep -m 1 -i -e refusing -e rejected <<<"$out" \
-    || tail -n 1 <<<"$out")
   echo "$id: push refused: $reason"
   report_push "$id" refused "$reason"
   touch "$work/$id.refused"
@@ -353,7 +316,7 @@ update_feature() { # id output...
   local key held authors excluded_file=$work/excluded-$1
   local -a keep=() fresh=()
   shift
-  prs=$(feature_prs "$id")
+  prs=$(branch_prs "pin-bumps/$id")
   open=$(jq -c '[.[] | select(.state == "open")] | last // empty' <<<"$prs")
   if [ -n "$open" ]; then
     number=$(jq -r .number <<<"$open")
@@ -368,9 +331,7 @@ update_feature() { # id output...
 
   # Hand edits win: list what's newer than the branch holds, and leave it.
   if [ -n "$number" ]; then
-    authors=$(gh api --paginate \
-      "repos/$GITHUB_REPOSITORY/pulls/$number/commits?per_page=100" \
-      --jq '.[] | .author.login // "?"')
+    authors=$(pr_authors "$number")
     if grep -qvxF "$bot_login" <<<"$authors"; then
       held=$(body_held "$body")
       for out in "${keep[@]}"; do
@@ -398,7 +359,7 @@ update_feature() { # id output...
       "it's left as it is"
     return 0
   fi
-  parent=$(choose_parent "$id" "$number" "$remote")
+  parent=$(choose_parent "$number" "$remote" "src/$id" "test/$id")
   commit=$(build_commit "$id" "$parent" "${keep[@]}")
   push_branch "$id" "$remote" "$parent" "$commit" || return 0
   upsert_pr "$id" "$number" "$title" "$body" "$excluded_file" \
