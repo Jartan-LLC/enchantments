@@ -4,8 +4,8 @@
 # it.
 
 # pin asset codebase-memory-mcp repo=DeusData/codebase-memory-mcp
-CBM_TAG='v0.11.0'
+CBM_TAG='v0.12.0'
 CBM_ASSET_X86_64='codebase-memory-mcp-linux-amd64-portable.tar.gz'
-CBM_SHA256_X86_64='1f9e8293eb2bc5c05cfa27a7e8fc033da6d729ffad525ccfcdaa3fd606306683'
+CBM_SHA256_X86_64='7024e585132760f383e3e25237e2b2ac6f5185f7e466f8dc66a085bb25f8d0be'
 CBM_ASSET_AARCH64='codebase-memory-mcp-linux-arm64-portable.tar.gz'
-CBM_SHA256_AARCH64='d62eeb224d5ee3eba3070938ec62cf1033f10b041ec1c4b2fb67f7aef390cc7b'
+CBM_SHA256_AARCH64='8e603f32c9c84b5dc5a6b4a0d23516817d5de199e30f8dcc9bdb128c39386cd8'
