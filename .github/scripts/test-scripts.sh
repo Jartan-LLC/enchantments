@@ -581,7 +581,8 @@ git rm -rq src/new-id
 set_version claude-code 1.0.2
 commit
 
-# gh-config and claude-code are published, at their tagged base versions.
+# gh-config is published at its base version, claude-code at 0.9.0; both
+# versions' tags sit on the base commit.
 git tag feature_gh-config_1.0.0 "$base"
 git tag feature_claude-code_0.9.0 "$base"
 stage() { GITHUB_TOKEN=secret .github/scripts/stage-release.sh stage "$@"; }

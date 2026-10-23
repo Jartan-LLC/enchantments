@@ -8,9 +8,10 @@
 # there. A Feature never published and not pending is left out. With no tag
 # yet, as when a tag job failed or hasn't run, a Feature whose working-tree
 # version is the published one comes from the newest commit that set that
-# version, the commit it was published from. Fails, rather than stage an
-# incomplete collection, when a published Feature's lookup fails or it has
-# neither. Needs GITHUB_TOKEN to see private packages.
+# version, which under a squash merge is the commit it was published from.
+# Fails, rather than stage an incomplete collection, when a published
+# Feature's lookup fails, or it has no tag and that fallback doesn't
+# apply. Needs GITHUB_TOKEN to see private packages.
 # Run from the repository root, with the tags fetched.
 set -euo pipefail
 scripts=$(dirname "$0")

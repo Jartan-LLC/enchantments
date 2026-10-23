@@ -19,17 +19,15 @@ A run on main publishes only the versions its own push changed, from the commit 
 tested, and only when its `check` and every Feature's tests passed, which a change under
 `src/` always runs. Code merged after a release never ships under its version.
 
-- **The daily run fails while a version on main isn't on GHCR,** naming it: while its
-  release waits for your approval, during a GHCR outage, or after a publish that didn't
-  happen, because it failed, you rejected it, or a newer run's replaced it while it
-  waited. For the last, re-run that release's CI run, or withdraw the release.
+- **A scheduled or manual run fails while a version on main isn't on GHCR,** naming it:
+  while its release waits for your approval, during a GHCR outage, or after a publish
+  that didn't happen, because it failed, you rejected it, or a newer run's replaced it
+  while it waited. After a publish that didn't happen, re-run that release's CI run, or
+  withdraw the release.
 - **To withdraw a release** before it's published, open a PR that returns the Feature's
   `version` to the published one and moves the release's entry back under
   `## Unreleased`, its minor and major lines under `### Minor` and `### Major` again. A
   `publish` still waiting for its approval would publish it: reject that first.
-- **Publishing needs each published Feature's [release tag](#release-tags),** to list it
-  in the collection; without one, a Feature whose main version is the published one comes
-  from the commit that set that version. Otherwise every publish fails until you tag it.
 
 ## Release tags
 
@@ -49,6 +47,10 @@ and updating `feature_*` tags, with no bypass.
   git push origin feature_<id>_<version>
   ```
 
+- **Publishing lists every published Feature in the collection from its tag.** For a
+  Feature with no tag yet whose main version is the published one, it uses the commit
+  that set that version; for any other untagged one, every publish fails until you tag
+  it.
 - **The `pending` job warns `<tag> is on GHCR but has no tag`** when a tag job missed one.
   Tag it by hand as above, at the commit of the run that published it: the one whose
   `Pending:` line lists the id and whose `publish` succeeded.
@@ -98,8 +100,9 @@ Reverting a change is a change too: it adds its own line.
 CI's `versions` job fails a change to anything else under `src/<id>/` that adds no line
 under `## Unreleased`. A version change must rise above GHCR's highest version, with its
 entry and nothing left under `## Unreleased`, or return to that version; either way it
-mustn't leave an entry for another version above GHCR's highest. A failed GHCR lookup
-fails a version change.
+mustn't leave an entry for another version above GHCR's highest. Its own
+`devcontainer-feature.json` needs no line, but any other file it changes does. A failed
+GHCR lookup fails a version change.
 
 ## Dependabot PRs under `src/`
 

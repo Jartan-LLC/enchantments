@@ -7,8 +7,9 @@
 # change, which the release PR makes, either rises above GHCR's highest
 # version with that version's entry and nothing left under "## Unreleased",
 # or returns to GHCR's highest; either way no other entry is left above
-# GHCR's highest, so none names a version that never shipped. A
-# failed GHCR lookup fails a version change. GHCR is asked through the
+# GHCR's highest, so none names a version that never shipped. Its own
+# devcontainer-feature.json needs no line, but any other file it changes
+# does. A failed GHCR lookup fails a version change. GHCR is asked through the
 # devcontainer CLI in node_modules; GITHUB_TOKEN lets it see private
 # packages. Run from the repository root, with <base> fetched.
 set -euo pipefail
@@ -27,16 +28,17 @@ old=$(mktemp)
 trap 'rm -f "$err" "$old"' EXIT
 
 # Succeeds when the changelog gains an "## Unreleased" line since base's: a
-# blank line or a bare level subheading doesn't count, and a repeated line
-# does. Lines moved there from an entry above the version, as a return to the
-# published version moves them, aren't new.
+# blank line or a bare level subheading doesn't count, and a second copy of a
+# line already there does. Lines moved there from an entry above the version,
+# as a return to the published version moves them, aren't new.
 adds_line() { # file version
   git show "$base:$1" >"$old" 2>/dev/null || : >"$old"
   comm -13 <(known_lines "$old" "$2") <(known_lines "$1" '') | grep -q .
 }
 
 # Prints the changelog's "## Unreleased" lines, and those of its entries above
-# the version (none when it's empty), but the level subheadings, sorted.
+# the version (no entries when the version is empty), except the level
+# subheadings, sorted.
 known_lines() { # file version
   local v
   {
@@ -50,7 +52,7 @@ known_lines() { # file version
 }
 
 # Prints each "## X.Y.Z" heading's version in a changelog above the
-# published version, but the one kept.
+# published version, except the one kept.
 unshipped() { # file published kept
   local v
   sed -n 's/^## \([0-9]*\.[0-9]*\.[0-9]*\)$/\1/p' "$1" | while read -r v; do
