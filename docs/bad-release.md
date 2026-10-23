@@ -12,7 +12,8 @@ fast.
    `:1` moves only to a higher version. `git diff feature_<id>_<good> feature_<id>_<bad>
    -- src/<id>` shows what the bad version changed ([Release tags](releasing.md#release-tags)).
    The release PR also ships every other Feature with unreleased changes; to ship the fix
-   alone, push a commit to `release` leaving them out. Once it's published, check that
+   alone, push a commit to `release` that restores their `devcontainer-feature.json` and
+   `CHANGELOG.md` to main's. Once it's published, check that
    `devcontainer features info manifest ghcr.io/jartan-llc/enchantments/<id>:1 --output-format json | jq -r .canonicalId`
    matches the same query for the new version.
 3. **Fix the projects that declare it:** in each repo whose

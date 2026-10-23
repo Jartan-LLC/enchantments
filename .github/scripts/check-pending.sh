@@ -6,9 +6,9 @@
 # Feature counts only if its version differs from <since>'s, or <since> has
 # no such Feature: a push publishes the versions it changed, from its own
 # commit, which its run tested, so code merged later never ships under them.
-# With --report, which scheduled runs use, it lists every version missing
-# from GHCR as an error, and fails if there's any. Prints the ids,
-# space-separated. Any failed lookup, an
+# Otherwise it lists every version missing from GHCR; with --report, which
+# scheduled runs use, as an error, failing if there's any. Prints the ids,
+# space-separated, unless --report fails. Any failed lookup, an
 # outage included, lists the id; publishing skips a version that exists.
 # Needs GITHUB_TOKEN to see private packages; the changelog check runs
 # without it.

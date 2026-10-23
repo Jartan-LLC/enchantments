@@ -29,7 +29,7 @@ tested, and only when its `check` and every Feature's tests passed, which a chan
   `publish` still waiting for its approval would publish it: reject that first.
 - **Publishing needs each published Feature's [release tag](#release-tags),** to list it
   in the collection; without one, a Feature whose main version is the published one comes
-  from main. Otherwise every publish fails until you tag it.
+  from the commit that set that version. Otherwise every publish fails until you tag it.
 
 ## Release tags
 

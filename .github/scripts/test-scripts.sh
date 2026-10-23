@@ -250,6 +250,10 @@ garbled_has() {
 }
 expect "and ghcr_has reads it as one" 2 "" garbled_has
 
+new_repo
+expect "--report passes with every version on GHCR" 0 "" \
+  .github/scripts/check-pending.sh --report
+
 # grimoire's 1.0.1 entry, with only 1.0.0 published: a version never shipped.
 new_repo
 set_version grimoire 1.1.0
@@ -559,8 +563,9 @@ expect "with a commit, check-pending lists only versions changed since" 0 "" \
 expect "and nothing with no version changed since" 0 "" \
   test -z "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh HEAD \
     2>/dev/null)"
+missing=$(feature_ids | grep -vx gh-config | paste -sd' ' -)
 expect "--report fails on every version missing from GHCR" 1 \
-  "::error::not on GHCR at main's version: claude-code" \
+  "::error::not on GHCR at main's version: $missing." \
   env GITHUB_TOKEN=secret .github/scripts/check-pending.sh --report
 since=$(git rev-parse HEAD)
 mkdir -p src/new-id
@@ -591,9 +596,11 @@ expect "leaving out one never published" 1 "" test -e stage/src/container-env
 expect "and one with no X.Y.Z published" 1 "" test -e stage/src/grimoire
 rm -rf stage
 git tag -d feature_gh-config_1.0.0 >/dev/null
-expect "a published Feature with no tag yet comes from the tree" 0 \
+expect "a published Feature with no tag yet comes from" 0 \
   "no tag feature_gh-config_1.0.0 yet" stage claude-code
-expect "when its version there is the published one" 0 "# unreleased" \
+expect "the commit that set its version, when that's the published one" 0 \
+  "" test -f stage/src/gh-config/install.sh
+expect_not "without changes since" "# unreleased" \
   cat stage/src/gh-config/install.sh
 rm -rf stage
 git tag feature_gh-config_1.0.0 "$base"
