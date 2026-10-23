@@ -46,7 +46,7 @@ known_lines() { # file version
         if version_gt "$v" "$2"; then changelog_section "$1" "$v"; fi
       done
     fi
-  } | grep -vx -e '### Minor' -e '### Major' | sort || true
+  } | without_levels | sort
 }
 
 # Prints each "## X.Y.Z" heading's version in a changelog above the

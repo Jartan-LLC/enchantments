@@ -5,9 +5,11 @@
 # its highest published version's tag (docs/releasing.md, Release tags).
 # Publishing skips a version that exists, but lists every Feature it's given
 # in devcontainer-collection.json, so leaving one out would drop it from
-# there. A Feature never published and not pending is left out. Fails, rather
-# than stage an incomplete collection, when a published Feature's lookup
-# fails or its tag is missing. Needs GITHUB_TOKEN to see private packages.
+# there. A Feature never published and not pending is left out. With no tag
+# yet, as when a tag job failed or hasn't run, a Feature whose working-tree
+# version is the published one comes from the tree. Fails, rather than stage
+# an incomplete collection, when a published Feature's lookup fails or it
+# has neither. Needs GITHUB_TOKEN to see private packages.
 # Run from the repository root, with the tags fetched.
 set -euo pipefail
 scripts=$(dirname "$0")
@@ -23,6 +25,7 @@ err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 mkdir -p "$dir/src"
 ids=$(feature_ids)
+tree_version() { jq -r .version "src/$1/devcontainer-feature.json"; }
 for id in "$@"; do
   if ! grep -qxF "$id" <<<"$ids"; then
     echo "::error::no Feature $id" >&2
@@ -42,9 +45,13 @@ for id in $ids; do
   fi
   [ -n "$latest" ] || continue
   tag=feature_${id}_$latest
-  if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    git archive "$tag" "src/$id" | tar -x -C "$dir"
+  elif [ "$(tree_version "$id")" = "$latest" ]; then
+    echo "::warning::$id: no tag $tag yet, so it's staged from the tree" >&2
+    cp -R "src/$id" "$dir/src/"
+  else
     echo "::error::$id: no tag $tag to stage its published $latest from" >&2
     exit 1
   fi
-  git archive "$tag" "src/$id" | tar -x -C "$dir"
 done

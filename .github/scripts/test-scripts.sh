@@ -130,6 +130,13 @@ expect "a bare level subheading left under Unreleased passes a release" 0 "" \
   versions
 
 new_repo
+set_version gh-config 1.0.1
+prepend_changelog gh-config '## 1.0.1\n\n### Minor\n\n'
+commit
+expect "an entry of only a level subheading is empty" 1 \
+  "the '## 1.0.1' entry is empty" versions
+
+new_repo
 for f in README.md NOTES.md CHANGELOG.md; do
   echo x >>"src/gh-config/$f"
 done
@@ -489,6 +496,7 @@ echo "$3 $id token=${GITHUB_TOKEN:-none} config=${DOCKER_CONFIG:-none}" \
 case "$3 $id" in
   "tags gh-config") echo '{"publishedTags":["1","1.0","1.0.0","latest"]}' ;;
   "tags claude-code") echo '{"publishedTags":["1","0.9.0"]}' ;;
+  "tags grimoire") echo '{"publishedTags":["1","latest"]}' ;;
   "tags liza") exit 1 ;;
   "manifest grimoire") exit 1 ;;
   manifest*) echo '{}' ;;
@@ -551,6 +559,22 @@ expect "with a commit, check-pending lists only versions changed since" 0 "" \
 expect "and nothing with no version changed since" 0 "" \
   test -z "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh HEAD \
     2>/dev/null)"
+expect "--report fails on every version missing from GHCR" 1 \
+  "::error::not on GHCR at main's version: claude-code" \
+  env GITHUB_TOKEN=secret .github/scripts/check-pending.sh --report
+since=$(git rev-parse HEAD)
+mkdir -p src/new-id
+jq '.id = "new-id" | .version = "1.0.0"' \
+  src/gh-config/devcontainer-feature.json >src/new-id/devcontainer-feature.json
+printf '## 1.0.0\n\n- First release.\n' >src/new-id/CHANGELOG.md
+set_version claude-code 0.9.0
+commit
+expect "a Feature new since the commit counts" 0 "" \
+  test "$(GITHUB_TOKEN=secret .github/scripts/check-pending.sh "$since" \
+    2>/dev/null)" = new-id
+git rm -rq src/new-id
+set_version claude-code 1.0.2
+commit
 
 # gh-config and claude-code are published, at their tagged base versions.
 git tag feature_gh-config_1.0.0 "$base"
@@ -563,12 +587,20 @@ expect "and every other published one from its tag" 0 "" \
   test -f stage/src/gh-config/install.sh
 expect_not "without its unreleased changes" "# unreleased" \
   cat stage/src/gh-config/install.sh
-expect "leaving out one never published" 1 "" test -e stage/src/grimoire
+expect "leaving out one never published" 1 "" test -e stage/src/container-env
+expect "and one with no X.Y.Z published" 1 "" test -e stage/src/grimoire
 rm -rf stage
 git tag -d feature_gh-config_1.0.0 >/dev/null
-expect "a published Feature with no tag fails" 1 \
-  "no tag feature_gh-config_1.0.0" stage claude-code
+expect "a published Feature with no tag yet comes from the tree" 0 \
+  "no tag feature_gh-config_1.0.0 yet" stage claude-code
+expect "when its version there is the published one" 0 "# unreleased" \
+  cat stage/src/gh-config/install.sh
+rm -rf stage
 git tag feature_gh-config_1.0.0 "$base"
+git tag -d feature_claude-code_0.9.0 >/dev/null
+expect "but fails when it isn't" 1 "no tag feature_claude-code_0.9.0 to stage" \
+  stage gh-config
+git tag feature_claude-code_0.9.0 "$base"
 git tag feature_liza_0.1.0 "$base"
 expect "and so does a failed lookup of one published" 1 \
   "::error::liza: the GHCR lookup failed" stage claude-code

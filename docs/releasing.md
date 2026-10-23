@@ -19,13 +19,17 @@ A run on main publishes only the versions its own push changed, from the commit 
 tested, and only when its `check` and every Feature's tests passed, which a change under
 `src/` always runs. Code merged after a release never ships under its version.
 
-- **A publish that didn't happen,** because it failed, you rejected it, or a newer run's
-  replaced it while it waited, leaves its version on main and off GHCR, and the daily run
-  fails, naming it. Re-run that release's CI run, or withdraw the release.
+- **The daily run fails while a version on main isn't on GHCR,** naming it: while its
+  release waits for your approval, during a GHCR outage, or after a publish that didn't
+  happen, because it failed, you rejected it, or a newer run's replaced it while it
+  waited. For the last, re-run that release's CI run, or withdraw the release.
 - **To withdraw a release** before it's published, open a PR that returns the Feature's
   `version` to the published one and moves the release's entry back under
-  `## Unreleased`. A `publish` still waiting for its approval would publish it: reject
-  that first.
+  `## Unreleased`, its minor and major lines under `### Minor` and `### Major` again. A
+  `publish` still waiting for its approval would publish it: reject that first.
+- **Publishing needs each published Feature's [release tag](#release-tags),** to list it
+  in the collection; without one, a Feature whose main version is the published one comes
+  from main. Otherwise every publish fails until you tag it.
 
 ## Release tags
 

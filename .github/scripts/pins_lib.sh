@@ -1,9 +1,9 @@
 # shellcheck shell=bash
 # Helpers with no network: reading and writing a Feature's pins.sh and
 # checking upstream values before they're written, for pin-bumps.sh; levels,
-# versions and changelog edits, for the bots and release-pr.sh
-# (check-versions.sh shares version_gt); and the pin-bump PR body's
-# machine-read lines.
+# versions and changelog edits, for the bots and release-pr.sh (the version
+# and changelog checks share version_gt, changelog_section and
+# without_levels); and the pin-bump PR body's machine-read lines.
 # Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
@@ -221,6 +221,12 @@ changelog_section() { # file title
     /^## / { inside = 0 }
     inside && NF { print }
     END { exit !found }' "$1"
+}
+
+# Prints stdin without its "### Minor" and "### Major" lines, which mark a
+# level rather than say anything.
+without_levels() {
+  grep -vx -e '### Minor' -e '### Major' || true
 }
 
 # Prints the level of the lines under "## Unreleased" (docs/releasing.md,

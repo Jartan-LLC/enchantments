@@ -322,20 +322,18 @@ jobs:
           BEFORE: ${{ github.event.before }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          git fetch -q --depth=1 origin "$BEFORE"
+          if ! git fetch -q --depth=1 origin "$BEFORE"; then
+            echo "::error::can't fetch $BEFORE, the push's base, so this run" \
+              "can't tell what it releases; re-run it"
+            exit 1
+          fi
           ids=$(.github/scripts/check-pending.sh "$BEFORE")
           echo "Pending: ${ids:-none}"
           echo "ids=$ids" >>"$GITHUB_OUTPUT"
       - if: github.event_name != 'push'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          missing=$(.github/scripts/check-pending.sh)
-          if [ -n "$missing" ]; then
-            echo "::error::not on GHCR: $missing; approve or re-run the CI run" \
-              "of its release, or withdraw it (docs/releasing.md)"
-            exit 1
-          fi
+        run: .github/scripts/check-pending.sh --report
       # A published version with no tag, which a failed tag job leaves. Even
       # after a failed list.
       - if: ${{ !cancelled() }}
