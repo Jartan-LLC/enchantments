@@ -196,6 +196,32 @@ replace it:
 To rotate the key, generate a new one, store it in `PIN_BUMPS_PRIVATE_KEY`, then delete
 the downloaded file and the older keys. GitHub won't delete an App's only key.
 
+## Release PRs
+
+On the same runs, `pin-bumps.yml` keeps one PR open on the branch `release`, as
+[the pin-bump App](#the-pin-bump-app), titled with each version it releases. Merging it
+releases them, as in [Releasing a change](#releasing-a-change).
+
+- **What it holds:** each Feature whose files, apart from `README.md`, `NOTES.md` and
+  `CHANGELOG.md`, changed since its published version's
+  [release tag](#release-tags). Its version is the published one raised by the largest
+  level among its `## Unreleased` lines, and those lines become that version's entry. A
+  line is a patch unless it sits under `### Minor` or `### Major` inside
+  `## Unreleased`; the entry drops those subheadings.
+- **What it leaves out:** a Feature whose version on main isn't the published one, as
+  while its release is under way, and one never published. A docs-only line waits under
+  `## Unreleased` for the Feature's next release.
+- **Each run** rebuilds the PR on main, unless `src/` on main hasn't moved. To change a
+  version or an entry, or to leave a Feature out, push a commit to `release`; the
+  workflow then leaves the branch alone. Close the PR to have the next run rebuild it.
+- **A `pin-bumps: <id> release blocked` issue** means the PR leaves that Feature out:
+  its GHCR lookup failed, its release tag is missing, or its files changed with no
+  `## Unreleased` line. Fix the cause the issue quotes; the next run that adds the
+  Feature, or finds nothing of it to release, closes the issue.
+- **A `pin-bumps: release push refused` issue** is the `release` branch's
+  `push refused` issue ([Pin-bump PRs](#pin-bump-prs)): rebase it by hand, as the issue
+  says.
+
 ## Updating pins
 
 Each Feature's pins live in `src/<id>/pins.sh`, one `# pin <kind> <tool>` header per pin.

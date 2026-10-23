@@ -195,6 +195,35 @@ changelog_case "an entry over Unreleased" \
   '## Unreleased\n\n- A docs fix.\n\n## 1.0.0\n\n- First release.\n'
 expect "the Unreleased line moves into the entry" 0 "- A docs fix." \
   awk '/^## 1.1.0/,/^## 1.0.0/' "$last_log"
+printf '%s\n' '## Unreleased' '' '- Fix.' '' '### Minor' '' '- Feature.' '' \
+  '## 1.0.0' '' '- First release.' >"$root/sub.md"
+add_changelog_entry "$root/sub.md" 1.1.0 /dev/null
+expect "add_changelog_entry drops Unreleased's level subheadings" 0 "" \
+  holds "$(cat "$root/sub.md")" \
+  "$(printf '## 1.1.0\n\n- Fix.\n- Feature.\n\n## 1.0.0')"
+
+# unreleased_level on a section, above an older entry whose ### Major line
+# must not count.
+unreleased_case() { # name want section
+  printf '%b## 1.0.0\n\n### Major\n\n- Shipped.\n' "$3" >"$root/unreleased.md"
+  expect "$1" 0 "$2" unreleased_level "$root/unreleased.md"
+}
+unreleased_case "a line under no subheading is a patch" patch \
+  '## Unreleased\n\n- Fix.\n\n'
+unreleased_case "a line under ### Minor is a minor" minor \
+  '## Unreleased\n\n- Fix.\n\n### Minor\n\n- Feature.\n\n'
+unreleased_case "### Major outranks ### Minor" major \
+  '## Unreleased\n\n### Major\n\n- Break.\n\n### Minor\n\n- Feature.\n\n'
+unreleased_case "an empty subheading counts for nothing" patch \
+  '## Unreleased\n\n- Fix.\n\n### Major\n\n'
+printf '## Unreleased\n\n### Minor\n\n## 1.0.0\n\n- Shipped.\n' \
+  >"$root/unreleased.md"
+expect "a section with no line has no level" 0 "" \
+  test -z "$(unreleased_level "$root/unreleased.md")"
+printf '## 1.0.0\n\n- Shipped.\n' >"$root/unreleased.md"
+expect "nor does a changelog with no section" 0 "" \
+  test -z "$(unreleased_level "$root/unreleased.md")"
+expect "bump_major" 0 2.0.0 bump_major 1.4.2
 
 body=$'Text\n\nExcluded: `uv@0.2.0`, `bad key`, `go@1.27.2`\n'
 body+='<!-- pin-bumps held: uv@0.3.0 rtk@v1 -->'
@@ -1415,6 +1444,19 @@ expect "an invalid pin header opens an issue" 0 \
 expect "with its reason" 0 "no # pin header" cat "$ISSUES.body"
 expect "a run that reads it closes it" 0 "close 3" \
   issues "pins${tab}zzz${tab}ok"
+expect "a Feature the release PR leaves out opens an issue" 0 \
+  "create pin-bumps: alpha release blocked" \
+  issues "release${tab}alpha${tab}fail${tab}no tag feature_alpha_1.0.0"
+expect "with its reason" 0 "no tag feature_alpha_1.0.0" cat "$ISSUES.body"
+expect "a run that adds it closes it" 0 "close 4" \
+  issues "release${tab}alpha${tab}ok"
+expect "a refused release push opens an issue" 0 \
+  "create pin-bumps: release push refused" \
+  issues "release-push${tab}release${tab}refused${tab}refusing to allow"
+expect "saying how to rebase the release branch" 0 "git switch release" \
+  cat "$ISSUES.body"
+expect "a clean release push closes it" 0 "close 5" \
+  issues "release-push${tab}release${tab}ok"
 
 # shellcheck disable=SC2016 # Markdown backticks
 issues "$(printf 'lookup\tzz\tfail\t`@someone` see')" >/dev/null

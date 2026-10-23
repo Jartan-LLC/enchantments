@@ -38,6 +38,11 @@ expect_not() { # name unwanted command...
     fail "$name" "exit $rc, want 0 without '$unwanted': $out"
   fi
 }
+# Succeeds when text holds want whole: its lines together, in order. A
+# multi-line want in expect matches any one of its lines.
+holds() { # text want
+  [[ $1 == *"$2"* ]]
+}
 summary() {
   echo
   echo "$passed passed, $failed failed"

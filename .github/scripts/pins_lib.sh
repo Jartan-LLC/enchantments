@@ -1,8 +1,9 @@
 # shellcheck shell=bash
 # Helpers with no network: reading and writing a Feature's pins.sh and
 # checking upstream values before they're written, for pin-bumps.sh; the
-# version rule and its version and changelog edits, for both bots, whose
-# unpublished and version_gt check-versions.sh shares; and the pin-bump PR
+# version rule and its version and changelog edits, for both bots and
+# release-pr.sh, whose unpublished and version_gt check-versions.sh shares;
+# and the pin-bump PR
 # body's machine-read lines.
 # Sourced.
 
@@ -112,6 +113,12 @@ expand_asset() { # template tag
 
 # --- Version and changelog ----------------------------------------------------
 
+bump_major() { # X.Y.Z
+  local major
+  IFS=. read -r major _ <<<"$1"
+  echo "$((major + 1)).0.0"
+}
+
 bump_minor() { # X.Y.Z
   local major minor
   IFS=. read -r major minor _ <<<"$1"
@@ -207,8 +214,27 @@ set_version() { # devcontainer-feature.json version
   jq --arg v "$2" '.version = $v' "$1" | overwrite "$1"
 }
 
+# Prints the level of the lines under "## Unreleased" (docs/releasing.md,
+# Versioning): patch, unless one sits under "### Minor" or "### Major";
+# nothing when there's no line.
+unreleased_level() { # file
+  awk '
+    $0 == "## Unreleased" { inside = 1; section = "patch"; next }
+    /^## / { inside = 0 }
+    !inside || !NF { next }
+    $0 == "### Minor" { section = "minor"; next }
+    $0 == "### Major" { section = "major"; next }
+    { found[section] = 1 }
+    END {
+      if ("major" in found) print "major"
+      else if ("minor" in found) print "minor"
+      else if ("patch" in found) print "patch"
+    }' "$1"
+}
+
 # Adds a "## <version>" entry holding the lines in entry_file, then any lines
-# from "## Unreleased", whose section it removes.
+# from "## Unreleased" but its "### Minor" and "### Major" subheadings, and
+# removes that section.
 add_changelog_entry() { # file version entry_file
   awk -v version="$2" -v entry_file="$3" '
     function entry() {
@@ -222,7 +248,8 @@ add_changelog_entry() { # file version entry_file
     NR == FNR {
       if ($0 == "## Unreleased") { unreleased = 1; next }
       if (/^## /) unreleased = 0
-      if (unreleased && NF) moved[++n] = $0
+      if (unreleased && NF && $0 != "### Minor" && $0 != "### Major")
+        moved[++n] = $0
       next
     }
     $0 == "## Unreleased" { skip = 1; next }

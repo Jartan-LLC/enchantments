@@ -65,6 +65,7 @@ test:  ## Test the CI scripts, pin-bumps included, offline against throwaway rep
 	.github/scripts/test-scripts.sh
 	.github/scripts/test-pin-bumps.sh
 	.github/scripts/test-dependabot-bumps.sh
+	.github/scripts/test-release-pr.sh
 
 check:  ## Run every local check (lint, docs, test)
 	$(MAKE) lint docs test
