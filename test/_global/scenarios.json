@@ -30,7 +30,7 @@
   "root-user": {
     "image": "mcr.microsoft.com/devcontainers/base:trixie",
     "remoteUser": "root",
-    "initializeCommand": "docker run --rm -v claude-data:/c -v gh-config:/g alpine sh -c \"touch /c/.seed /g/.seed && chown -R $(id -u):$(id -g) /c /g\"",
+    "initializeCommand": "docker run --rm -v claude-data:/c -v gh-config:/g -v stripe-config:/s alpine sh -c \"touch /c/.seed /g/.seed /s/.seed && chown -R $(id -u):$(id -g) /c /g /s\"",
     "onCreateCommand": "git config --global --add safe.directory \"$PWD\" && git init -q && git config core.fileMode false && echo '/.devcontainer/' >> .git/info/exclude && mkdir -p .claude && echo '{}' > .claude/settings.json && echo '.claude/settings.local.*' > .gitignore && git add .claude .gitignore && git -c user.name=t -c user.email=t@t commit -qm fixture",
     "features": {
       "claude-code": {},

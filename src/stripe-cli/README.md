@@ -23,7 +23,7 @@ Log in once with `stripe login`. The login lives in the `stripe-config` volume, 
 
 ## Using an API key instead
 
-The CLI reads `STRIPE_API_KEY` ahead of its login. To set it for every container on this device, kept out of every repo, use the `container-env` Feature: `https://github.com/Jartan-LLC/enchantments/tree/main/src/container-env`.
+The CLI reads `STRIPE_API_KEY` ahead of its login, wherever the container's environment sets it, such as `containerEnv` in `devcontainer.json`.
 
 ## Security
 
@@ -39,7 +39,7 @@ Run `stripe logout --all`, then remove the Feature. The volume stays: `docker vo
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/stripe-cli/<hook>.sh`.
+The container still starts, and what went wrong is printed the next time it starts. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/stripe-cli/<hook>.sh`. A failed download of `stripe` happened at image build: rebuild the container to retry it.
 
 
 ---

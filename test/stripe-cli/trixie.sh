@@ -6,7 +6,7 @@ source dev-container-features-test-lib
 bin=/usr/local/bin/stripe
 check "stripe runs from PATH" \
   bash -c "stripe version | grep -q '^stripe version '"
-check "stripe is the pinned install" test "$(command -v stripe)" = "$bin"
+check "the stripe on PATH is the Feature's" test "$(command -v stripe)" = "$bin"
 check "the binary belongs to root" test "$(stat -c %U "$bin")" = root
 mount=/mnt/enchantments/stripe-config
 check "stripe-config is mounted" mountpoint -q "$mount"
