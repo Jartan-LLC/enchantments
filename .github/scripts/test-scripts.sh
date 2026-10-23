@@ -834,7 +834,9 @@ expect "and still of a Feature after one whose lookup failed" 0 \
 out=$(expect "block" 0 $'a\nb' printf 'a\nc\n')
 expect "expect matches a multi-line want as a block" 0 "FAIL block" \
   echo "$out"
+out=$(expect_not "block" $'a\nb' printf 'a\nb\n')
+expect "expect_not fails on the whole block" 0 "FAIL block" echo "$out"
 out=$(expect_not "block" $'a\nb' printf 'a\nc\n')
-expect "expect_not fails only on the whole block" 0 "ok   block" echo "$out"
+expect "but not on one of its lines" 0 "ok   block" echo "$out"
 
 summary
