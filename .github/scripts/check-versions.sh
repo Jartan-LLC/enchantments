@@ -25,12 +25,13 @@ scripts=$(dirname "$0")
 err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 
-# Prints the lines of the "## <version>" entry in a changelog on stdin.
+# Prints the non-blank lines of the "## <version>" entry in a changelog on
+# stdin, so a blank line added doesn't count as the change's line.
 entry() { # version
   awk -v heading="## $1" '
     $0 == heading { inside = 1; next }
     /^## / { inside = 0 }
-    inside'
+    inside && NF'
 }
 
 # Rename detection would list only the destination of a file moved from one
@@ -87,6 +88,11 @@ for id in $ids; do
     elif ! version_gt "$head_version" "$base_version"; then
       echo "::error file=$json::src/$id changed, so its version must rise" \
         "above $base_version, but it's $head_version"
+      failed=1
+      continue
+    elif [ -n "$latest" ] && ! version_gt "$head_version" "$latest"; then
+      echo "::error file=$json::src/$id's version must rise above the" \
+        "published $latest, but it's $head_version"
       failed=1
       continue
     elif grep -qxF "## $base_version" "$log" 2>/dev/null; then

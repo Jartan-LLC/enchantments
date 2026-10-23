@@ -113,9 +113,10 @@ lines listing the packages that moved. Merge the PR once `check` passes, as in
   Dependabot push over it; the next run adds it again.
 - **When the version a PR was finished as is published,** the next run replaces its commit
   with one raising the version above it. A PR finished while the lookup failed raises
-  main's version; if that version was unpublished, the version check rejects the entry
-  left behind, and the next run whose lookup works replaces the commit with one that
-  rides.
+  main's version, which can leave an unpublished version's entry behind; the next run
+  whose lookup works replaces the commit with one that rides. Until then, the version
+  check rejects that entry, unless its own lookup fails too, when it only warns: don't
+  merge a PR with that warning.
 - **To change a PR,** push commits to its branch. Once it has a commit by anyone but
   Dependabot and the App, the workflow leaves it alone.
 - **A PR that changes anything else under `src/`** fails the workflow's run, which names

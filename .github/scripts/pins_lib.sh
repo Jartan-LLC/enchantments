@@ -1,7 +1,9 @@
 # shellcheck shell=bash
-# Helpers for pin-bumps.sh, with no network: reading and writing a Feature's
-# pins.sh, checking upstream values before they're written, the version and
-# changelog edits a bump makes, and the PR body's machine-read lines. Sourced.
+# Helpers with no network: reading and writing a Feature's pins.sh and
+# checking upstream values before they're written, for pin-bumps.sh; the
+# version rule and its version and changelog edits, which both bots and
+# check-versions.sh use; and the pin-bump PR body's machine-read lines.
+# Sourced.
 
 # --- pins.sh ------------------------------------------------------------------
 

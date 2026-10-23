@@ -302,4 +302,17 @@ expect "while a PR whose rebuild matches is left" 0 "#8: already finished" \
   echo "$out"
 expect "with its head" 0 "" test "$(head_of "$ridden")" = "$ridden_done"
 
+# An unpublished version on main with no changelog entry leaves nothing to
+# ride: the PR fails, saying why, and its branch stays.
+jq '.version = "1.4.0"' "$set_json" >"$set_json.tmp" \
+  && mv "$set_json.tmp" "$set_json"
+git -C "$seed" -c user.name=t -c user.email=t@t commit -qam "demo 1.4.0"
+git -C "$seed" push -q "$origin" HEAD:main
+bare=dependabot/npm_and_yarn/src/demo/npm/bare
+open_pr "$bare" lock_patch
+bare_head=$(head_of "$bare")
+expect "a ride with no entry to add to fails" 1 \
+  "has no '## 1.4.0' entry for the unpublished 1.4.0" bump
+expect "leaving the branch" 0 "" test "$(head_of "$bare")" = "$bare_head"
+
 summary

@@ -215,6 +215,11 @@ commit
 expect "a ride without its line in the entry fails" 1 \
   "add its change to the '## 1.0.1' entry" \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
+add_to_entry grimoire 1.0.1 ''
+git add -A && git commit -q --amend --no-edit
+expect "and so does one adding only a blank line" 1 \
+  "add its change to the '## 1.0.1' entry" \
+  env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
 
 # Rising above a version that was never published.
 new_repo
@@ -227,6 +232,10 @@ expect "leaving an unpublished version's entry behind fails" 1 \
   env GHCR_TAGS=grimoire@1.0.0 .github/scripts/check-versions.sh "$base"
 expect_not "leaving a published version's entry passes" "::" \
   env GHCR_TAGS="grimoire@1.0.0 grimoire@1.0.1" \
+  .github/scripts/check-versions.sh "$base"
+expect "a raise not above the highest published version fails" 1 \
+  "must rise above the published 1.2.0, but it's 1.1.0" \
+  env GHCR_TAGS="grimoire@1.0.1 grimoire@1.2.0" \
   .github/scripts/check-versions.sh "$base"
 expect "a failed lookup only warns about it" 0 \
   "::warning file=src/grimoire/CHANGELOG.md::couldn't tell whether 1.0.1" \
