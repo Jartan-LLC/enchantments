@@ -117,7 +117,8 @@ jobs:
 
   # A Feature's change adds an Unreleased line; a version change, which the
   # release PR makes, must rise above GHCR's highest version or return to it
-  # (docs/releasing.md, Versioning).
+  # (docs/releasing.md, Versioning). A Feature added or removed adds a line to
+  # the root CHANGELOG.md.
   # Without a base there's nothing to compare.
   versions:
     needs: features
@@ -142,6 +143,11 @@ jobs:
         run: |
           git fetch -q --depth=1 origin "$BASE"
           .github/scripts/check-versions.sh "$BASE"
+      # Uses the base the step above fetched.
+      - if: ${{ !cancelled() }}
+        env:
+          BASE: ${{ needs.features.outputs.base }}
+        run: .github/scripts/check-root-changelog.sh "$BASE"
 
   scripts:
     runs-on: ubuntu-24.04
