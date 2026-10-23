@@ -9,7 +9,8 @@
       "gh-config": {},
       "grimoire": {},
       "liza": {},
-      "liza-toolchain": {}
+      "liza-toolchain": {},
+      "stripe-cli": {}
     }
   },
   "javascript-node": {
@@ -22,7 +23,8 @@
       "gh-config": {},
       "grimoire": {},
       "liza": {},
-      "liza-toolchain": {}
+      "liza-toolchain": {},
+      "stripe-cli": {}
     }
   },
   "root-user": {
@@ -37,7 +39,8 @@
       "gh-config": {},
       "grimoire": {},
       "liza": {},
-      "liza-toolchain": {}
+      "liza-toolchain": {},
+      "stripe-cli": {}
     }
   },
   "u1-rebuild": {

@@ -20,6 +20,7 @@ features/gh-config
 features/grimoire
 features/liza
 features/liza-toolchain
+features/stripe-cli
 ```
 
 ```{toctree}

@@ -15,7 +15,8 @@ links() {
       = /mnt/enchantments/claude-data/claude.json ] \
     && test -f ~/.claude.json \
     && [ "$(readlink -f ~/.config/gh)" = /mnt/enchantments/gh-config ] \
-    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ]
+    && [ "$(readlink -f ~/.liza)" = /mnt/enchantments/liza ] \
+    && [ "$(readlink -f ~/.config/stripe)" = /mnt/enchantments/stripe-config ]
 }
 activated() {
   [ "$(readlink -f CLAUDE.local.md)" = "$(readlink -f ~/.liza/CORE.md)" ] \
@@ -43,6 +44,7 @@ check "codebase-memory-mcp is registered" \
   bash -c 'claude mcp get codebase-memory-mcp | grep -q "Local config"'
 check "codebase-memory-mcp runs from PATH" codebase-memory-mcp --version
 check "liza runs from PATH" liza version
+check "stripe runs from PATH" stripe version
 check "Liza is activated for the clone" activated
 check "bash-policy's hook is in the local settings" hook bash-policy
 check "the shell profiles load the toolchain" \
