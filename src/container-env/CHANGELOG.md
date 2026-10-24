@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Creating the container no longer takes another user's files in the volume,
+  which locked that user's containers out of them. It takes only root's, and
+  each start warns of the other user's.
+
 ### Minor
 
 - Each start makes files a root container left in the volume yours again where

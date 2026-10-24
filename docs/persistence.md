@@ -9,6 +9,17 @@ A rebuild replaces the container. These volumes outlive it:
 | `gh-config` | the GitHub CLI's login | every container with `gh-config` |
 | `liza-<devcontainerId>` | Liza and its toolchain | one opened config |
 
+## Sharing a volume
+
+Containers that share a volume must run as one uid: Claude Code and gh keep their logins
+readable by their owner alone. On a Linux host, the dev container CLI gives the container's
+user your uid, unless `updateRemoteUserUID` is `false`; elsewhere, it keeps the image's uid.
+
+A container running as another uid leaves the volume's files alone, and warns that the
+volume holds another user's files. Run it as the same uid as the others, or take the volume
+for it with the command in the warning, which locks out the containers running as the other
+uid.
+
 ## The Liza volumes
 
 Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled when

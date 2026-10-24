@@ -13,9 +13,8 @@ here=$(dirname "$(readlink -f "$0")")
 id=gh-config
 mount=/mnt/enchantments/gh-config
 
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "gh may fail to save its login") \
+  || record_failure "$id" "$problem"
 if ! link_home "$HOME/.config/gh" "$mount"; then
   record_failure "$id" "$HOME/.config/gh is in the way of gh-config, so gh's" \
     "login won't persist; move it aside, then run: bash $here/onCreate.sh"

@@ -32,9 +32,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "Liza's install may fail") \
+  || record_failure "$id" "$problem"
 linked=true
 link_home "$HOME/.liza" "$mount" || {
   linked=false

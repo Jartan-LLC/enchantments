@@ -15,9 +15,8 @@ id=claude-code
 mount=/mnt/enchantments/claude-data
 retry="move it aside, then run: bash $here/onCreate.sh"
 
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "Claude may fail to save there") \
+  || record_failure "$id" "$problem"
 link_home "$HOME/.claude" "$mount" \
   || record_failure "$id" "$HOME/.claude is in the way of claude-data; $retry"
 

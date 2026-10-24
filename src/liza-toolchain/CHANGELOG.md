@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Creating the container no longer takes another user's files in the volume;
+  it takes only root's, and warns of the other user's.
+
 ### Minor
 
 - Each start warns of a tool missing from the volume, and the next create

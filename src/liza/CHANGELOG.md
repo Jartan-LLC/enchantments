@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Creating the container no longer takes another user's files in the volume;
+  it takes only root's, and warns of the other user's.
 - The report of a failed `liza toolchain configure` names its likely cause and the fix.
 
 ### Minor

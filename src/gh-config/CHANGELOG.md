@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Creating the container no longer takes another user's files in
+  `gh-config`, which locked that user's containers out of their login. It
+  takes only root's, and each start warns of the other user's.
 - A `gh` that isn't logged in is noted at each start, no longer reported as a
   failure.
 

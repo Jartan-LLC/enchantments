@@ -38,9 +38,8 @@ case "$(uname -m)" in
     exit 0
     ;;
 esac
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "the toolchain's install may fail") \
+  || record_failure "$id" "$problem"
 if ! mkdir -p "$bin" "$lib" "$pins"; then
   record_failure "$id" "can't write to $mount; nothing installed"
   exit 0

@@ -11,6 +11,5 @@ here=$(dirname "$(readlink -f "$0")")
 id=container-env
 mount=/mnt/enchantments/container-env
 
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "you may fail to change its variables") \
+  || record_failure "$id" "$problem"

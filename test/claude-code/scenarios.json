@@ -25,5 +25,12 @@
       "claude-code": {},
       "gh-config": {}
     }
+  },
+  "other-user": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "initializeCommand": "docker run --rm -v claude-data:/v alpine sh -c \"touch /v/.root-owned /v/.other-owned && chown 4242 /v/.other-owned && chmod 600 /v/.other-owned && chown $(id -u):$(id -g) /v\"",
+    "features": {
+      "claude-code": {}
+    }
   }
 }
