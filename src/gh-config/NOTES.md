@@ -1,6 +1,6 @@
 ## How it works
 
-- **When the container is created,** `~/.config/gh` is linked to the `gh-config` volume, mounted at `/mnt/enchantments/gh-config`, so the GitHub CLI's login survives rebuilds and is shared by every container that uses this Feature. If `gh` isn't logged in, you're told the next time it starts: run `gh auth login` once.
+- **When the container is created,** `~/.config/gh` is linked to the `gh-config` volume, mounted at `/mnt/enchantments/gh-config`, so the GitHub CLI's login survives rebuilds and is shared by every container that uses this Feature. If `gh` is installed but isn't logged in, you're told the next time it starts: run `gh auth login` once.
 
 To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.
 
