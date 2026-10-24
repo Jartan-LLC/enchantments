@@ -2,7 +2,7 @@
 
 ### Minor
 
-- Each start takes back files a root container left in the volume where
+- Each start makes files a root container left in the volume yours again where
   passwordless sudo is available, and warns where it isn't.
 
 ## 1.1.0

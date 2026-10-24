@@ -92,8 +92,9 @@ check "a stale pin is reinstalled" \
   bash -c "! grep -qx stale $pins/yq && yq --version"
 
 # Tools gone from the volume are reported at start, unless failures are
-# pending, and installed again on the next create. The first start reports
-# what that create recorded (rtk, on arm64).
+# pending, and installed again on the next create. A first start reports what
+# the create above recorded (rtk, on arm64), which would otherwise be pending
+# and keep the check quiet.
 hooks=/usr/local/share/enchantments/liza-toolchain
 bash "$hooks/postStart.sh" 2>/dev/null
 rm "$bin/yq" "$bin/scip-typescript" /mnt/enchantments/liza/lib/uv/uv
@@ -104,7 +105,7 @@ check "a pending failure keeps the tool check quiet" \
   test "$(cat "$reports/liza-toolchain.failures.reported")" = earlier
 bash "$hooks/postStart.sh" 2>/dev/null
 check "tools gone from the volume are reported at start" \
-  grep -q "missing from the toolchain: scip-typescript uv yq" \
+  grep -q "not executable: scip-typescript uv yq" \
   "$reports/liza-toolchain.failures.reported"
 bash "$hooks/onCreate.sh" >/dev/null 2>&1
 check "the next create installs them again" \

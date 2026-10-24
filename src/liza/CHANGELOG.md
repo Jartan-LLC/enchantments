@@ -4,8 +4,8 @@
 
 ### Minor
 
-- Each start warns if `~/.liza` isn't the volume, or `~/.local/bin/rg` doesn't
-  run.
+- Each start warns if `~/.liza` is missing or isn't the volume, or if
+  `~/.local/bin/rg` is missing or doesn't run.
 
 ## 1.0.2
 

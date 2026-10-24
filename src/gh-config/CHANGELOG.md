@@ -5,9 +5,9 @@
 
 ### Minor
 
-- Each start warns if `~/.config/gh` no longer links to `gh-config`, and takes
-  back files a root container left in it where passwordless sudo is available,
-  warning where it isn't.
+- Each start warns if `~/.config/gh` no longer links to `gh-config`, and makes
+  files a root container left in it yours again where passwordless sudo is
+  available, warning where it isn't.
 
 ## 1.0.0
 

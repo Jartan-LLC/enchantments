@@ -23,7 +23,7 @@ if ! pending_failures "$id" && [ -d "$mount/bin/.pins" ]; then
     done <<<"$(missing_files "${pin##*/}")"
   done
   [ "${#missing[@]}" -eq 0 ] \
-    || record_at_start "$id" "missing from the toolchain: ${missing[*]};" \
-      "$retry"
+    || record_at_start "$id" "missing from the toolchain, or not executable:" \
+      "${missing[*]}; $retry"
 fi
 report_failures "$id"

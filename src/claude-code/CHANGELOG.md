@@ -3,8 +3,8 @@
 ### Minor
 
 - Each start warns if `~/.claude` or `~/.claude.json` no longer links into
-  `claude-data`, and takes back files a root container left in it where
-  passwordless sudo is available, warning where it isn't.
+  `claude-data`, and makes files a root container left in it yours again
+  where passwordless sudo is available, warning where it isn't.
 
 ## 1.0.1
 
