@@ -16,8 +16,8 @@ id=claude-code
 mount=/mnt/enchantments/claude-data
 
 # A later step can replace a link, a root container sharing the volume leaves
-# files this user can't change, and another user's container leaves files it
-# can't take.
+# files this user can't change, and another user's container leaves files this
+# user mustn't take.
 if ! pending_failures "$id"; then
   [ "$HOME/.claude" -ef "$mount" ] \
     || record_at_start "$id" "$HOME/.claude isn't linked to claude-data, so" \

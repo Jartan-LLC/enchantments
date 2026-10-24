@@ -153,9 +153,9 @@ check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$mount/.root-owned" "$mount/.root-link"
 sudo -n rm "$target"
-# Beside another user's files, nothing is taken, and that user is reported,
-# sudo or not: root's files wait for the volume to have one uid. Then they're
-# taken, a dangling link too, since a link is re-owned itself.
+# While another user's file is there, nothing is taken and that uid is
+# reported, with or without sudo. Once it's gone, root's files are taken, a
+# dangling link too: a link is re-owned itself.
 sudo -n touch "$mount/.root-owned" "$mount/.other-owned"
 sudo -n chown 4242 "$mount/.other-owned"
 sudo -n ln -s /nonexistent "$mount/.root-link"

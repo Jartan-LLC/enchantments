@@ -1,7 +1,7 @@
 #!/bin/bash
 # postStartCommand, as the remote user: take back files a root container left
-# in the volume, warn of another user's, and report its problems and
-# overrides, at every start while they last, then report what the hooks
+# in the volume, warn of another user's, report the Feature's problems and
+# overrides at every start while they last, then report what the hooks
 # recorded.
 # shellcheck source-path=SCRIPTDIR
 set -u
@@ -17,7 +17,7 @@ mount=/mnt/enchantments/container-env
 
 # A root container sharing the volume leaves files this user can't change,
 # or read where they're 0600: take them back before checking the values.
-# Another user's stay theirs.
+# Another user's stay theirs, and root's wait while they're there.
 if ! pending_failures "$id"; then
   problem=$(take_back_volume "$mount" "you may fail to change its variables") \
     || record_at_start "$id" "$problem"

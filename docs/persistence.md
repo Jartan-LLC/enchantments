@@ -19,10 +19,11 @@ has that uid; elsewhere, the user keeps the image's uid.
 A container running as another uid leaves the other user's files alone, and warns that the
 volume holds them. Run it as the same uid as the others, or take the volume for this
 container with the command in the warning, which locks out the containers running as the
-other uid. A volume that's still empty is taken whoever owns it; the container that made
-it warns at its next start. A container running as root can use any volume; the others
-take back what it leaves at their next start or rebuild, once the volume holds no other
-uid's files ([the trust boundary](trust-boundary.md)).
+other uid. A volume that's still empty is taken by the next container created on it,
+whatever uid owns it; a container of another uid already using it then warns at its next
+start. A container running as root can use any volume; the others take back what it leaves
+at their next start or rebuild, once the volume holds no other uid's files. [The trust
+boundary](trust-boundary.md) covers what a root container can reach.
 
 ## The Liza volumes
 

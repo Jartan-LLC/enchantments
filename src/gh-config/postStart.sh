@@ -20,7 +20,7 @@ linked=false
 
 # A later step can replace the link, a root container sharing the volume
 # leaves files this user can't change, and another user's container leaves
-# files it can't take.
+# files this user mustn't take.
 if ! pending_failures "$id"; then
   "$linked" \
     || record_at_start "$id" "$HOME/.config/gh isn't linked to gh-config, so" \

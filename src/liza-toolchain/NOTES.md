@@ -4,7 +4,7 @@ Declare it the same way as `liza`: both in the project's config, or both only th
 
 ## How it works
 
-- **When the container is created,** every tool below is installed at its pinned version into the `liza` Feature's volume, and `/mnt/enchantments/liza/bin` goes on `PATH`. Node and uv stay in the volume, off `PATH`; Go is fetched only to build, then deleted. A rebuild reinstalls only what changed or went missing.
+- **When the container is created,** every tool below is installed at its pinned version into the `liza` Feature's volume, and `/mnt/enchantments/liza/bin` goes on `PATH`. Node and uv stay in the volume, off `PATH`; Go is fetched only to build, then deleted. A rebuild reinstalls only what changed or went missing. If the volume holds another uid's files, such as your old one, you're warned with the command to take it (`https://github.com/Jartan-LLC/enchantments/blob/main/docs/persistence.md#the-liza-volumes`).
 - **Then, in the workspace,** the `liza` Feature turns the toolchain on: Liza's `LIZA_ENABLE_*` gates go in `~/.liza/toolchain/env.sh`, which your login shell's startup files source, and, with the `claude-code` Feature, context7 is registered with Claude Code for this clone.
 - **Each time the container starts,** you're warned of any tool it installed that's gone from the volume or no longer executable.
 - **Without `liza`,** it installs nothing, and says so.

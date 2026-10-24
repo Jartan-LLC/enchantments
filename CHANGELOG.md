@@ -27,9 +27,9 @@ Sections are months, newest first.
   their setup each time the container starts and warn of what's wrong, such as
   a volume no longer linked, so a project needn't check those Features'
   internals itself.
-- Containers that share a Feature volume must run as one uid. One running as
-  another warns instead of taking the volume, which locked the others out of
-  their logins.
+- Containers that share a Feature volume must run as one uid. A container
+  running as another uid warns instead of taking the volume, as it used to,
+  locking the others out of their logins.
 
 ### Maintenance
 
