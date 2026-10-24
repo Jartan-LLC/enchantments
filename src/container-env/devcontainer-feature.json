@@ -1,6 +1,6 @@
 {
   "id": "container-env",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "Per-device environment variables",
   "description": "Exports per-device environment variables from the container-env volume into login shells and VS Code.",
   "documentationURL": "https://github.com/Jartan-LLC/enchantments/tree/main/src/container-env",

@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.1
 
 - `codebase-memory-mcp`: v0.12.0 → v0.12.1
 
