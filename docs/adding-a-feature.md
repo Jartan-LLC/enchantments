@@ -1,9 +1,9 @@
 # Adding a Feature
 
 1. **Create `src/<id>/`** with `devcontainer-feature.json` at `"version": "1.0.0"`,
-   `install.sh` and the payload, a `NOTES.md`, and a `CHANGELOG.md` whose only entry is
-   `## 1.0.0`. In `NOTES.md` and `CHANGELOG.md`, write links as absolute GitHub URLs or code
-   spans.
+   `install.sh` and the payload, a `NOTES.md` in the order `CONTRIBUTING.md` gives
+   (Changing a Feature), and a `CHANGELOG.md` whose only entry is `## 1.0.0`. In
+   `NOTES.md` and `CHANGELOG.md`, write links as absolute GitHub URLs or code spans.
 2. **Add its tests** in `test/<id>/`, and add the id to the `alpine`, `javascript-node` and
    `root-user` scenarios in `test/_global/scenarios.json`.
 3. **Pin what it downloads.** For an npm lockfile, add a `dependabot.yml` block; for anything

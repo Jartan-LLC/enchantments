@@ -13,6 +13,10 @@ Liza's agent toolchain, every tool pinned and verified, installed into the liza 
 
 
 
+## Declaring it
+
+Declare it the same way as `liza`: both in the project's config, or both only through `defaultFeatures` (`https://github.com/Jartan-LLC/enchantments#declaring-a-feature`). Declared differently, `liza toolchain configure` fails after a Liza release.
+
 ## How it works
 
 - **When the container is created,** every tool below is installed at its pinned version into the `liza` Feature's volume, and `/mnt/enchantments/liza/bin` goes on `PATH`. Node and uv stay in the volume, off `PATH`; Go is fetched only to build, then deleted. A rebuild reinstalls only what changed.
@@ -62,24 +66,24 @@ In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`
 - Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook; git-lfs, husky and lefthook install such hooks. Activation names the hook.
 - Where rtk can't run (aarch64 with glibc older than 2.39), it's removed, left out of `~/.liza/AGENT_TOOLS.md`, and reported at each create.
 
-## Removal
-
-1. While both Features are still declared, in each clone, run `liza-deactivate --tools`, then `liza-deactivate`.
-2. Remove the entry.
-3. To also remove the toolchain's files, remove the container, then the volume: `docker volume rm liza-<devcontainerId>`. Docker won't remove a volume that any container, even a stopped one, still uses. The rebuild reinstalls Liza into a fresh one.
-4. Rebuild: activation runs again without the toolchain.
-
 ## Image requirements
 
-- Debian-based, with `bash`, `curl`, `jq`, `git` and `unzip`.
+- Debian-based, with `curl`, `jq`, `git` and `unzip`.
 - On aarch64, glibc 2.39 or later (Debian trixie or later), for rtk.
 - `pip` on `PATH`, for Python's code index.
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. To retry, run from the workspace folder `bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh`, then `bash /usr/local/share/enchantments/liza/updateContent.sh`, which puts a reinstalled tool to use. A failed tool is retried on the next create.
+The container still starts, and what went wrong is printed the next time it starts. To retry, run from the workspace folder `bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh`, then `bash /usr/local/share/enchantments/liza/updateContent.sh`, which puts a reinstalled tool to use. A failed tool is retried on the next create. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`.
 
-A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: declare both in the project's config, or both only through `defaultFeatures`.
+A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: see Declaring it.
+
+## Removal
+
+1. While both Features are still declared, in each clone, run `liza-deactivate --tools`, then `liza-deactivate`.
+2. Remove the entry from the project's config and from `defaultFeatures`.
+3. To also remove the toolchain's files, remove the container, then the volume: `docker volume rm liza-<devcontainerId>` (under Docker Compose, `<project>_liza-<devcontainerId>`). Docker won't remove a volume that any container, even a stopped one, still uses. The rebuild reinstalls Liza into a fresh one.
+4. Rebuild: activation runs again without the toolchain.
 
 
 ---

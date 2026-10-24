@@ -23,6 +23,21 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
   with `cp lib/<helper>.sh src/<id>/`.
 - Each Feature's `README.md` is generated from its `devcontainer-feature.json` and `NOTES.md`:
   edit those, never `README.md`, then run `make readmes` and commit the result.
+- A `NOTES.md` keeps this order; lint checks the required sections:
+  - `## Declaring it`, only for a rule of the Feature's own, such as "declare it the
+    same way as `liza`". The generic advice lives once, in the README's declaring
+    section, which each other page links at the end of How it works.
+  - `## How it works`, required: bullets for when each hook acts ("When the
+    container is created", "Each time the container starts"), start-time warnings
+    included.
+  - Feature sections: a task named as a gerund phrase (`Setting variables`), a
+    reference as a noun (`Tools`).
+  - `## Image requirements`, required.
+  - `## When <symptom>`, only for a diagnosis that takes several steps.
+  - `## When something fails`, required. Where the Feature records failures, it links
+    `docs/troubleshooting.md` for when nothing was reported.
+  - `## Removal`, required: what the Feature leaves behind and how to clean it up, in
+    order. Removing the entry appears only as a step where order matters.
 - A change under `src/<id>/` adds a line under `## Unreleased` in its `CHANGELOG.md`
   and leaves the version alone; a change to only its `README.md`, `NOTES.md` or
   `CHANGELOG.md` needs none. Follow the version rule in `GUARDRAILS.md`.
