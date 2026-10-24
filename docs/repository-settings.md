@@ -17,9 +17,10 @@ Its Client ID and a private key are in the
   `PIN_BUMPS_PRIVATE_KEY`, then delete the downloaded file and the older keys. GitHub
   won't delete an App's only key.
 - **To replace it,** create a GitHub App in Jartan-LLC with the permissions above and no
-  webhook, and install it only on enchantments. Set the `pin-bumps` environment's variable
-  `PIN_BUMPS_CLIENT_ID` to its Client ID, and its secret `PIN_BUMPS_PRIVATE_KEY` to a
-  private key generated for it, then delete the downloaded key.
+  webhook, and install it only on enchantments. Set the
+  [`pin-bumps` environment](#the-pin-bumps-environment)'s variable `PIN_BUMPS_CLIENT_ID`
+  to its Client ID, and its secret `PIN_BUMPS_PRIVATE_KEY` to a private key generated for
+  it, then delete the downloaded key.
 
 ## The `pin-bumps` environment
 
@@ -38,7 +39,9 @@ it has the required reviewer `JartanFTW`, so each release waits for that approva
 
 Active on the default branch, with no bypass. It blocks deleting the branch and force
 pushes, and requires a pull request, with no approving review, linear history, and the
-`check` status from GitHub Actions (integration ID 15368).
+`check` status from GitHub Actions (integration ID 15368). So a change reaches main, and
+with it a release, only through a PR whose `check` passed; GitHub's auto-merge of
+Dependabot bumps waits for it too.
 
 ## The `feature-tags` ruleset
 
