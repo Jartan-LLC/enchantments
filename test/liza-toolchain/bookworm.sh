@@ -66,12 +66,51 @@ else
     test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 fi
 
+# tools.sh lists every pin onCreate records, so postStart checks each one.
+known_pins() {
+  local pin
+  # shellcheck source=../../src/liza-toolchain/tools.sh
+  . /usr/local/share/enchantments/liza-toolchain/tools.sh
+  for pin in /mnt/enchantments/liza/bin/.pins/*; do
+    [ -n "$(tool_files "${pin##*/}")" ] || return 1
+  done
+}
+check "tools.sh knows every pin onCreate records" known_pins
+# A pin tools.sh doesn't list, as a tool a later release dropped leaves one, is
+# left alone at start.
+echo old >/mnt/enchantments/liza/bin/.pins/dropped-tool
+bash /usr/local/share/enchantments/liza-toolchain/postStart.sh 2>/dev/null
+check "a dropped tool's pin isn't reported" \
+  bash -c "! grep -qs dropped-tool $reports/liza-toolchain.failures.reported"
+rm /mnt/enchantments/liza/bin/.pins/dropped-tool
+
 # A stale pin is reinstalled on the next create.
 pins=/mnt/enchantments/liza/bin/.pins
 echo stale >"$pins/yq"
 bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh >/dev/null 2>&1
 check "a stale pin is reinstalled" \
   bash -c "! grep -qx stale $pins/yq && yq --version"
+
+# Tools gone from the volume are reported at start, unless failures are
+# pending, and installed again on the next create. A first start reports what
+# the create above recorded (rtk, on arm64), which would otherwise be pending
+# and keep the check quiet.
+hooks=/usr/local/share/enchantments/liza-toolchain
+bash "$hooks/postStart.sh" 2>/dev/null
+rm "$bin/yq" "$bin/scip-typescript" /mnt/enchantments/liza/lib/uv/uv
+mkdir -p "$reports"
+echo earlier >"$reports/liza-toolchain.failures"
+bash "$hooks/postStart.sh" 2>/dev/null
+check "a pending failure keeps the tool check quiet" \
+  test "$(cat "$reports/liza-toolchain.failures.reported")" = earlier
+bash "$hooks/postStart.sh" 2>/dev/null
+check "tools gone from the volume are reported at start" \
+  grep -q "not executable: scip-typescript uv yq" \
+  "$reports/liza-toolchain.failures.reported"
+bash "$hooks/onCreate.sh" >/dev/null 2>&1
+check "the next create installs them again" \
+  bash -c "yq --version && scip-typescript --version \
+    && test -x /mnt/enchantments/liza/lib/uv/uv"
 
 # shellcheck source=../../src/liza-toolchain/fetch_verified.sh
 . /usr/local/share/enchantments/liza-toolchain/fetch_verified.sh

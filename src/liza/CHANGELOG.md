@@ -2,6 +2,11 @@
 
 - The report of a failed `liza toolchain configure` names its likely cause and the fix.
 
+### Minor
+
+- Each start warns if `~/.liza` is missing or isn't the volume, or if
+  `~/.local/bin/rg` is missing or doesn't run.
+
 ## 1.0.2
 
 - Claude runs without the hook's terminal.

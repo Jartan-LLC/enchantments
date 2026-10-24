@@ -65,8 +65,9 @@ and updating `feature_*` tags, with no bypass.
 Each Feature has its own version, which only the release PR raises, by the first level
 that applies to any change it releases:
 
-- **Major:** an option removed or renamed, or a change in behavior a project would notice.
-- **Minor:** a new option, or a pin bump with a minor or larger upstream move.
+- **Major:** an option removed or renamed, or a change that breaks a working setup.
+- **Minor:** a new option or other new behavior that keeps working setups working, or a pin
+  bump with a minor or larger upstream move.
 - **Patch:** a pin bump whose upstream moves are all patches, or anything else.
 
 Each change under `src/<id>/` adds its line under `## Unreleased` in the Feature's

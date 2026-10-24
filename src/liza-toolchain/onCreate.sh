@@ -17,13 +17,12 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/install_asset.sh"
 # shellcheck source=pins.sh
 . "$here/pins.sh"
+# shellcheck source=tools.sh
+. "$here/tools.sh" # mount, npm_tools, retry
 id=liza-toolchain
-mount=/mnt/enchantments/liza
 bin=$mount/bin
 lib=$mount/lib
 pins=$bin/.pins
-retry="retry: bash $here/onCreate.sh, then, from the workspace folder:"
-retry+=" bash /usr/local/share/enchantments/liza/updateContent.sh"
 
 # The volume is liza's: without it, there's nowhere to install.
 if [ ! -d /usr/local/share/enchantments/liza ]; then
@@ -59,9 +58,11 @@ pin_record() { # pin
   echo "$1 $arch"
 }
 
-# Succeeds when the tool's recorded pin matches.
+# Succeeds when the tool's recorded pin matches and its files are there, so a
+# file gone from the volume is installed again.
 pin_current() { # tool pin
-  [ "$(cat "$pins/$1" 2>/dev/null)" = "$(pin_record "$2")" ]
+  [ "$(cat "$pins/$1" 2>/dev/null)" = "$(pin_record "$2")" ] \
+    && tool_installed "$1"
 }
 
 # Runs an installer unless the tool's pin is current. A failure is recorded and
@@ -175,7 +176,7 @@ node_tools() {
   rc=$?
   rm -rf "$tmp"
   [ "$rc" -eq 0 ] || return "$rc"
-  for tool in scip-python scip-typescript context7-mcp; do
+  for tool in "${npm_tools[@]}"; do
     target=$(readlink -f "$lib/npm/node_modules/.bin/$tool") \
       && printf '#!/bin/sh\nexec %s %s "$@"\n' "$lib/node/bin/node" \
         "$target" >"$bin/$tool" \

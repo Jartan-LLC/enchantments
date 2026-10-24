@@ -178,4 +178,33 @@ sudo chmod 755 "$staged/load.sh"
 check "nothing recorded at create" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
+# Unless failures are pending, each start takes back root-owned files, or
+# reports them where sudo can't, here a stub that always fails.
+nosudo=$(mktemp -d)
+printf '#!/bin/sh\nexit 1\n' >"$nosudo/sudo"
+chmod +x "$nosudo/sudo"
+# Captures the output first: grep -q exiting early would kill postStart before
+# it moves the failures it reported aside, leaving them pending.
+reports_without_sudo() { # text
+  local out
+  out=$(PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1)
+  grep -qF "$1" <<<"$out"
+}
+pending_reported_alone() { # pending-text text
+  local out
+  out=$(PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1)
+  grep -qF "$1" <<<"$out" && ! grep -qF "$2" <<<"$out"
+}
+sudo -n touch "$dir/.root-owned"
+mkdir -p "$HOME/.cache/enchantments"
+echo earlier >"$HOME/.cache/enchantments/container-env.failures"
+check "a pending failure keeps the owner check quiet" \
+  pending_reported_alone earlier "can't take back the files"
+check "without sudo, a root-owned file is reported at start" \
+  reports_without_sudo "can't take back the files"
+post_start >/dev/null
+check "with sudo, it's taken back at start" \
+  test "$(stat -c %U "$dir/.root-owned")" = vscode
+rm "$dir/.root-owned"
+
 reportResults

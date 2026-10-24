@@ -1,3 +1,10 @@
+## Unreleased
+
+### Minor
+
+- Each start warns of a tool missing from the volume, and the next create
+  installs it again.
+
 ## 1.2.0
 
 - `ast-grep`: 0.45.3 → 0.50.0

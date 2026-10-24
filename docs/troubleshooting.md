@@ -17,6 +17,9 @@ Two failures of the project's own commands change that:
   container. To avoid a rebuild, run the fixed command in the workspace, then restart the
   container.
 
+A problem a Feature's check finds when the container starts is printed at that start, and at
+each start after until it's fixed.
+
 ## Retrying a step
 
 Run the failed Feature's hooks as yourself, from the workspace folder, `onCreate.sh` first
