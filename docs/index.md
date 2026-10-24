@@ -41,5 +41,6 @@ troubleshooting
 adding-a-feature
 releasing
 bad-release
+repository-settings
 scaffold
 ```

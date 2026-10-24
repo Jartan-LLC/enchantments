@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Acting as the pin-bumps App, for the scripts that push and open PRs as it
-# (docs/releasing.md, "The pin-bump App"). Sourced.
+# (docs/repository-settings.md, "The pin-bump App"). Sourced.
 
 # Set by setup_app: the App's commit identity, and the header its git requests
 # carry.
