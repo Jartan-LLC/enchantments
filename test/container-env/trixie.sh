@@ -183,8 +183,12 @@ check "nothing recorded at create" \
 nosudo=$(mktemp -d)
 printf '#!/bin/sh\nexit 1\n' >"$nosudo/sudo"
 chmod +x "$nosudo/sudo"
+# Captures the output first: grep -q exiting early would kill postStart before
+# it moves the failures it reported aside, leaving them pending.
 reports_without_sudo() { # text
-  PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1 | grep -qF "$1"
+  local out
+  out=$(PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1)
+  grep -qF "$1" <<<"$out"
 }
 quiet_without_sudo() { # text
   ! reports_without_sudo "$1"
