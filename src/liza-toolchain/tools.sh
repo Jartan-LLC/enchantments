@@ -26,12 +26,15 @@ tool_files() { # pin-name
   esac
 }
 
+# Prints each file a pinned tool installs that isn't executable.
+missing_files() { # pin-name
+  local file
+  while read -r file; do
+    [ -z "$file" ] || [ -x "$file" ] || echo "$file"
+  done <<<"$(tool_files "$1")"
+}
+
 # Succeeds when the pinned tool has files and every one is executable.
 tool_installed() { # pin-name
-  local file files
-  files=$(tool_files "$1")
-  [ -n "$files" ] || return 1
-  while read -r file; do
-    [ -x "$file" ] || return 1
-  done <<<"$files"
+  [ -n "$(tool_files "$1")" ] && [ -z "$(missing_files "$1")" ]
 }

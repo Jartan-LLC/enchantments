@@ -19,8 +19,8 @@ if ! pending_failures "$id" && [ -d "$mount/bin/.pins" ]; then
   for pin in "$mount"/bin/.pins/*; do
     [ -e "$pin" ] || continue
     while read -r file; do
-      [ -z "$file" ] || [ -x "$file" ] || missing+=("${file##*/}")
-    done <<<"$(tool_files "${pin##*/}")"
+      [ -z "$file" ] || missing+=("${file##*/}")
+    done <<<"$(missing_files "${pin##*/}")"
   done
   [ "${#missing[@]}" -eq 0 ] \
     || record_at_start "$id" "missing from the toolchain: ${missing[*]};" \

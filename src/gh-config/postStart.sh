@@ -9,6 +9,8 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 # shellcheck source=start_checks.sh
 . "$here/start_checks.sh"
+# shellcheck source=volume_checks.sh
+. "$here/volume_checks.sh"
 id=gh-config
 mount=/mnt/enchantments/gh-config
 linked=false

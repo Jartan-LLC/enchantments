@@ -99,6 +99,12 @@ check "an unlinked .claude is reported at start" grep -q "/.claude isn't" \
   "$unlinked/.cache/enchantments/claude-code.failures.reported"
 check "and an unlinked .claude.json" grep -q "/.claude.json isn't" \
   "$unlinked/.cache/enchantments/claude-code.failures.reported"
+in_way=$(mktemp -d)
+mkdir -p "$in_way/.claude/mine"
+HOME=$in_way bash "$hooks/postStart.sh" 2>/dev/null
+check "a .claude in the way is to be moved aside" \
+  grep -q "/.claude isn't linked.*move it aside" \
+  "$in_way/.cache/enchantments/claude-code.failures.reported"
 json_only=$(mktemp -d)
 ln -s "$mount" "$json_only/.claude"
 HOME=$json_only bash "$hooks/postStart.sh" 2>/dev/null
@@ -121,6 +127,16 @@ sudo -n touch "$mount/.root-owned"
 HOME=$single PATH="$nosudo:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
 check "without sudo, a root-owned file in claude-data is reported at start" \
   grep -q "can't take back the files" \
+  "$single/.cache/enchantments/claude-code.failures.reported"
+rm "$single/.cache/enchantments/claude-code.failures.reported"
+# A sudo that works but whose chown fails, as when a file goes in between.
+halfsudo=$(mktemp -d)
+# shellcheck disable=SC2016 # $2 is the stub's own argument
+printf '#!/bin/sh\n[ "$2" = true ]\n' >"$halfsudo/sudo"
+chmod +x "$halfsudo/sudo"
+HOME=$single PATH="$halfsudo:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
+check "a chown that fails with sudo working is reported as such" \
+  grep -q "couldn't take back all the files" \
   "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$single/.cache/enchantments/claude-code.failures.reported"
 HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
