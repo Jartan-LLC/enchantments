@@ -14,10 +14,12 @@ fix_volume_owner() { # dir consequence
   [ "$(id -u)" -eq 0 ] && return 0
   owner=$(id -u):$(id -g)
   if [ -d "$1" ] && [ ! -O "$1" ] && entries=$(ls -A "$1" 2>/dev/null) \
-    && [ -z "$entries" ] && ! sudo -n chown "$owner" "$1" 2>/dev/null; then
-    echo "can't take ownership of $1, an empty volume, without passwordless" \
-      "sudo, so $2; run: sudo chown $owner $1"
-    return 1
+    && [ -z "$entries" ]; then
+    if ! sudo -n chown "$owner" "$1" 2>/dev/null; then
+      echo "can't take ownership of $1, an empty volume, without" \
+        "passwordless sudo, so $2; run: sudo chown $owner $1"
+      return 1
+    fi
   fi
   take_back_volume "$1" "$2"
 }
@@ -29,7 +31,7 @@ fix_volume_owner() { # dir consequence
 # the volume has one uid. Root never re-owns: it can write anyway. Fails,
 # printing why, for the caller to record; the consequence completes "so ...".
 take_back_volume() { # dir consequence
-  local uid owner fix other
+  local uid owner other take
   uid=$(id -u)
   [ "$uid" -eq 0 ] && return 0
   [ -z "$(find "$1" ! -user "$uid" -print -quit 2>/dev/null)" ] && return 0
@@ -42,15 +44,14 @@ take_back_volume() { # dir consequence
       "sudo chown -hR $owner $1"
     return 1
   fi
-  fix="sudo find $1 -user 0 -exec chown -h $owner {} +"
+  take=(find "$1" -user 0 -exec chown -h "$owner" {} +)
   if ! sudo -n true 2>/dev/null; then
     echo "can't take back the files a root container left in $1 without" \
-      "passwordless sudo, so $2; run: $fix"
+      "passwordless sudo, so $2; run: sudo ${take[*]}"
     return 1
-  elif ! sudo -n find "$1" -user 0 -exec chown -h "$owner" {} + \
-    2>/dev/null; then
+  elif ! sudo -n "${take[@]}" 2>/dev/null; then
     echo "couldn't take back all the files a root container left in $1," \
-      "so $2; run: $fix"
+      "so $2; run: sudo ${take[*]}"
     return 1
   fi
 }

@@ -21,8 +21,8 @@ volume holds them. Run it as the same uid as the others, or take the volume for 
 container with the command in the warning, which locks out the containers running as the
 other uid. A volume that's still empty is taken whoever owns it; the container that made
 it warns at its next start. A container running as root can use any volume; the others
-take back what it leaves at their next start or rebuild ([the trust
-boundary](trust-boundary.md)).
+take back what it leaves at their next start or rebuild, once the volume holds no other
+uid's files ([the trust boundary](trust-boundary.md)).
 
 ## The Liza volumes
 

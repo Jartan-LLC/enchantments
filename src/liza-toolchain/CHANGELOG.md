@@ -2,7 +2,8 @@
 
 - Creating the container no longer re-owns files of another uid in the volume,
   such as an old uid of yours after a rebuild under a new one: it warns, with
-  the command to take them. Root's files are still taken.
+  the command to take them, and takes nothing else meanwhile, root's files
+  included.
 
 ### Minor
 
