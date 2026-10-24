@@ -76,7 +76,7 @@ In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`
 
 The container still starts, and what went wrong is printed the next time it starts. To retry, run from the workspace folder `bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh`, then `bash /usr/local/share/enchantments/liza/updateContent.sh`, which puts a reinstalled tool to use. A failed tool is retried on the next create. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`.
 
-A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: see Declaring it.
+A `liza toolchain configure` failure after a Liza release most likely means `liza` and `liza-toolchain` are declared differently: see Declaring it.
 
 ## Removal
 

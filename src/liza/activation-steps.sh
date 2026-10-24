@@ -82,8 +82,8 @@ configure_toolchain() {
     "$liza_bin" toolchain configure "${args[@]}" </dev/null >/dev/null; then
     record_failure liza "liza toolchain configure failed, so the toolchain" \
       "isn't on PATH for your shells; after a Liza release, the likely cause" \
-      "is liza and liza-toolchain declared differently: declare both in the" \
-      "project's config, or both only through defaultFeatures"
+      "is that liza and liza-toolchain are declared differently: declare" \
+      "both in the project's config, or both only through defaultFeatures"
     return
   fi
   # configure may keep the file it wrote before.

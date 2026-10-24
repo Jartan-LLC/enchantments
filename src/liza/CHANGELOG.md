@@ -1,6 +1,6 @@
 ## Unreleased
 
-- A failed `liza toolchain configure` names its likely cause.
+- The report of a failed `liza toolchain configure` names its likely cause and the fix.
 
 ## 1.0.2
 
