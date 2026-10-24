@@ -61,39 +61,9 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      Features, review default-branch commits and merged PRs in the window
      (`git log --since`, `gh pr list --state merged --search 'merged:>=<start>'`), and
      revert any you didn't make.
-   - Check the `main` ruleset's content: this prints `true`.
-
-     ```bash
-     gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="main" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .conditions.ref_name.include==["~DEFAULT_BRANCH"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"] and any(.rules[]; .type=="required_status_checks" and any(.parameters.required_status_checks[]; .context=="check" and .integration_id==15368))'
-     ```
-
-   - Check the `feature-tags` ruleset's content, which keeps release tags from moving:
-     this prints `true`.
-
-     ```bash
-     gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="feature-tags" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .target=="tag" and .conditions.ref_name.include==["refs/tags/feature_*"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","update"]'
-     ```
-
-   - Check the `ghcr` environment's content against these expected values, never against
-     a peer repo the same token could have changed:
-
-     ```bash
-     env=repos/Jartan-LLC/enchantments/environments/ghcr
-     gh api $env --jq .deployment_branch_policy
-     # {"custom_branch_policies":true,"protected_branches":false}
-     gh api $env/deployment-branch-policies --jq '[.branch_policies[].name]'
-     # ["main"]
-     gh api $env --jq '[.protection_rules[]|select(.type=="required_reviewers")|.reviewers[].reviewer.login]'
-     # ["JartanFTW"]
-     ```
-
-   - Check that only main can use the `pin-bumps` environment:
-
-     ```bash
-     gh api repos/Jartan-LLC/enchantments/environments/pin-bumps/deployment-branch-policies --jq '[.branch_policies[].name]'
-     # ["main"]
-     ```
-
+   - Check the `main` and `feature-tags` rulesets and the `ghcr` and `pin-bumps`
+     environments with [Repository settings](repository-settings.md)' checks, never
+     against a peer repo the same token could have changed.
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
      runs whose `publish` you approved.

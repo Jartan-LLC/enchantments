@@ -1,8 +1,7 @@
 # Repository settings
 
-The GitHub settings CI relies on, with the values to recreate each one.
-[A bad release](bad-release.md)'s audit checks repeat those values, so a change to one of
-them updates both pages.
+The GitHub settings CI relies on, with the values to recreate each one and a command to
+check it. [A bad release](bad-release.md)'s audit runs these checks.
 
 ## The pin-bump App
 
@@ -27,13 +26,29 @@ Its Client ID and a private key are in the
 The environment of `pin-bumps.yml`'s and `dependabot-bumps.yml`'s jobs, holding the
 App's credentials: the variable `PIN_BUMPS_CLIENT_ID` and the secret
 `PIN_BUMPS_PRIVATE_KEY`. Its deployment branches are limited to `main`, so a workflow on
-any other branch can't act as the App.
+any other branch can't act as the App. To check it:
+
+```bash
+gh api repos/Jartan-LLC/enchantments/environments/pin-bumps/deployment-branch-policies --jq '[.branch_policies[].name]'
+# ["main"]
+```
 
 ## The `ghcr` environment
 
 The environment of CI's `publish` job. Its deployment branches are limited to `main`, and
 it has the required reviewer `JartanFTW`, so each release waits for that approval
 ([Releasing a change](releasing.md#releasing-a-change)). A repository admin can bypass it.
+To check it:
+
+```bash
+env=repos/Jartan-LLC/enchantments/environments/ghcr
+gh api $env --jq .deployment_branch_policy
+# {"custom_branch_policies":true,"protected_branches":false}
+gh api $env/deployment-branch-policies --jq '[.branch_policies[].name]'
+# ["main"]
+gh api $env --jq '[.protection_rules[]|select(.type=="required_reviewers")|.reviewers[].reviewer.login]'
+# ["JartanFTW"]
+```
 
 ## The `main` ruleset
 
@@ -41,13 +56,24 @@ Active on the default branch, with no bypass. It blocks deleting the branch and 
 pushes, and requires a pull request, with no approving review, linear history, and the
 `check` status from GitHub Actions (integration ID 15368). So a change reaches main, and
 with it a release, only through a PR whose `check` passed; GitHub's auto-merge of
-Dependabot bumps waits for it too.
+Dependabot bumps waits for it too. To check it, run this, which prints `true`:
+
+```bash
+gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="main" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .conditions.ref_name.include==["~DEFAULT_BRANCH"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"] and any(.rules[]; .type=="required_status_checks" and any(.parameters.required_status_checks[]; .context=="check" and .integration_id==15368))'
+```
 
 ## The `feature-tags` ruleset
 
 Blocks deleting and updating `feature_*` tags, with no bypass, so a
-[release tag](releasing.md#release-tags) never moves or goes. To recreate it, for instance
-after it was changed in an incident:
+[release tag](releasing.md#release-tags) never moves or goes.
+
+To check it, run this, which prints `true`:
+
+```bash
+gh api repos/Jartan-LLC/enchantments/rulesets/$(gh api repos/Jartan-LLC/enchantments/rulesets --jq '.[] | select(.name=="feature-tags" and .source_type=="Repository") | .id') --jq '.enforcement=="active" and .bypass_actors==[] and .target=="tag" and .conditions.ref_name.include==["refs/tags/feature_*"] and ([.rules[].type]|sort)==["deletion","non_fast_forward","update"]'
+```
+
+To recreate it, for instance after it was changed in an incident:
 
 ```bash
 gh api repos/Jartan-LLC/enchantments/rulesets --input - <<'EOF'
