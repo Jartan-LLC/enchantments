@@ -6,21 +6,30 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=pending_failures.sh
-. "$here/pending_failures.sh"
+# shellcheck source=start_checks.sh
+. "$here/start_checks.sh"
 id=liza
 mount=/mnt/enchantments/liza
+rg=$HOME/.local/bin/rg
+retry="run: bash $here/onCreate.sh"
 
-# A later step can replace a link. No ~/.liza at all means onCreate stopped
-# before linking it, and said why.
-if ! pending_failures "$id" && { [ -e ~/.liza ] || [ -L ~/.liza ]; }; then
-  if [ ! "$HOME/.liza" -ef "$mount" ]; then
-    record_failure "$id" "$HOME/.liza isn't the liza volume, so Liza and its" \
-      "toolchain aren't there; move it aside, then run: bash" \
-      "$here/onCreate.sh"
-  elif ! "$HOME/.local/bin/rg" --version >/dev/null 2>&1; then
-    record_failure "$id" "$HOME/.local/bin/rg doesn't run; remove it, then" \
-      "run: bash $here/onCreate.sh"
+# A later step can replace or remove a link. On an architecture onCreate
+# doesn't install for, it linked nothing, and said so.
+case "$(uname -m)" in
+  x86_64 | amd64 | aarch64 | arm64) supported=true ;;
+  *) supported=false ;;
+esac
+if "$supported" && ! pending_failures "$id"; then
+  if [ ! -e "$HOME/.liza" ] && [ ! -L "$HOME/.liza" ]; then
+    record_at_start "$id" "$HOME/.liza is missing, so Liza and its" \
+      "toolchain aren't there; $retry"
+  elif [ ! "$HOME/.liza" -ef "$mount" ]; then
+    record_at_start "$id" "$HOME/.liza isn't the liza volume, so Liza and" \
+      "its toolchain aren't there; move it aside, then $retry"
+  elif [ ! -e "$rg" ] && [ ! -L "$rg" ]; then
+    record_at_start "$id" "$rg is missing; $retry"
+  elif ! "$rg" --version >/dev/null 2>&1; then
+    record_at_start "$id" "$rg doesn't run; fix or remove it, then $retry"
   fi
 fi
 report_failures "$id"

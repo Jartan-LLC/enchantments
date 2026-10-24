@@ -23,9 +23,10 @@ Sections are months, newest first.
 - Every Feature installs only on a Debian-based image (Ubuntu included) with
   bash; on any other it installs nothing, with a warning, and the container
   still builds.
-- Each Feature checks its own setup each time the container starts and warns of
-  what's wrong, such as a volume no longer linked, so a project needn't check
-  Feature internals itself.
+- `claude-code`, `container-env`, `gh-config`, `liza` and `liza-toolchain` check
+  their setup each time the container starts and warn of what's wrong, such as
+  a volume no longer linked, so a project needn't check those Features'
+  internals itself.
 
 ### Maintenance
 

@@ -20,7 +20,6 @@ here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=tools.sh
 . "$here/tools.sh"
 id=liza-toolchain
-mount=$toolchain
 bin=$mount/bin
 lib=$mount/lib
 pins=$bin/.pins

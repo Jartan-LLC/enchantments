@@ -6,8 +6,8 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=pending_failures.sh
-. "$here/pending_failures.sh"
+# shellcheck source=start_checks.sh
+. "$here/start_checks.sh"
 # shellcheck source=fix_volume_owner.sh
 . "$here/fix_volume_owner.sh"
 id=claude-code
@@ -18,13 +18,13 @@ retry="move it aside, then run: bash $here/onCreate.sh"
 # leaves files this user can't change.
 if ! pending_failures "$id"; then
   [ "$HOME/.claude" -ef "$mount" ] \
-    || record_failure "$id" "$HOME/.claude isn't linked to claude-data, so" \
+    || record_at_start "$id" "$HOME/.claude isn't linked to claude-data, so" \
       "what Claude keeps there won't persist; $retry"
   [ "$HOME/.claude.json" -ef "$mount/claude.json" ] \
-    || record_failure "$id" "$HOME/.claude.json isn't linked into" \
+    || record_at_start "$id" "$HOME/.claude.json isn't linked into" \
       "claude-data, so Claude's settings won't persist; $retry"
   owns_volume "$mount" \
-    || record_failure "$id" "$mount holds files you don't own, so Claude" \
+    || record_at_start "$id" "$mount holds files you don't own, so Claude" \
       "may fail to save there; run: sudo chown -R $(id -un) $mount"
 fi
 
@@ -32,7 +32,7 @@ fi
 # this one. /usr/local/bin/claude links to this one, so resolve before counting.
 claudes=$(which -a claude 2>/dev/null | xargs -r readlink -f | sort -u)
 if [ "$(printf '%s' "$claudes" | grep -c .)" -gt 1 ]; then
-  record_failure "$id" "more than one claude is on PATH, so the one that runs" \
-    "may not be the claude-code Feature's: ${claudes//$'\n'/ }"
+  record_at_start "$id" "more than one claude is on PATH, so the one that" \
+    "runs may not be the claude-code Feature's: ${claudes//$'\n'/ }"
 fi
 report_failures "$id"

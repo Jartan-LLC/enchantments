@@ -11,13 +11,20 @@ check "the volume belongs to the user" test "$(stat -c %U "$mount")" = vscode
 check "no failures recorded" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
-# Each start checks what onCreate set up again.
+# Each start checks what onCreate set up again, unless failures are pending.
 hooks=/usr/local/share/enchantments/gh-config
+report=.cache/enchantments/gh-config.failures.reported
 unlinked=$(mktemp -d)
-HOME=$unlinked bash "$hooks/postStart.sh" 2>/dev/null
+pending=$(mktemp -d)
+mkdir -p "$pending/.cache/enchantments"
+echo earlier >"$pending/.cache/enchantments/gh-config.failures"
+for home in "$unlinked" "$pending"; do
+  HOME=$home bash "$hooks/postStart.sh" 2>/dev/null
+done
 check "an unlinked .config/gh is reported at start" \
-  grep -q "/.config/gh isn't linked" \
-  "$unlinked/.cache/enchantments/gh-config.failures.reported"
+  grep -q "/.config/gh isn't linked" "$unlinked/$report"
+check "a pending failure keeps it quiet" \
+  test "$(cat "$pending/$report")" = earlier
 sudo -n touch "$mount/.root-owned"
 bash "$hooks/postStart.sh" 2>/dev/null
 check "a root-owned file in gh-config is reported at start" \

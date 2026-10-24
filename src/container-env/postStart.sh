@@ -7,8 +7,8 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=pending_failures.sh
-. "$here/pending_failures.sh"
+# shellcheck source=start_checks.sh
+. "$here/start_checks.sh"
 # shellcheck source=fix_volume_owner.sh
 . "$here/fix_volume_owner.sh"
 id=container-env
@@ -25,7 +25,7 @@ while read -r kind text; do
 done <<<"$report"
 # A root container sharing the volume leaves files this user can't change.
 if ! pending_failures "$id" && ! owns_volume "$mount"; then
-  record_failure "$id" "$mount holds files you don't own, so you may not be" \
-    "able to change its variables; run: sudo chown -R $(id -un) $mount"
+  record_at_start "$id" "$mount holds files you don't own, so you may not" \
+    "be able to change its variables; run: sudo chown -R $(id -un) $mount"
 fi
 report_failures "$id"

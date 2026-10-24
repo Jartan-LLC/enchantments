@@ -54,11 +54,33 @@ check "liza-activate runs" liza-activate
 check "liza-activate links the contract again" activated
 check "liza-activate records nothing" test ! -e "$reports/liza.failures"
 
-# Each start checks what onCreate set up again.
-mv ~/.local/bin/rg ~/.local/bin/rg.kept && ln -s /nonexistent ~/.local/bin/rg
-bash /usr/local/share/enchantments/liza/postStart.sh 2>/dev/null
+# Each start checks what onCreate set up again, unless failures are pending.
+hooks=/usr/local/share/enchantments/liza
+mv ~/.local/bin/rg ~/.local/bin/rg.kept
+ln -s /nonexistent ~/.local/bin/rg
+bash "$hooks/postStart.sh" 2>/dev/null
 check "an rg that doesn't run is reported at start" \
   grep -q "rg doesn't run" "$reports/liza.failures.reported"
-rm ~/.local/bin/rg && mv ~/.local/bin/rg.kept ~/.local/bin/rg
+rm ~/.local/bin/rg
+bash "$hooks/postStart.sh" 2>/dev/null
+check "a missing rg is reported at start" \
+  grep -q "rg is missing" "$reports/liza.failures.reported"
+mv ~/.local/bin/rg.kept ~/.local/bin/rg
+report=.cache/enchantments/liza.failures.reported
+in_way=$(mktemp -d)
+missing=$(mktemp -d)
+pending=$(mktemp -d)
+mkdir "$in_way/.liza"
+mkdir -p "$pending/.cache/enchantments"
+echo earlier >"$pending/.cache/enchantments/liza.failures"
+for home in "$in_way" "$missing" "$pending"; do
+  HOME=$home bash "$hooks/postStart.sh" 2>/dev/null
+done
+check "a ~/.liza in the way is reported at start" \
+  grep -q "isn't the liza volume" "$in_way/$report"
+check "a missing ~/.liza is reported at start" \
+  grep -q ".liza is missing" "$missing/$report"
+check "a pending failure keeps them quiet" \
+  test "$(cat "$pending/$report")" = earlier
 
 reportResults

@@ -6,20 +6,20 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=pending_failures.sh
-. "$here/pending_failures.sh"
+# shellcheck source=start_checks.sh
+. "$here/start_checks.sh"
 # shellcheck source=tools.sh
 . "$here/tools.sh"
 id=liza-toolchain
 
-if ! pending_failures "$id" && [ -d "$toolchain/bin/.pins" ]; then
+if ! pending_failures "$id" && [ -d "$mount/bin/.pins" ]; then
   missing=()
-  for pin in "$toolchain"/bin/.pins/*; do
+  for pin in "$mount"/bin/.pins/*; do
     [ -e "$pin" ] || continue
     tool_installed "${pin##*/}" || missing+=("${pin##*/}")
   done
   [ "${#missing[@]}" -eq 0 ] \
-    || record_failure "$id" "missing from the toolchain: ${missing[*]};" \
+    || record_at_start "$id" "missing from the toolchain: ${missing[*]};" \
       "retry: bash $here/onCreate.sh"
 fi
 report_failures "$id"
