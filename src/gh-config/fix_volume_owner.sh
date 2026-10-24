@@ -7,9 +7,8 @@
 # mount point's image-time owner, whose uid the uid remap may have changed
 # since, so an empty volume's top directory is re-owned; one it can't read
 # isn't known to be empty, so it's left alone. An empty one another user's
-# container made is taken too: nothing in it is lost, and that container's
-# start reports it. Fails, printing why, for the caller to record; the
-# consequence completes "so ...".
+# container made is taken too: nothing in it is lost, and a Feature whose start
+# runs take_back_volume reports it there. Fails as take_back_volume does.
 fix_volume_owner() { # dir consequence
   local owner entries
   [ "$(id -u)" -eq 0 ] && return 0

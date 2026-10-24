@@ -13,12 +13,14 @@ A rebuild replaces the container. These volumes outlive it:
 
 Containers that share a volume must run as one uid: Claude Code and gh keep their logins
 readable by their owner alone. On a Linux host, the dev container CLI gives the container's
-user your uid, unless `updateRemoteUserUID` is `false`; elsewhere, it keeps the image's uid.
+user your uid, unless `updateRemoteUserUID` is `false` or another user in the image already
+has that uid; elsewhere, the user keeps the image's uid.
 
 A container running as another uid leaves the other user's files alone, and warns that the
-volume holds them. Run it as the same uid as the others, or take the volume
-for it with the command in the warning, which locks out the containers running as the other
-uid.
+volume holds them. Run it as the same uid as the others, or take the volume for this
+container with the command in the warning, which locks out the containers running as the
+other uid. A container running as root can use any volume; the others take back what it
+leaves at their next start or rebuild ([the trust boundary](trust-boundary.md)).
 
 ## The Liza volumes
 

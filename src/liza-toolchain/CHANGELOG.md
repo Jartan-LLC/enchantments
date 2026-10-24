@@ -1,7 +1,8 @@
 ## Unreleased
 
-- Creating the container no longer takes another user's files in the volume;
-  it takes only root's, and warns of the other user's.
+- Creating the container no longer re-owns files of another uid in the volume,
+  such as an old uid of yours after a rebuild under a new one: it warns, with
+  the command to take them. Root's files are still taken.
 
 ### Minor
 

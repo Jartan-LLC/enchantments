@@ -185,6 +185,7 @@ check "without sudo, an empty volume is reported" \
   "$nosudo"
 check "with sudo, it's taken" fix_volume_owner "$fresh" x
 check "and is the user's" test "$(stat -c %U "$fresh")" = vscode
+rm -r "$fresh"
 theirs=$(mktemp -d)
 touch "$theirs/f"
 sudo -n chown -R 4242 "$theirs"

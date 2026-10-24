@@ -2,7 +2,8 @@
 
 - Creating the container no longer takes another user's files in
   `claude-data`, which locked that user's containers out of their login. It
-  takes only root's, and each start warns of the other user's.
+  takes only root's, and each start warns of the other user's. A volume left
+  with an old uid of yours warns too, with the command to take it.
 
 ### Minor
 

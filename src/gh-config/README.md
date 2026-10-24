@@ -15,7 +15,7 @@ Keeps the GitHub CLI's login in the gh-config volume, so it survives rebuilds an
 
 ## How it works
 
-- **When the container is created,** `~/.config/gh` is linked to the `gh-config` volume, mounted at `/mnt/enchantments/gh-config`, so the GitHub CLI's login survives rebuilds and is shared by every container that uses this Feature.
+- **When the container is created,** `~/.config/gh` is linked to the `gh-config` volume, mounted at `/mnt/enchantments/gh-config`, so the GitHub CLI's login survives rebuilds and is shared by every container that uses this Feature. Files another user's container left in the volume stay theirs, and you're warned.
 - **Each time the container starts,** files a container running as root left in the volume are made yours again where passwordless sudo is available. You're warned if they can't be, if another user's container left files there (`https://github.com/Jartan-LLC/enchantments/blob/main/docs/persistence.md#sharing-a-volume`), or if `~/.config/gh` no longer links to the volume. If `gh` is installed but isn't logged in, you're told so, without counting it as a failure: run `gh auth login` once.
 
 To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.
