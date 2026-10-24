@@ -4,6 +4,8 @@
   such as your old uid after a rebuild under a new one. It warns with the
   command to take them, and takes nothing while they're there, root's files
   included.
+- `semble`: filelock==4.2.0 → filelock==4.2.1
+  - filelock: 4.2.0 → 4.2.1
 
 ### Minor
 
