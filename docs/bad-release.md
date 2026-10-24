@@ -41,11 +41,11 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
    a volume [What persists](persistence.md) lists, since the shared volumes carry whatever
-   the bad code planted. This lists those volumes, every `liza-*` one and any with a
+   the bad code planted. This lists those volumes, every Liza one and any with a
    Compose prefix included, and leaves out names that only start the same way:
 
    ```bash
-   docker volume ls -q --filter name='(^|_)(claude-data|container-env|gh-config|liza-[a-z0-9]+)$'
+   docker volume ls -q --filter name='(^|_)(claude-data|container-env|gh-config|liza-[0-9a-v]{52})$'
    ```
 
    Run `docker ps -a --filter volume=<name>` for each, and stop what it lists. Don't start
