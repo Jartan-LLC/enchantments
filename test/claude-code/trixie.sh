@@ -139,8 +139,9 @@ check "a chown that fails with sudo working is reported as such" \
   grep -q "couldn't take back all the files" \
   "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$single/.cache/enchantments/claude-code.failures.reported"
-HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
-check "with sudo, it's taken back at start" \
+check "with sudo, the start finishes" \
+  env HOME="$single" bash "$hooks/postStart.sh"
+check "and the file is taken back" \
   test "$(stat -c %U "$mount/.root-owned")" = vscode
 check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
@@ -163,9 +164,35 @@ check "another user's file is reported, with how to take it" \
 rm "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$mount/.root-owned" "$mount/.root-link"
 sudo -n rm "$mount/.other-owned"
-HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
-check "once it's gone, nothing is reported" \
+check "once it's gone, the start finishes" \
+  env HOME="$single" bash "$hooks/postStart.sh"
+check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+
+# At create, an empty volume another uid owns, as Docker seeds a fresh one, is
+# taken, or reported where sudo can't; one that isn't empty stays theirs.
+# shellcheck source=../../src/claude-code/fix_volume_owner.sh
+. "$hooks/fix_volume_owner.sh"
+create_fails_with() { # text dir [sudo-stub-dir]
+  local out PATH=${3:+$3:}$PATH
+  ! out=$(fix_volume_owner "$2" "x") && grep -qF "$1" <<<"$out"
+}
+fresh=$(mktemp -d)
+chmod 755 "$fresh"
+sudo -n chown 4242 "$fresh"
+check "without sudo, an empty volume is reported" \
+  create_fails_with "an empty volume, without passwordless sudo" "$fresh" \
+  "$nosudo"
+check "with sudo, it's taken" fix_volume_owner "$fresh" x
+check "and is the user's" test "$(stat -c %U "$fresh")" = vscode
+theirs=$(mktemp -d)
+touch "$theirs/f"
+sudo -n chown -R 4242 "$theirs"
+sudo -n chmod 700 "$theirs"
+check "one that isn't empty is reported" \
+  create_fails_with "holds files of uid 4242" "$theirs"
+check "and stays theirs" test "$(stat -c %u "$theirs")" = 4242
+sudo -n rm -r "$theirs"
 
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.

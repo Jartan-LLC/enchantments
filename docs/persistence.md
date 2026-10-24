@@ -15,8 +15,8 @@ Containers that share a volume must run as one uid: Claude Code and gh keep thei
 readable by their owner alone. On a Linux host, the dev container CLI gives the container's
 user your uid, unless `updateRemoteUserUID` is `false`; elsewhere, it keeps the image's uid.
 
-A container running as another uid leaves the volume's files alone, and warns that the
-volume holds another user's files. Run it as the same uid as the others, or take the volume
+A container running as another uid leaves the other user's files alone, and warns that the
+volume holds them. Run it as the same uid as the others, or take the volume
 for it with the command in the warning, which locks out the containers running as the other
 uid.
 

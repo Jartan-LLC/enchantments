@@ -5,7 +5,7 @@ Declare it in VS Code's `dev.containers.defaultFeatures`, so every container you
 ## How it works
 
 - **When the image is built,** direnv is installed, and `/etc/profile.d/container-env.sh` is added to load the values.
-- **When the container is created,** the `container-env` volume, mounted at `/mnt/enchantments/container-env`, is made yours, unless another user's container left files in it (`https://github.com/Jartan-LLC/enchantments/blob/main/docs/persistence.md#sharing-a-volume`).
+- **When the container is created,** the `container-env` volume, mounted at `/mnt/enchantments/container-env`, is made yours, unless another user's container left files in it: you're warned instead (`https://github.com/Jartan-LLC/enchantments/blob/main/docs/persistence.md#sharing-a-volume`).
 - **Each time the container starts,** problems with the values are reported, and files a container running as root left in the volume are made yours again where passwordless sudo is available, or you're warned. You're also warned if another user's container left files there.
 - **Each login shell** (`sh` and `bash`) loads the values when it starts.
 - **VS Code** loads them from your login shell when it starts in the container, and passes them to its terminals, tasks and extensions. Restart the container after a change. A removed variable stays in VS Code, and in the shells it starts, until then.

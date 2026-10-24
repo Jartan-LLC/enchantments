@@ -206,5 +206,13 @@ post_start >/dev/null
 check "with sudo, it's taken back at start" \
   test "$(stat -c %U "$dir/.root-owned")" = vscode
 rm "$dir/.root-owned"
+# Another user's file stays theirs, and is reported at start; that needs no
+# sudo.
+sudo -n touch "$dir/.other-owned"
+sudo -n chown 4242 "$dir/.other-owned"
+check "another user's file is reported at start" \
+  reports_without_sudo "holds files of uid 4242"
+check "and stays theirs" test "$(stat -c %u "$dir/.other-owned")" = 4242
+sudo -n rm "$dir/.other-owned"
 
 reportResults

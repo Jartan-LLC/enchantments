@@ -16,6 +16,8 @@ check "the other user's file is reported" \
   grep -q "holds files of uid 4242" \
   "$HOME"/.cache/enchantments/claude-code.failures*
 check "the links are still made" \
+  test "$(readlink -f "$HOME/.claude")" = "$mount"
+check "and the linked .claude.json exists" \
   test -f "$(readlink -f "$HOME/.claude.json")"
 
 reportResults

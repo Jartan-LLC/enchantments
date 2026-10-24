@@ -32,5 +32,12 @@
     "features": {
       "claude-code": {}
     }
+  },
+  "foreign-volume": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "initializeCommand": "docker run --rm -v claude-data:/v alpine sh -c \"touch /v/theirs && chown -R 4242 /v && chmod 700 /v\"",
+    "features": {
+      "claude-code": {}
+    }
   }
 }

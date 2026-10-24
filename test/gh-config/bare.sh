@@ -40,6 +40,15 @@ check "with sudo, it's taken back at start" \
   test "$(stat -c %U "$mount/.root-owned")" = vscode
 check "and nothing is reported" test ! -e "$HOME/$report"
 rm "$mount/.root-owned"
+# Another user's file stays theirs, and is reported at start.
+sudo -n touch "$mount/.other-owned"
+sudo -n chown 4242 "$mount/.other-owned"
+bash "$hooks/postStart.sh" 2>/dev/null
+check "another user's file in gh-config is reported at start" \
+  grep -q "holds files of uid 4242" "$HOME/$report"
+check "and stays theirs" test "$(stat -c %u "$mount/.other-owned")" = 4242
+rm "$HOME/$report"
+sudo -n rm "$mount/.other-owned"
 
 no_login_note() {
   local out
