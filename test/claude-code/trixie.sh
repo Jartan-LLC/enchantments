@@ -124,6 +124,9 @@ nosudo=$(mktemp -d)
 printf '#!/bin/sh\nexit 1\n' >"$nosudo/sudo"
 chmod +x "$nosudo/sudo"
 sudo -n touch "$mount/.root-owned"
+target=$(mktemp)
+sudo -n chown 0:0 "$target"
+sudo -n ln -s "$target" "$mount/.root-link"
 HOME=$single PATH="$nosudo:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
 check "without sudo, a root-owned file in claude-data is reported at start" \
   grep -q "can't take back the files" \
@@ -139,28 +142,68 @@ check "a chown that fails with sudo working is reported as such" \
   grep -q "couldn't take back all the files" \
   "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$single/.cache/enchantments/claude-code.failures.reported"
-HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
-check "with sudo, it's taken back at start" \
+check "with sudo, the start finishes" \
+  env HOME="$single" bash "$hooks/postStart.sh"
+check "and the file is taken back" \
   test "$(stat -c %U "$mount/.root-owned")" = vscode
-check "and nothing is reported" \
-  test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
-rm "$mount/.root-owned"
-# Only root's files: another user's stay theirs, and a link is re-owned
-# itself, so a dangling one doesn't fail.
-sudo -n touch "$mount/.root-owned" "$mount/.other-owned"
-sudo -n chown 4242 "$mount/.other-owned"
-sudo -n ln -s /nonexistent "$mount/.root-link"
-HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
-check "root's files are taken back alongside another user's" \
-  test "$(stat -c %U "$mount/.root-owned")" = vscode
-check "another user's file stays theirs" \
-  test "$(stat -c %u "$mount/.other-owned")" = 4242
 check "a root-owned link is taken back itself" \
   test "$(stat -c %U "$mount/.root-link")" = vscode
+check "and not what it points to" test "$(stat -c %U "$target")" = root
 check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$mount/.root-owned" "$mount/.root-link"
+sudo -n rm "$target"
+# While another user's file is there, nothing is taken and that uid is
+# reported, with or without sudo. Once it's gone, root's files are taken, a
+# dangling link too: a link is re-owned itself.
+sudo -n touch "$mount/.root-owned" "$mount/.other-owned"
+sudo -n chown 4242 "$mount/.other-owned"
+sudo -n ln -s /nonexistent "$mount/.root-link"
+HOME=$single PATH="$nosudo:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
+check "without sudo, another user's file is reported, with how to take it" \
+  grep -q "holds files of uid 4242, not this container's.*sudo chown -hR" \
+  "$single/.cache/enchantments/claude-code.failures.reported"
+rm "$single/.cache/enchantments/claude-code.failures.reported"
+HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
+check "with sudo too" grep -q "holds files of uid 4242" \
+  "$single/.cache/enchantments/claude-code.failures.reported"
+check "and nothing is taken" test "$(stat -c %u "$mount/.other-owned" \
+  "$mount/.root-owned" "$mount/.root-link")" = "$(printf '4242\n0\n0')"
+rm "$single/.cache/enchantments/claude-code.failures.reported"
 sudo -n rm "$mount/.other-owned"
+check "once it's gone, the start finishes" \
+  env HOME="$single" bash "$hooks/postStart.sh"
+check "and root's files are taken" test "$(stat -c %U "$mount/.root-owned" \
+  "$mount/.root-link")" = "$(printf 'vscode\nvscode')"
+check "and nothing is reported" \
+  test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+rm "$mount/.root-owned" "$mount/.root-link"
+
+# At create, an empty volume another uid owns, as Docker seeds a fresh one, is
+# taken, or reported where sudo can't; one that isn't empty stays theirs.
+# shellcheck source=../../src/claude-code/volume_owner.sh
+. "$hooks/volume_owner.sh"
+create_fails_with() { # text dir [sudo-stub-dir]
+  local out PATH=${3:+$3:}$PATH
+  ! out=$(fix_volume_owner "$2" "x") && grep -qF "$1" <<<"$out"
+}
+fresh=$(mktemp -d)
+chmod 755 "$fresh"
+sudo -n chown 4242 "$fresh"
+check "without sudo, an empty volume is reported" \
+  create_fails_with "an empty volume, without passwordless sudo" "$fresh" \
+  "$nosudo"
+check "with sudo, it's taken" fix_volume_owner "$fresh" x
+check "and is the user's" test "$(stat -c %U "$fresh")" = vscode
+sudo -n rm -r "$fresh"
+theirs=$(mktemp -d)
+touch "$theirs/f"
+sudo -n chown -R 4242 "$theirs"
+sudo -n chmod 700 "$theirs"
+check "one that isn't empty is reported" \
+  create_fails_with "holds files of uid 4242" "$theirs"
+check "and stays theirs" test "$(stat -c %u "$theirs")" = 4242
+sudo -n rm -r "$theirs"
 
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.

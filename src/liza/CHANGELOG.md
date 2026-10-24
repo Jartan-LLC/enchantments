@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Creating the container no longer re-owns files of another uid in the volume,
+  such as your old uid after a rebuild under a new one. It warns with the
+  command to take them, and takes nothing while they're there, root's files
+  included.
 - The report of a failed `liza toolchain configure` names its likely cause and the fix.
 
 ### Minor

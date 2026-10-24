@@ -11,5 +11,12 @@
     "features": {
       "gh-config": {}
     }
+  },
+  "foreign-volume": {
+    "image": "mcr.microsoft.com/devcontainers/base:trixie",
+    "initializeCommand": "docker run --rm -v gh-config:/v alpine sh -c \"touch /v/theirs && chown -R 4242 /v && chmod 700 /v\"",
+    "features": {
+      "gh-config": {}
+    }
   }
 }

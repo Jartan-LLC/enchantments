@@ -8,8 +8,8 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=fix_volume_owner.sh
-. "$here/fix_volume_owner.sh"
+# shellcheck source=volume_owner.sh
+. "$here/volume_owner.sh"
 # shellcheck source=link_home.sh
 . "$here/link_home.sh"
 # shellcheck source=fetch_verified.sh
@@ -32,9 +32,8 @@ case "$(uname -m)" in
     ;;
 esac
 
-fix_volume_owner "$mount" \
-  || record_failure "$id" "can't take ownership of $mount without" \
-    "passwordless sudo; run: sudo chown -R $(id -un) $mount"
+problem=$(fix_volume_owner "$mount" "Liza's install may fail") \
+  || record_failure "$id" "$problem"
 linked=true
 link_home "$HOME/.liza" "$mount" || {
   linked=false
