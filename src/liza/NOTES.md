@@ -3,6 +3,8 @@
 - **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`; `rg` only if `~/.local/bin` has no `rg` already.
 - **Then, in the workspace,** Liza's global files are refreshed to match its binary, and Liza is activated for this clone. Outside a git repository, only the clone's activation is skipped.
 
+To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.
+
 ## Activation
 
 `liza` on `PATH` passes every command to the real binary except `init`, which it keeps local to the clone:
@@ -25,16 +27,18 @@
 
 `liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A failed run keeps its record, and running it again finishes the job.
 
-## Removal
-
-1. While the Feature is still declared, in each clone, run `liza-deactivate --tools` if `liza-toolchain` is declared, then `liza-deactivate`.
-2. Remove the `liza` entry, and `liza-toolchain`'s if declared.
-3. Remove the container, then the volume: `docker volume rm liza-<devcontainerId>`.
-
 ## Image requirements
 
-- Debian-based, with `bash`, `curl`, `jq` and `git` 2.36 or later.
+- Debian-based, with `curl`, `jq` and `git` 2.36 or later.
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. `liza-activate` reports at once, and exits non-zero when something failed.
+The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
+
+A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: see liza-toolchain's Declaring it, `https://github.com/Jartan-LLC/enchantments/tree/main/src/liza-toolchain#declaring-it`.
+
+## Removal
+
+1. While the Feature is still declared, in each clone, run `liza-deactivate --tools` if `liza-toolchain` is declared, then `liza-deactivate`.
+2. Remove the `liza` entry, and `liza-toolchain`'s if declared, from the project's config and from `defaultFeatures`.
+3. Remove the container, then the volume: `docker volume rm liza-<devcontainerId>` (under Docker Compose, `<project>_liza-<devcontainerId>`).

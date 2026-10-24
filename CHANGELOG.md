@@ -18,6 +18,8 @@ Sections are months, newest first.
   - `liza-toolchain`: Liza's agent tools, such as code indexes and code search.
   - `container-env`: per-device environment variables, kept out of every repo.
 - `stripe-cli`, a new Feature: the Stripe CLI from a pinned release.
+- Each Feature's page follows the same order of sections and ends with how to remove
+  it, including what it leaves behind, such as a volume.
 - Every Feature installs only on a Debian-based image (Ubuntu included) with
   bash; on any other it installs nothing, with a warning, and the container
   still builds.
