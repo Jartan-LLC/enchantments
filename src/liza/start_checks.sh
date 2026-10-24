@@ -35,12 +35,17 @@ relink_advice() { # path onCreate-path
 # running, and would lose their own 0600 files. A link is re-owned itself,
 # never what it points to.
 take_back_root_files() { # id dir consequence
-  local owner
-  owner=$(id -u):$(id -g)
+  local owner fix
   [ "$(id -u)" -eq 0 ] && return 0
   [ -z "$(find "$2" -user 0 -print -quit 2>/dev/null)" ] && return 0
-  sudo -n find "$2" -user 0 -exec chown -h "$owner" {} + 2>/dev/null \
-    || record_at_start "$1" "can't take back the files a root container left" \
-      "in $2 without passwordless sudo, so $3; run: sudo find $2 -user 0" \
-      "-exec chown -h $owner {} +"
+  owner=$(id -u):$(id -g)
+  fix="sudo find $2 -user 0 -exec chown -h $owner {} +"
+  if ! sudo -n true 2>/dev/null; then
+    record_at_start "$1" "can't take back the files a root container left" \
+      "in $2 without passwordless sudo, so $3; run: $fix"
+  elif ! sudo -n find "$2" -user 0 -exec chown -h "$owner" {} + \
+    2>/dev/null; then
+    record_at_start "$1" "couldn't take back all the files a root container" \
+      "left in $2, so $3; run: $fix"
+  fi
 }

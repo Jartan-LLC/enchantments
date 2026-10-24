@@ -99,6 +99,13 @@ check "an unlinked .claude is reported at start" grep -q "/.claude isn't" \
   "$unlinked/.cache/enchantments/claude-code.failures.reported"
 check "and an unlinked .claude.json" grep -q "/.claude.json isn't" \
   "$unlinked/.cache/enchantments/claude-code.failures.reported"
+json_only=$(mktemp -d)
+ln -s "$mount" "$json_only/.claude"
+HOME=$json_only bash "$hooks/postStart.sh" 2>/dev/null
+json_report=$json_only/.cache/enchantments/claude-code.failures.reported
+check "an unlinked .claude.json alone is reported" \
+  grep -q "/.claude.json isn't" "$json_report"
+check "and not .claude" bash -c "! grep -q \"/.claude isn't\" $json_report"
 pending=$(mktemp -d)
 mkdir -p "$pending/.cache/enchantments"
 echo earlier >"$pending/.cache/enchantments/claude-code.failures"

@@ -76,6 +76,13 @@ known_pins() {
   done
 }
 check "tools.sh knows every pin onCreate records" known_pins
+# A pin tools.sh doesn't list, as a tool a later release dropped leaves one, is
+# left alone at start.
+echo old >/mnt/enchantments/liza/bin/.pins/dropped-tool
+bash /usr/local/share/enchantments/liza-toolchain/postStart.sh 2>/dev/null
+check "a dropped tool's pin isn't reported" \
+  bash -c "! grep -qs dropped-tool $reports/liza-toolchain.failures.reported"
+rm /mnt/enchantments/liza/bin/.pins/dropped-tool
 
 # A stale pin is reinstalled on the next create.
 pins=/mnt/enchantments/liza/bin/.pins
