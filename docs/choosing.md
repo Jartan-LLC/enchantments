@@ -13,8 +13,9 @@ Each Feature installs on its own; a few only do their full job alongside another
 | [`liza-toolchain`](features/liza-toolchain.md) | Liza's agent toolchain: code indexes, semantic search, rtk, context7 | `liza` |
 | [`stripe-cli`](features/stripe-cli.md) | the Stripe CLI, from a pinned release | — |
 
-A Feature never pulls in another: declare each one you want. Each page lists its image
-requirements.
+A Feature never pulls in another: declare each one you want. Every Feature needs a Debian
+or Ubuntu image; on any other, it installs nothing, with a warning, and the container still
+builds. Each page lists its image requirements.
 
 ## The default set
 
