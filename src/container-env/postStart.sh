@@ -1,7 +1,7 @@
 #!/bin/bash
 # postStartCommand, as the remote user: report the volume's problems and
-# overrides, at every start while they last, then what the create-time hooks
-# recorded.
+# overrides, and take back files a root container left in it, at every start
+# while they last, then report what the hooks recorded.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")
@@ -9,8 +9,6 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 # shellcheck source=start_checks.sh
 . "$here/start_checks.sh"
-# shellcheck source=fix_volume_owner.sh
-. "$here/fix_volume_owner.sh"
 id=container-env
 mount=/mnt/enchantments/container-env
 
@@ -23,11 +21,8 @@ while read -r kind text; do
     note) echo "$id: $text" >&2 ;;
   esac
 done <<<"$report"
-# A root container sharing the volume leaves files this user can't change
-# until they're taken back.
-if ! pending_failures "$id" && ! fix_volume_owner "$mount"; then
-  record_at_start "$id" "can't take back the files in $mount you don't own" \
-    "without passwordless sudo, so you may not be able to change its" \
-    "variables; run: sudo chown -R $(id -un) $mount"
+# A root container sharing the volume leaves files this user can't change.
+if ! pending_failures "$id"; then
+  take_back_root_files "$id" "$mount" "you may fail to change its variables"
 fi
 report_failures "$id"

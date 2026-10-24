@@ -66,6 +66,17 @@ else
     test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 fi
 
+# tools.sh lists every pin onCreate records, so postStart checks each one.
+known_pins() {
+  local pin
+  # shellcheck source=../../src/liza-toolchain/tools.sh
+  . /usr/local/share/enchantments/liza-toolchain/tools.sh
+  for pin in /mnt/enchantments/liza/bin/.pins/*; do
+    [ -n "$(tool_files "${pin##*/}")" ] || return 1
+  done
+}
+check "tools.sh knows every pin onCreate records" known_pins
+
 # A stale pin is reinstalled on the next create.
 pins=/mnt/enchantments/liza/bin/.pins
 echo stale >"$pins/yq"
@@ -86,7 +97,7 @@ check "a pending failure keeps the tool check quiet" \
   test "$(cat "$reports/liza-toolchain.failures.reported")" = earlier
 bash "$hooks/postStart.sh" 2>/dev/null
 check "tools gone from the volume are reported at start" \
-  grep -q "missing from the toolchain: npm-tools uv yq" \
+  grep -q "missing from the toolchain: scip-typescript uv yq" \
   "$reports/liza-toolchain.failures.reported"
 bash "$hooks/onCreate.sh" >/dev/null 2>&1
 check "the next create installs them again" \

@@ -2,8 +2,8 @@
 
 ### Minor
 
-- Each start takes back files in the volume you don't own where passwordless
-  sudo is available, and warns where it isn't.
+- Each start takes back files a root container left in the volume where
+  passwordless sudo is available, and warns where it isn't.
 
 ## 1.1.0
 

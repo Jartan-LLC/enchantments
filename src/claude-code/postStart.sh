@@ -8,25 +8,21 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 # shellcheck source=start_checks.sh
 . "$here/start_checks.sh"
-# shellcheck source=fix_volume_owner.sh
-. "$here/fix_volume_owner.sh"
 id=claude-code
 mount=/mnt/enchantments/claude-data
-retry="move it aside, then run: bash $here/onCreate.sh"
 
 # A later step can replace a link, and a root container sharing the volume
-# leaves files this user can't change until they're taken back.
+# leaves files this user can't change.
 if ! pending_failures "$id"; then
   [ "$HOME/.claude" -ef "$mount" ] \
     || record_at_start "$id" "$HOME/.claude isn't linked to claude-data, so" \
-      "what Claude keeps there won't persist; $retry"
+      "what Claude keeps there won't persist;" \
+      "$(relink_advice "$HOME/.claude" "$here/onCreate.sh")"
   [ "$HOME/.claude.json" -ef "$mount/claude.json" ] \
     || record_at_start "$id" "$HOME/.claude.json isn't linked into" \
-      "claude-data, so Claude's settings won't persist; $retry"
-  fix_volume_owner "$mount" \
-    || record_at_start "$id" "can't take back the files in $mount you don't" \
-      "own without passwordless sudo, so Claude may fail to save there; run:" \
-      "sudo chown -R $(id -un) $mount"
+      "claude-data, so Claude's settings won't persist;" \
+      "$(relink_advice "$HOME/.claude.json" "$here/onCreate.sh")"
+  take_back_root_files "$id" "$mount" "Claude may fail to save there"
 fi
 
 # Another install route (npm, another Feature) leaves a claude that can shadow

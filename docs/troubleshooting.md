@@ -3,7 +3,8 @@
 ## Finding what failed
 
 A Feature's failure never stops the container. What went wrong is printed when the container
-next starts. To see failures not printed yet:
+next starts. A problem a Feature finds when the container starts is printed then, and at each
+start after until it's fixed. To see failures not printed yet:
 
 ```bash
 ls ~/.cache/enchantments/*.failures

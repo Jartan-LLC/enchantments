@@ -41,4 +41,11 @@ check "with sudo, it's taken back at start" \
 check "and nothing is reported" test ! -e "$HOME/$report"
 rm "$mount/.root-owned"
 
+no_login_note() {
+  local out
+  out=$(bash "$hooks/postStart.sh" 2>&1)
+  ! grep -q "logged in" <<<"$out"
+}
+check "without gh, there's no login note" no_login_note
+
 reportResults

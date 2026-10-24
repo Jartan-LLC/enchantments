@@ -1,9 +1,13 @@
 # shellcheck shell=bash
 # Where each tool onCreate installs lives, by the name its pin is recorded
 # under in bin/.pins, so onCreate's pin check and postStart's agree. A pin
-# missing here has no files, so it never counts as installed: add each new one.
+# missing here has no files, so onCreate reinstalls it at each create: add
+# each new one. Sets mount, npm_tools and retry for both hooks.
 mount=/mnt/enchantments/liza
 npm_tools=(scip-python scip-typescript context7-mcp)
+retry="retry: bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh,"
+retry+=" then, from the workspace folder:"
+retry+=" bash /usr/local/share/enchantments/liza/updateContent.sh"
 
 # Prints each file a pinned tool installs, one per line.
 tool_files() { # pin-name

@@ -13,6 +13,13 @@ check "the missing gh login isn't recorded" \
 check "each start notes it" bash -c "bash \
   /usr/local/share/enchantments/gh-config/postStart.sh 2>&1 \
   | grep -q \"gh isn't logged in\""
+no_login_note_unlinked() {
+  local out
+  out=$(HOME=$(mktemp -d) bash \
+    /usr/local/share/enchantments/gh-config/postStart.sh 2>&1)
+  ! grep -q "logged in" <<<"$out"
+}
+check "with .config/gh unlinked, there's no login note" no_login_note_unlinked
 check "nothing left unreported" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures 2>/dev/null)"
 

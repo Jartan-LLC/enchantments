@@ -122,6 +122,12 @@ check "with sudo, it's taken back at start" \
 check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$mount/.root-owned"
+sudo -n touch "$mount/.other-owned"
+sudo -n chown 4242 "$mount/.other-owned"
+HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
+check "another user's file stays theirs" \
+  test "$(stat -c %u "$mount/.other-owned")" = 4242
+sudo -n rm "$mount/.other-owned"
 
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.

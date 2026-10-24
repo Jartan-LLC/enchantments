@@ -18,13 +18,11 @@ here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=pins.sh
 . "$here/pins.sh"
 # shellcheck source=tools.sh
-. "$here/tools.sh"
+. "$here/tools.sh" # mount, npm_tools, retry
 id=liza-toolchain
 bin=$mount/bin
 lib=$mount/lib
 pins=$bin/.pins
-retry="retry: bash $here/onCreate.sh, then, from the workspace folder:"
-retry+=" bash /usr/local/share/enchantments/liza/updateContent.sh"
 
 # The volume is liza's: without it, there's nowhere to install.
 if [ ! -d /usr/local/share/enchantments/liza ]; then

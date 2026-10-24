@@ -9,17 +9,21 @@ here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=start_checks.sh
 . "$here/start_checks.sh"
 # shellcheck source=tools.sh
-. "$here/tools.sh"
+. "$here/tools.sh" # mount, npm_tools, retry
 id=liza-toolchain
 
+# A pin tools.sh doesn't list is a tool a later release dropped, so it's left
+# alone.
 if ! pending_failures "$id" && [ -d "$mount/bin/.pins" ]; then
   missing=()
   for pin in "$mount"/bin/.pins/*; do
     [ -e "$pin" ] || continue
-    tool_installed "${pin##*/}" || missing+=("${pin##*/}")
+    while read -r file; do
+      [ -z "$file" ] || [ -x "$file" ] || missing+=("${file##*/}")
+    done <<<"$(tool_files "${pin##*/}")"
   done
   [ "${#missing[@]}" -eq 0 ] \
     || record_at_start "$id" "missing from the toolchain: ${missing[*]};" \
-      "retry: bash $here/onCreate.sh"
+      "$retry"
 fi
 report_failures "$id"
