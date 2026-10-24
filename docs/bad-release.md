@@ -40,10 +40,11 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 ([the trust boundary](trust-boundary.md)), so treat the host as compromised throughout.
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
-   a volume [What persists](persistence.md) lists, a Compose-prefixed one included
-   (`docker ps -a --filter volume=<name>` for each), since the shared volume carries
-   whatever the bad code planted. Don't start or attach to them again: their
-   `postStart` and `postAttach` hooks re-run from the image metadata. From a clean host,
+   a volume [What persists](persistence.md) lists: find each such volume in
+   `docker volume ls`, every `liza-*` one and any with a Compose prefix included, and run
+   `docker ps -a --filter volume=<name>` for each, since the shared volumes carry whatever
+   the bad code planted. Don't start or attach to them again: their `postStart` and
+   `postAttach` hooks re-run from the image metadata. From a clean host,
    or the GitHub web UI (Settings → Applications), revoke the gh token. In the pin-bump
    App's settings, under Private keys, generate a new key, keep it on the clean host, and
    delete every older one: GitHub won't delete an App's only key. Also revoke Claude
@@ -85,10 +86,9 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
    fails where the bad release added a semver tag, and that `:1` still resolves to the fix.
    Past 5,000 downloads, only GitHub Support can remove a version.
 5. **Rebuild clean:**
-   - Remove every container step 1 stopped, then every volume What persists lists, all
-     `liza-*` and Compose-prefixed ones included, not only the dangling ones. Do this
-     first, so new credentials never land in a volume a compromised container still
-     mounts.
+   - Remove every container step 1 stopped, then every volume step 1 found, not only the
+     dangling ones. Do this first, so new credentials never land in a volume a
+     compromised container still mounts.
    - Rebuild the Docker host, and rotate every credential it held or forwarded into
      containers, including MCP-server keys and tokens stored in `claude-data`.
    - From the clean host, replace the `pin-bumps` environment's `PIN_BUMPS_PRIVATE_KEY`

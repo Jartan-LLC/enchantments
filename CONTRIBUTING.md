@@ -53,8 +53,8 @@ make check
 
 Runs lint, the docs build and the CI scripts' tests. A change under `src/`, `lib/` or
 `test/` is done only when the PR's `check` passes in CI. Don't run
-`devcontainer features test` locally: it writes to your real Feature volumes, those
-[What persists](docs/persistence.md) lists.
+`devcontainer features test` locally: it writes to your real Feature volumes
+(listed in [What persists](docs/persistence.md)).
 
 ## Conventions
 
