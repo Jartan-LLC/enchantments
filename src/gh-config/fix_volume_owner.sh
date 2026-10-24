@@ -2,8 +2,8 @@
 # make vendor copies this into each Feature that uses it: edit
 # lib/fix_volume_owner.sh, not a copy.
 
-# Makes a volume this user's to write when the container is created, then
-# takes it back as take_back_volume does. Docker seeds a fresh volume from the
+# Makes a volume this user's to write when the container is created, then runs
+# take_back_volume. Docker seeds a fresh volume from the
 # mount point's image-time owner, whose uid the uid remap may have changed
 # since, so an empty volume's top directory is re-owned; one it can't read
 # isn't known to be empty, so it's left alone. An empty one another user's
