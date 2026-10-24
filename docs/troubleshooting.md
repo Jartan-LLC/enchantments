@@ -12,10 +12,10 @@ ls ~/.cache/enchantments/*.failures
 Two failures of the project's own commands change that:
 
 - **Its `postCreateCommand` failed:** the report prints at the following start instead.
-- **Its `onCreateCommand` failed:** no Feature finishes its workspace setup (the "in the
-  workspace" step in How it works, on the pages that have one), and nothing is reported.
-  Fix the command and rebuild the container. To avoid a rebuild, run the fixed command in
-  the workspace, then restart the container.
+- **Its `onCreateCommand` failed:** no Feature finishes its "in the workspace" setup (see
+  its page's How it works), and nothing is reported. Fix the command and rebuild the
+  container. To avoid a rebuild, run the fixed command in the workspace, then restart the
+  container.
 
 ## Retrying a step
 

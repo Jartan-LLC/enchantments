@@ -42,14 +42,15 @@ releases; they don't stop someone who holds your gh token.
 - **A name nobody has published.** A workflow in any Jartan-LLC repo can publish a package
   under that name first. [Adding a Feature](adding-a-feature.md) checks for this.
 
-A container running as root also shares the volumes: what it writes to a shared volume
-([What persists](persistence.md)) is owned by root, which a non-root container may fail to
+A container running as root also shares the volumes ([What persists](persistence.md)):
+what it writes to one is owned by root, which a non-root container may fail to
 update until it's recreated.
 
 ## Opening an untrusted repo
 
 Clear `defaultFeatures` first; opening the repo outside a container gives its code your
-whole host instead. Review its `.devcontainer/` too: any config can mount a shared volume
-by name, and its `initializeCommand` runs on your host.
+whole host instead. Review its `.devcontainer/` too: any config can mount the volumes
+holding your logins, gh token and `container-env` variables by name, and its
+`initializeCommand` runs on your host.
 
 A fine-grained gh token, limited to the repos you work in, would narrow the first route.

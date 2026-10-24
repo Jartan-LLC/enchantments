@@ -40,9 +40,9 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 ([the trust boundary](trust-boundary.md)), so treat the host as compromised throughout.
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
-   a volume [What persists](persistence.md) lists, since the shared volumes carry whatever
-   the bad code planted. This lists those volumes, every Liza one and any with a
-   Compose prefix included, and leaves out names that only start the same way:
+   a Feature volume ([What persists](persistence.md)), since the shared volumes carry
+   whatever the bad code planted. This lists them, including every Liza volume and any
+   with a Compose prefix, but not names that only start the same way:
 
    ```bash
    docker volume ls -q --filter name='(^|_)(claude-data|container-env|gh-config|liza-[0-9a-v]{52})$'

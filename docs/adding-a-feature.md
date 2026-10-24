@@ -5,17 +5,17 @@
    (Changing a Feature), and a `CHANGELOG.md` whose only entry is `## 1.0.0`. In
    `NOTES.md` and `CHANGELOG.md`, write links as absolute GitHub URLs or code spans.
 2. **Add its tests** in `test/<id>/`, and add the id to the `alpine`, `javascript-node` and
-   `root-user` scenarios in `test/_global/scenarios.json`.
+   `root-user` scenarios in `test/_global/scenarios.json`. If it mounts a volume, add the
+   name its test scenarios mount to `volumes` in `.github/scripts/test-features.sh`.
 3. **Pin what it downloads.** For an npm lockfile, add a `dependabot.yml` block; for anything
    else, add a `pins.sh` entry of one of the kinds in [Updating pins](releasing.md#updating-pins).
    Either way, add a row to that table saying how to update it.
 4. **Document it:** copy a sibling's `docs/features/<id>.md` and add it to the Features
    toctree in `docs/index.md`, add a row to the Feature list in the root `README.md`, add
    it to [Choosing Features](choosing.md), and add a line for it to the root
-   `CHANGELOG.md`. If it mounts a volume, add its row to [What persists](persistence.md),
-   its name to the `docker volume ls` filter in [A bad release](bad-release.md)'s step 1,
-   and the name its test scenarios mount to `volumes` in
-   `.github/scripts/test-features.sh`.
+   `CHANGELOG.md`. If it mounts a volume, add its row to [What persists](persistence.md)
+   and its name to the `docker volume ls` filter in [A bad release](bad-release.md)'s
+   step 1.
 5. **Run `make readmes`** and commit the generated `src/<id>/README.md`, then `make check`.
 6. **Open the PR.** It needs a green `check`.
 7. **Publish it.** Before merging, run `gh auth refresh -s read:packages`, then check

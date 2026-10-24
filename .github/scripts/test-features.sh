@@ -10,8 +10,8 @@ set -euo pipefail
 . "$(dirname "$0")/feature_ids.sh"
 volumes=(claude-data container-env gh-config liza-rebuild)
 if [ "${CI:-}" != true ]; then
-  echo "test-features.sh deletes the ${volumes[*]} volumes; it runs only" \
-    "in CI" >&2
+  echo "test-features.sh runs only in CI: it deletes the volumes" \
+    "${volumes[*]}" >&2
   exit 1
 fi
 id=$1
