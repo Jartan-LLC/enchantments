@@ -44,3 +44,6 @@ Sections are months, newest first.
 - pin-bumps proposes upstream pins at least 7 days old as one PR per Feature
   (#13). Dependabot's PRs under `src/` get their `## Unreleased` line pushed by
   the pin-bump App (#53).
+- A Feature's major version now means a change that breaks a working setup, and
+  its minor version covers new behavior that keeps working setups working, not
+  only a new option or a pin bump.
