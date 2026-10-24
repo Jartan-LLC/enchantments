@@ -57,15 +57,8 @@ and updating `feature_*` tags, with no bypass.
   succeeded, and whose commit has that version
   (`git show <commit>:src/<id>/devcontainer-feature.json | jq -r .version`). A newer
   release's run lists the id too, and a tag on its commit can't be moved.
-- **To recreate the ruleset,** for instance after it was changed in an incident:
-
-  ```bash
-  gh api repos/Jartan-LLC/enchantments/rulesets --input - <<'EOF'
-  {"name": "feature-tags", "target": "tag", "enforcement": "active",
-   "conditions": {"ref_name": {"include": ["refs/tags/feature_*"], "exclude": []}},
-   "rules": [{"type": "deletion"}, {"type": "non_fast_forward"}, {"type": "update"}]}
-  EOF
-  ```
+- **To recreate the ruleset,** see
+  [Repository settings](repository-settings.md#the-feature-tags-ruleset).
 
 ## Versioning
 
@@ -168,28 +161,11 @@ automatically.
 - **An issue for a Feature or pin since removed** stays open, since no run reports on
   it again. Close it by hand.
 
-### The pin-bump App
-
-`pin-bumps.yml` and `dependabot-bumps.yml` push, and the first opens PRs, as a GitHub App,
-since pushes and PRs made with a workflow's own token start no CI. To set it up, or to
-replace it:
-
-1. Create a GitHub App in Jartan-LLC with repository permissions **Contents: Read and
-   write** and **Pull requests: Read and write**, and no webhook. Install it only on
-   enchantments.
-2. Create enchantments' `pin-bumps` environment, with its deployment branches limited to
-   `main`. Set its variable `PIN_BUMPS_CLIENT_ID` to the App's Client ID, and its secret
-   `PIN_BUMPS_PRIVATE_KEY` to a private key generated for the App, then delete the
-   downloaded key.
-
-To rotate the key, generate a new one, store it in `PIN_BUMPS_PRIVATE_KEY`, then delete
-the downloaded file and the older keys. GitHub won't delete an App's only key.
-
 ## Release PRs
 
 `pin-bumps.yml` also keeps one PR open on the branch `release`, as
-[the pin-bump App](#the-pin-bump-app), titled with each version it releases. Merging it
-publishes them, as in [Releasing a change](#releasing-a-change).
+[the pin-bump App](repository-settings.md#the-pin-bump-app), titled with each version it
+releases. Merging it publishes them, as in [Releasing a change](#releasing-a-change).
 
 - **What it holds:** each Feature whose files, apart from `README.md`, `NOTES.md` and
   `CHANGELOG.md`, changed since its published version's
