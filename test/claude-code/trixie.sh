@@ -105,12 +105,23 @@ echo earlier >"$pending/.cache/enchantments/claude-code.failures"
 HOME=$pending bash "$hooks/postStart.sh" 2>/dev/null
 check "a pending failure keeps them quiet" test "$(cat \
   "$pending/.cache/enchantments/claude-code.failures.reported")" = earlier
+# A root-owned file in claude-data is taken back at start, or reported where
+# sudo can't, here a stub that always fails.
+nosudo=$(mktemp -d)
+printf '#!/bin/sh\nexit 1\n' >"$nosudo/sudo"
+chmod +x "$nosudo/sudo"
 sudo -n touch "$mount/.root-owned"
-HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
-check "a root-owned file in claude-data is reported at start" \
-  grep -q "holds files you don't own" \
+HOME=$single PATH="$nosudo:$PATH" bash "$hooks/postStart.sh" 2>/dev/null
+check "without sudo, a root-owned file in claude-data is reported at start" \
+  grep -q "can't take back the files" \
   "$single/.cache/enchantments/claude-code.failures.reported"
-sudo -n rm "$mount/.root-owned"
+rm "$single/.cache/enchantments/claude-code.failures.reported"
+HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
+check "with sudo, it's taken back at start" \
+  test "$(stat -c %U "$mount/.root-owned")" = vscode
+check "and nothing is reported" \
+  test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+rm "$mount/.root-owned"
 
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.

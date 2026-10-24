@@ -23,9 +23,11 @@ while read -r kind text; do
     note) echo "$id: $text" >&2 ;;
   esac
 done <<<"$report"
-# A root container sharing the volume leaves files this user can't change.
-if ! pending_failures "$id" && ! owns_volume "$mount"; then
-  record_at_start "$id" "$mount holds files you don't own, so you may not" \
-    "be able to change its variables; run: sudo chown -R $(id -un) $mount"
+# A root container sharing the volume leaves files this user can't change
+# until they're taken back.
+if ! pending_failures "$id" && ! fix_volume_owner "$mount"; then
+  record_at_start "$id" "can't take back the files in $mount you don't own" \
+    "without passwordless sudo, so you may not be able to change its" \
+    "variables; run: sudo chown -R $(id -un) $mount"
 fi
 report_failures "$id"

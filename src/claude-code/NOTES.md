@@ -1,7 +1,7 @@
 ## How it works
 
 - **When the container is created,** Claude Code is installed in your home folder with Anthropic's native installer, and keeps itself up to date. Your login and settings live in the `claude-data` volume, mounted at `/mnt/enchantments/claude-data` and linked from `~/.claude` and `~/.claude.json`, so they survive rebuilds and are shared by every container that uses this Feature. Run `claude` and log in once.
-- **Each time the container starts,** you're warned if `~/.claude` or `~/.claude.json` no longer links into `claude-data`, or the volume holds files you don't own, as a container running as root leaves. You're also warned if more than one `claude` is on `PATH`, such as one installed with npm: only one of them runs, and it may not be this one.
+- **Each time the container starts,** files in `claude-data` you don't own, as a container running as root leaves, are taken back where passwordless sudo is available. You're warned if they can't be, if `~/.claude` or `~/.claude.json` no longer links into `claude-data`, or if more than one `claude` is on `PATH`, such as one installed with npm: only one of them runs, and it may not be this one.
 - **Each time VS Code attaches,** your user plugins and this project's plugins are updated, along with their marketplaces.
 
 To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.

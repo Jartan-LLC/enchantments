@@ -17,15 +17,16 @@ linked=false
 [ "$HOME/.config/gh" -ef "$mount" ] && linked=true
 
 # A later step can replace the link, and a root container sharing the volume
-# leaves files this user can't change.
+# leaves files this user can't change until they're taken back.
 if ! pending_failures "$id"; then
   "$linked" \
     || record_at_start "$id" "$HOME/.config/gh isn't linked to gh-config, so" \
       "gh's login won't persist; move it aside, then run: bash" \
       "$here/onCreate.sh"
-  owns_volume "$mount" \
-    || record_at_start "$id" "$mount holds files you don't own, so gh may" \
-      "fail to save its login; run: sudo chown -R $(id -un) $mount"
+  fix_volume_owner "$mount" \
+    || record_at_start "$id" "can't take back the files in $mount you don't" \
+      "own without passwordless sudo, so gh may fail to save its login; run:" \
+      "sudo chown -R $(id -un) $mount"
 fi
 if "$linked" && command -v gh >/dev/null \
   && ! gh auth token >/dev/null 2>&1; then

@@ -2,7 +2,8 @@
 
 ### Minor
 
-- Each start warns if the volume holds files you don't own.
+- Each start takes back files in the volume you don't own where passwordless
+  sudo is available, and warns where it isn't.
 
 ## 1.1.0
 

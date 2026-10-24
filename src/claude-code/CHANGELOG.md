@@ -3,7 +3,8 @@
 ### Minor
 
 - Each start warns if `~/.claude` or `~/.claude.json` no longer links into
-  `claude-data`, or the volume holds files you don't own.
+  `claude-data`, and takes back files in it you don't own where passwordless
+  sudo is available, warning where it isn't.
 
 ## 1.0.1
 

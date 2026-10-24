@@ -178,17 +178,27 @@ sudo chmod 755 "$staged/load.sh"
 check "nothing recorded at create" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
-# Unless failures are pending, each start checks the volume's owner.
-quiet() { # text
-  ! reports "$1"
+# Unless failures are pending, each start takes back root-owned files, or
+# reports them where sudo can't, here a stub that always fails.
+nosudo=$(mktemp -d)
+printf '#!/bin/sh\nexit 1\n' >"$nosudo/sudo"
+chmod +x "$nosudo/sudo"
+reports_without_sudo() { # text
+  PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1 | grep -qF "$1"
+}
+quiet_without_sudo() { # text
+  ! reports_without_sudo "$1"
 }
 sudo -n touch "$dir/.root-owned"
 mkdir -p "$HOME/.cache/enchantments"
 echo earlier >"$HOME/.cache/enchantments/container-env.failures"
 check "a pending failure keeps the owner check quiet" \
-  quiet "holds files you don't own"
-check "a root-owned file in the volume is reported at start" \
-  reports "holds files you don't own"
-sudo -n rm "$dir/.root-owned"
+  quiet_without_sudo "can't take back the files"
+check "without sudo, a root-owned file is reported at start" \
+  reports_without_sudo "can't take back the files"
+post_start >/dev/null
+check "with sudo, it's taken back at start" \
+  test "$(stat -c %U "$dir/.root-owned")" = vscode
+rm "$dir/.root-owned"
 
 reportResults

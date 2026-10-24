@@ -15,7 +15,7 @@ mount=/mnt/enchantments/claude-data
 retry="move it aside, then run: bash $here/onCreate.sh"
 
 # A later step can replace a link, and a root container sharing the volume
-# leaves files this user can't change.
+# leaves files this user can't change until they're taken back.
 if ! pending_failures "$id"; then
   [ "$HOME/.claude" -ef "$mount" ] \
     || record_at_start "$id" "$HOME/.claude isn't linked to claude-data, so" \
@@ -23,9 +23,10 @@ if ! pending_failures "$id"; then
   [ "$HOME/.claude.json" -ef "$mount/claude.json" ] \
     || record_at_start "$id" "$HOME/.claude.json isn't linked into" \
       "claude-data, so Claude's settings won't persist; $retry"
-  owns_volume "$mount" \
-    || record_at_start "$id" "$mount holds files you don't own, so Claude" \
-      "may fail to save there; run: sudo chown -R $(id -un) $mount"
+  fix_volume_owner "$mount" \
+    || record_at_start "$id" "can't take back the files in $mount you don't" \
+      "own without passwordless sudo, so Claude may fail to save there; run:" \
+      "sudo chown -R $(id -un) $mount"
 fi
 
 # Another install route (npm, another Feature) leaves a claude that can shadow

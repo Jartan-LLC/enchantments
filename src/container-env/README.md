@@ -21,7 +21,7 @@ Declare it in VS Code's `dev.containers.defaultFeatures`, so every container you
 
 - **When the image is built,** direnv is installed, and `/etc/profile.d/container-env.sh` is added to load the values.
 - **When the container is created,** the `container-env` volume, mounted at `/mnt/enchantments/container-env`, is made yours.
-- **Each time the container starts,** problems with the values are reported, and you're warned if the volume holds files you don't own, as a container running as root leaves.
+- **Each time the container starts,** problems with the values are reported, and files in the volume you don't own, as a container running as root leaves, are taken back where passwordless sudo is available, or you're warned.
 - **Each login shell** (`sh` and `bash`) loads the values when it starts.
 - **VS Code** loads them from your login shell when it starts in the container, and passes them to its terminals, tasks and extensions. Restart the container after a change. A removed variable stays in VS Code, and in the shells it starts, until then.
 - **zsh on Debian, and non-login shells** such as a plain `docker exec`, don't load them. When your login shell is zsh, neither does VS Code.
