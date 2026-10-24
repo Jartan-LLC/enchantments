@@ -10,8 +10,8 @@ here=$(dirname "$(readlink -f "$0")")
 . "$here/record_failure.sh"
 # shellcheck source=start_checks.sh
 . "$here/start_checks.sh"
-# shellcheck source=fix_volume_owner.sh
-. "$here/fix_volume_owner.sh"
+# shellcheck source=volume_owner.sh
+. "$here/volume_owner.sh"
 id=container-env
 mount=/mnt/enchantments/container-env
 

@@ -6,8 +6,8 @@ set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
-# shellcheck source=fix_volume_owner.sh
-. "$here/fix_volume_owner.sh"
+# shellcheck source=volume_owner.sh
+. "$here/volume_owner.sh"
 id=container-env
 mount=/mnt/enchantments/container-env
 

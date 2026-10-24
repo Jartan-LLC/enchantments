@@ -43,7 +43,8 @@ Every container on this Docker host that mounts the volume can read the values a
    - a name bash won't set, such as `UID`;
    - a value over 128 KiB, and values that would take the environment past half the system's limit for a program's arguments and environment together;
    - a missing direnv;
-   - files a container running as root left in the volume, where they can't be made yours again, and files another user's container left there.
+   - files a container running as root left in the volume, where they can't be made yours again;
+   - files another user's container left in the volume.
 
    They also note each variable a file overrides in the `.env`.
 

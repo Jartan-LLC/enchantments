@@ -19,14 +19,18 @@ has that uid; elsewhere, the user keeps the image's uid.
 A container running as another uid leaves the other user's files alone, and warns that the
 volume holds them. Run it as the same uid as the others, or take the volume for this
 container with the command in the warning, which locks out the containers running as the
-other uid. A container running as root can use any volume; the others take back what it
-leaves at their next start or rebuild ([the trust boundary](trust-boundary.md)).
+other uid. A volume that's still empty is taken whoever owns it; the container that made
+it warns at its next start. A container running as root can use any volume; the others
+take back what it leaves at their next start or rebuild ([the trust
+boundary](trust-boundary.md)).
 
 ## The Liza volumes
 
 Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled when
-its container is first created. It stays behind when the clone moves or is deleted. To
-prune the ones no container uses:
+its container is first created. If it holds files of another uid, such as your old one
+after a rebuild under a new uid, creating the container warns and gives the command to
+take it. It stays behind when the clone moves or is deleted. To prune the ones no
+container uses:
 
 ```bash
 docker volume ls -q --filter dangling=true --filter name='(^|_)liza-' | xargs -r docker volume rm
