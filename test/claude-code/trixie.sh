@@ -81,6 +81,8 @@ check "a second claude on PATH is reported" grep -q 'more than one claude' \
 
 # The /usr/local/bin link and the install it points to are one claude.
 single=$(mktemp -d)
+ln -s "$mount" "$single/.claude"
+ln -s "$mount/claude.json" "$single/.claude.json"
 user_bin=$HOME/.local/bin
 PATH="$user_bin:/usr/local/bin:$PATH" HOME=$single \
   bash "$hooks/postStart.sh" 2>/dev/null
@@ -89,6 +91,26 @@ check "claude is linked from /usr/local/bin" \
   = "$(readlink -f "$HOME/.local/bin/claude")"
 check "the link and the install count as one claude" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+
+# Each start checks what onCreate set up again, unless failures are pending.
+unlinked=$(mktemp -d)
+HOME=$unlinked bash "$hooks/postStart.sh" 2>/dev/null
+check "an unlinked .claude is reported at start" grep -q "/.claude isn't" \
+  "$unlinked/.cache/enchantments/claude-code.failures.reported"
+check "and an unlinked .claude.json" grep -q "/.claude.json isn't" \
+  "$unlinked/.cache/enchantments/claude-code.failures.reported"
+pending=$(mktemp -d)
+mkdir -p "$pending/.cache/enchantments"
+echo earlier >"$pending/.cache/enchantments/claude-code.failures"
+HOME=$pending bash "$hooks/postStart.sh" 2>/dev/null
+check "a pending failure keeps them quiet" test "$(cat \
+  "$pending/.cache/enchantments/claude-code.failures.reported")" = earlier
+sudo -n touch "$mount/.root-owned"
+HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
+check "a root-owned file in claude-data is reported at start" \
+  grep -q "holds files you don't own" \
+  "$single/.cache/enchantments/claude-code.failures.reported"
+sudo -n rm "$mount/.root-owned"
 
 # What's in the way of a link is left alone and reported; an empty directory
 # isn't in the way.

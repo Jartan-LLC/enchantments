@@ -1,6 +1,6 @@
 #!/bin/bash
 # onCreateCommand, as the remote user: link ~/.config/gh to the gh-config
-# volume, and say so when gh isn't logged in.
+# volume.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")
@@ -19,7 +19,4 @@ fix_volume_owner "$mount" \
 if ! link_home "$HOME/.config/gh" "$mount"; then
   record_failure "$id" "$HOME/.config/gh is in the way of gh-config, so gh's" \
     "login won't persist; move it aside, then run: bash $here/onCreate.sh"
-elif command -v gh >/dev/null && ! gh auth token >/dev/null 2>&1; then
-  record_failure "$id" "gh isn't logged in: run 'gh auth login'; the login" \
-    "then survives rebuilds"
 fi

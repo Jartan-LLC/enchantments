@@ -8,7 +8,11 @@
 # write anyway, and taking a shared volume would lock every non-root container
 # out of its 0600 files. sudo is optional: without it, the caller warns.
 fix_volume_owner() { # dir
-  [ "$(id -u)" -eq 0 ] && return 0
-  [ -z "$(find "$1" ! -user "$(id -u)" -print -quit 2>/dev/null)" ] && return 0
-  sudo -n chown -R "$(id -u):$(id -g)" "$1" 2>/dev/null
+  owns_volume "$1" || sudo -n chown -R "$(id -u):$(id -g)" "$1" 2>/dev/null
+}
+
+# Succeeds when the volume holds nothing this user doesn't own. Root owns any.
+owns_volume() { # dir
+  [ "$(id -u)" -eq 0 ] \
+    || [ -z "$(find "$1" ! -user "$(id -u)" -print -quit 2>/dev/null)" ]
 }

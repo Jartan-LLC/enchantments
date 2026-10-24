@@ -178,4 +178,17 @@ sudo chmod 755 "$staged/load.sh"
 check "nothing recorded at create" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
+# Unless failures are pending, each start checks the volume's owner.
+quiet() { # text
+  ! reports "$1"
+}
+sudo -n touch "$dir/.root-owned"
+mkdir -p "$HOME/.cache/enchantments"
+echo earlier >"$HOME/.cache/enchantments/container-env.failures"
+check "a pending failure keeps the owner check quiet" \
+  quiet "holds files you don't own"
+check "a root-owned file in the volume is reported at start" \
+  reports "holds files you don't own"
+sudo -n rm "$dir/.root-owned"
+
 reportResults

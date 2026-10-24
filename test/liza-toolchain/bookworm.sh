@@ -73,6 +73,26 @@ bash /usr/local/share/enchantments/liza-toolchain/onCreate.sh >/dev/null 2>&1
 check "a stale pin is reinstalled" \
   bash -c "! grep -qx stale $pins/yq && yq --version"
 
+# Tools gone from the volume are reported at start, unless failures are
+# pending, and installed again on the next create. The first start reports
+# what that create recorded (rtk, on arm64).
+hooks=/usr/local/share/enchantments/liza-toolchain
+bash "$hooks/postStart.sh" 2>/dev/null
+rm "$bin/yq" "$bin/scip-typescript" /mnt/enchantments/liza/lib/uv/uv
+mkdir -p "$reports"
+echo earlier >"$reports/liza-toolchain.failures"
+bash "$hooks/postStart.sh" 2>/dev/null
+check "a pending failure keeps the tool check quiet" \
+  test "$(cat "$reports/liza-toolchain.failures.reported")" = earlier
+bash "$hooks/postStart.sh" 2>/dev/null
+check "tools gone from the volume are reported at start" \
+  grep -q "missing from the toolchain: npm-tools uv yq" \
+  "$reports/liza-toolchain.failures.reported"
+bash "$hooks/onCreate.sh" >/dev/null 2>&1
+check "the next create installs them again" \
+  bash -c "yq --version && scip-typescript --version \
+    && test -x /mnt/enchantments/liza/lib/uv/uv"
+
 # shellcheck source=../../src/liza-toolchain/fetch_verified.sh
 . /usr/local/share/enchantments/liza-toolchain/fetch_verified.sh
 # shellcheck source=../../src/liza-toolchain/install_asset.sh
