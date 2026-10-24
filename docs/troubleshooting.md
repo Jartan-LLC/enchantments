@@ -13,9 +13,9 @@ Two failures of the project's own commands change that:
 
 - **Its `postCreateCommand` failed:** the report prints at the following start instead.
 - **Its `onCreateCommand` failed:** no Feature finishes its workspace setup (each
-  Feature's page lists it under How it works), and nothing is reported. Fix the command
-  and rebuild the container. To avoid a rebuild, run the fixed command in the workspace,
-  then restart the container.
+  Feature's page lists it in How it works, as its "in the workspace" step), and nothing is
+  reported. Fix the command and rebuild the container. To avoid a rebuild, run the fixed
+  command in the workspace, then restart the container.
 
 ## Retrying a step
 

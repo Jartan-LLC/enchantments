@@ -12,8 +12,10 @@
 4. **Document it:** copy a sibling's `docs/features/<id>.md` and add it to the Features
    toctree in `docs/index.md`, add a row to the Feature list in the root `README.md`, add
    it to [Choosing Features](choosing.md), and add a line for it to the root
-   `CHANGELOG.md`. If it mounts a volume, add its row to [What persists](persistence.md)
-   and its name to `volumes` in `.github/scripts/test-features.sh`.
+   `CHANGELOG.md`. If it mounts a volume, add its row to [What persists](persistence.md),
+   its name to the `docker volume ls` filter in [A bad release](bad-release.md)'s step 1,
+   and the name its test scenarios mount to `volumes` in
+   `.github/scripts/test-features.sh`.
 5. **Run `make readmes`** and commit the generated `src/<id>/README.md`, then `make check`.
 6. **Open the PR.** It needs a green `check`.
 7. **Publish it.** Before merging, run `gh auth refresh -s read:packages`, then check

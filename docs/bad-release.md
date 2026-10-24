@@ -40,17 +40,22 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
 ([the trust boundary](trust-boundary.md)), so treat the host as compromised throughout.
 
 1. **Contain at once,** before any revert or publish. Stop every container that mounts
-   a volume [What persists](persistence.md) lists: find each such volume in
-   `docker volume ls`, every `liza-*` one and any with a Compose prefix included, and run
-   `docker ps -a --filter volume=<name>` for each, since the shared volumes carry whatever
-   the bad code planted. Don't start or attach to them again: their `postStart` and
-   `postAttach` hooks re-run from the image metadata. From a clean host,
-   or the GitHub web UI (Settings → Applications), revoke the gh token. In the pin-bump
-   App's settings, under Private keys, generate a new key, keep it on the clean host, and
-   delete every older one: GitHub won't delete an App's only key. Also revoke Claude
-   sessions, any MCP keys, any Stripe CLI login and every secret kept in `container-env`
-   at their issuers. Re-authenticate only on that clean host, which is enough to review
-   and approve the fix.
+   a volume [What persists](persistence.md) lists, since the shared volumes carry whatever
+   the bad code planted. This lists those volumes, every `liza-*` one and any with a
+   Compose prefix included, and leaves out names that only start the same way:
+
+   ```bash
+   docker volume ls -q --filter name='(^|_)(claude-data|container-env|gh-config|liza-[a-z0-9]+)$'
+   ```
+
+   Run `docker ps -a --filter volume=<name>` for each, and stop what it lists. Don't start
+   or attach to them again: their `postStart` and `postAttach` hooks re-run from the image
+   metadata. From a clean host, or the GitHub web UI (Settings → Applications), revoke the
+   gh token. In the pin-bump App's settings, under Private keys, generate a new key, keep
+   it on the clean host, and delete every older one: GitHub won't delete an App's only
+   key. Also revoke Claude sessions, any MCP keys, any Stripe CLI login and every secret
+   kept in `container-env` at their issuers. Re-authenticate only on that clean host,
+   which is enough to review and approve the fix.
 2. **Audit GitHub for footholds** the token could have left.
    - In the Jartan-LLC audit log (web UI, owners only), review the exposure window and
      undo what it shows: deploy keys, collaborators and invites, webhooks, rulesets,
