@@ -35,8 +35,6 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 
 The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
 
-A `liza toolchain configure` failure after a Liza release means `liza` and `liza-toolchain` are declared differently: see liza-toolchain's Declaring it, `https://github.com/Jartan-LLC/enchantments/tree/main/src/liza-toolchain#declaring-it`.
-
 ## Removal
 
 1. While the Feature is still declared, in each clone, run `liza-deactivate --tools` if `liza-toolchain` is declared, then `liza-deactivate`.

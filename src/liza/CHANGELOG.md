@@ -1,3 +1,7 @@
+## Unreleased
+
+- A failed `liza toolchain configure` names its likely cause.
+
 ## 1.0.2
 
 - Claude runs without the hook's terminal.

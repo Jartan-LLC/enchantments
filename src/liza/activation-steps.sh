@@ -81,7 +81,9 @@ configure_toolchain() {
   if ! SHELL=$(getent passwd "$(id -un)" | cut -d: -f7) \
     "$liza_bin" toolchain configure "${args[@]}" </dev/null >/dev/null; then
     record_failure liza "liza toolchain configure failed, so the toolchain" \
-      "isn't on PATH for your shells"
+      "isn't on PATH for your shells. After a Liza release, the likely cause" \
+      "is liza and liza-toolchain declared differently: declare both in the" \
+      "project's config, or both only through defaultFeatures"
     return
   fi
   # configure may keep the file it wrote before.
