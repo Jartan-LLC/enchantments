@@ -15,8 +15,8 @@ Each Feature installs on its own; a few only do their full job alongside another
 
 A Feature never pulls in another: declare each one you want. Every Feature needs a
 Debian-based image (Ubuntu included); on any other, it installs nothing, with a warning in
-the image build log, and the container still builds. Each page lists its image
-requirements.
+the image build log, and the container still builds, though any volume it mounts is
+created anyway ([What persists](persistence.md)). Each page lists its image requirements.
 
 ## The default set
 
