@@ -1,12 +1,32 @@
 #!/bin/bash
-# postStartCommand, as the remote user: warn about a second claude on PATH,
-# then report what the create-time hooks recorded.
+# postStartCommand, as the remote user: check what onCreate set up and warn
+# about a second claude on PATH, then report what the hooks recorded.
 # shellcheck source-path=SCRIPTDIR
 set -u
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=record_failure.sh
 . "$here/record_failure.sh"
+# shellcheck source=pending_failures.sh
+. "$here/pending_failures.sh"
+# shellcheck source=fix_volume_owner.sh
+. "$here/fix_volume_owner.sh"
 id=claude-code
+mount=/mnt/enchantments/claude-data
+retry="move it aside, then run: bash $here/onCreate.sh"
+
+# A later step can replace a link, and a root container sharing the volume
+# leaves files this user can't change.
+if ! pending_failures "$id"; then
+  [ "$HOME/.claude" -ef "$mount" ] \
+    || record_failure "$id" "$HOME/.claude isn't linked to claude-data, so" \
+      "what Claude keeps there won't persist; $retry"
+  [ "$HOME/.claude.json" -ef "$mount/claude.json" ] \
+    || record_failure "$id" "$HOME/.claude.json isn't linked into" \
+      "claude-data, so Claude's settings won't persist; $retry"
+  owns_volume "$mount" \
+    || record_failure "$id" "$mount holds files you don't own, so Claude" \
+      "may fail to save there; run: sudo chown -R $(id -un) $mount"
+fi
 
 # Another install route (npm, another Feature) leaves a claude that can shadow
 # this one. /usr/local/bin/claude links to this one, so resolve before counting.

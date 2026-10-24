@@ -54,4 +54,11 @@ check "liza-activate runs" liza-activate
 check "liza-activate links the contract again" activated
 check "liza-activate records nothing" test ! -e "$reports/liza.failures"
 
+# Each start checks what onCreate set up again.
+mv ~/.local/bin/rg ~/.local/bin/rg.kept && ln -s /nonexistent ~/.local/bin/rg
+bash /usr/local/share/enchantments/liza/postStart.sh 2>/dev/null
+check "an rg that doesn't run is reported at start" \
+  grep -q "rg doesn't run" "$reports/liza.failures.reported"
+rm ~/.local/bin/rg && mv ~/.local/bin/rg.kept ~/.local/bin/rg
+
 reportResults

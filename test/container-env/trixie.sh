@@ -178,4 +178,9 @@ sudo chmod 755 "$staged/load.sh"
 check "nothing recorded at create" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
 
+sudo -n touch "$dir/.root-owned"
+check "a root-owned file in the volume is reported at start" \
+  reports "holds files you don't own"
+sudo -n rm "$dir/.root-owned"
+
 reportResults
