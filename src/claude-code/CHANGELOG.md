@@ -1,12 +1,9 @@
-## Unreleased
+## 1.1.0
 
 - Creating the container no longer takes another user's files in `claude-data`,
   which locked that user's containers out of their login. While they're there,
   it takes nothing, root's files included, and each start warns of them. A
   volume left with an old uid of yours warns too, with the command to take it.
-
-### Minor
-
 - Each start warns if `~/.claude` or `~/.claude.json` no longer links into
   `claude-data`, and makes files a root container left in it yours again
   where passwordless sudo is available, warning where it isn't.

@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
   such as your old uid after a rebuild under a new one. It warns with the
@@ -6,9 +6,6 @@
   included.
 - `semble`: filelock==4.2.0 → filelock==4.2.1
   - filelock: 4.2.0 → 4.2.1
-
-### Minor
-
 - Each start warns of a tool missing from the volume, and the next create
   installs it again.
 
