@@ -32,14 +32,15 @@ relink_advice() { # path onCreate-path
 
 # Takes back the files a root container left in a shared volume, or records
 # why it can't. Other users' files stay theirs: their containers may be
-# running, and would lose their own 0600 files.
+# running, and would lose their own 0600 files. A link is re-owned itself,
+# never what it points to.
 take_back_root_files() { # id dir consequence
   local owner
   owner=$(id -u):$(id -g)
   [ "$(id -u)" -eq 0 ] && return 0
   [ -z "$(find "$2" -user 0 -print -quit 2>/dev/null)" ] && return 0
-  sudo -n find "$2" -user 0 -exec chown "$owner" {} + 2>/dev/null \
+  sudo -n find "$2" -user 0 -exec chown -h "$owner" {} + 2>/dev/null \
     || record_at_start "$1" "can't take back the files a root container left" \
       "in $2 without passwordless sudo, so $3; run: sudo find $2 -user 0" \
-      "-exec chown $owner {} +"
+      "-exec chown -h $owner {} +"
 }

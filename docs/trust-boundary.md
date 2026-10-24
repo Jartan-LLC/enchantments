@@ -44,7 +44,8 @@ releases; they don't stop someone who holds your gh token.
 
 A container running as root also shares the volumes ([What persists](persistence.md)):
 what it writes to one is owned by root, which a non-root container may fail to
-update until it's recreated.
+update until it takes those files back, at its next start or rebuild. That needs
+passwordless sudo; without it, the container's start warns how to do it by hand.
 
 ## Opening an untrusted repo
 

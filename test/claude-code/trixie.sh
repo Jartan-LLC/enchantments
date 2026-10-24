@@ -122,11 +122,21 @@ check "with sudo, it's taken back at start" \
 check "and nothing is reported" \
   test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
 rm "$mount/.root-owned"
-sudo -n touch "$mount/.other-owned"
+# Only root's files: another user's stay theirs, and a link is re-owned
+# itself, so a dangling one doesn't fail.
+sudo -n touch "$mount/.root-owned" "$mount/.other-owned"
 sudo -n chown 4242 "$mount/.other-owned"
+sudo -n ln -s /nonexistent "$mount/.root-link"
 HOME=$single bash "$hooks/postStart.sh" 2>/dev/null
+check "root's files are taken back alongside another user's" \
+  test "$(stat -c %U "$mount/.root-owned")" = vscode
 check "another user's file stays theirs" \
   test "$(stat -c %u "$mount/.other-owned")" = 4242
+check "a root-owned link is taken back itself" \
+  test "$(stat -c %U "$mount/.root-link")" = vscode
+check "and nothing is reported" \
+  test ! -e "$single/.cache/enchantments/claude-code.failures.reported"
+rm "$mount/.root-owned" "$mount/.root-link"
 sudo -n rm "$mount/.other-owned"
 
 # What's in the way of a link is left alone and reported; an empty directory

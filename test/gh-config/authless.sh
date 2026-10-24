@@ -20,6 +20,16 @@ no_login_note_unlinked() {
   ! grep -q "logged in" <<<"$out"
 }
 check "with .config/gh unlinked, there's no login note" no_login_note_unlinked
+no_login_note_logged_in() {
+  local out stub
+  stub=$(mktemp -d)
+  printf '#!/bin/sh\nexit 0\n' >"$stub/gh"
+  chmod +x "$stub/gh"
+  out=$(PATH="$stub:$PATH" bash \
+    /usr/local/share/enchantments/gh-config/postStart.sh 2>&1)
+  ! grep -q "logged in" <<<"$out"
+}
+check "a logged-in gh gets no login note" no_login_note_logged_in
 check "nothing left unreported" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures 2>/dev/null)"
 

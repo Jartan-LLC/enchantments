@@ -190,14 +190,16 @@ reports_without_sudo() { # text
   out=$(PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1)
   grep -qF "$1" <<<"$out"
 }
-quiet_without_sudo() { # text
-  ! reports_without_sudo "$1"
+pending_reported_alone() { # pending-text text
+  local out
+  out=$(PATH="$nosudo:$PATH" bash "$staged/postStart.sh" 2>&1)
+  grep -qF "$1" <<<"$out" && ! grep -qF "$2" <<<"$out"
 }
 sudo -n touch "$dir/.root-owned"
 mkdir -p "$HOME/.cache/enchantments"
 echo earlier >"$HOME/.cache/enchantments/container-env.failures"
 check "a pending failure keeps the owner check quiet" \
-  quiet_without_sudo "can't take back the files"
+  pending_reported_alone earlier "can't take back the files"
 check "without sudo, a root-owned file is reported at start" \
   reports_without_sudo "can't take back the files"
 post_start >/dev/null
