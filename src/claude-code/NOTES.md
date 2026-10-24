@@ -16,4 +16,4 @@ The container still starts, and what went wrong is printed the next time it star
 
 ## Removal
 
-The `claude-data` volume stays for the other containers that use it. Once none does, `docker volume rm claude-data` (under Docker Compose, `<project>_claude-data`).
+The `claude-data` volume stays for the other containers that use it. Once none does, delete it with `docker volume rm claude-data` (under Docker Compose, `<project>_claude-data`).

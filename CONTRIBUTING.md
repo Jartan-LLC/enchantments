@@ -25,11 +25,12 @@ Docker (actionlint, lychee) and Node (markdownlint) — the devcontainer has bot
   edit those, never `README.md`, then run `make readmes` and commit the result.
 - A `NOTES.md` keeps this order; lint checks the required sections:
   - `## Declaring it`, only for a rule of the Feature's own, such as "declare it the
-    same way as `liza`". The generic advice lives once, in the README's declaring
-    section, which each other page links at the end of How it works.
-  - `## How it works`, required: bullets for when each hook acts ("When the
-    container is created", "Each time the container starts"), start-time warnings
-    included.
+    same way as `liza`". The generic advice lives once, in the root README's
+    declaring section, which every page without this section links at the end of
+    How it works.
+  - `## How it works`, required: bullets for when the Feature acts ("When the
+    container is created", "Each time the container starts", "Each login shell"),
+    start-time warnings included.
   - Feature sections: a task named as a gerund phrase (`Setting variables`), a
     reference as a noun (`Tools`).
   - `## Image requirements`, required.

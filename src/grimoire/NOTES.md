@@ -23,4 +23,11 @@ The container still starts, and what went wrong is printed the next time it star
 
 ## Removal
 
-Plugins outlive the Feature. While `claude-code` is still declared, in each clone, run `claude plugins uninstall <id>@grimoire --scope local` for each plugin you drop, whether you remove the Feature or shorten `plugins`. To remove the Feature, also run `claude plugins marketplace remove grimoire --scope local`, then remove the Feature from the project's config and from `defaultFeatures`. Keep `--scope local`: without it, that command also edits the committed `.claude/settings.json`. The `.claude/settings.local.json` line in the clone's `.git/info/exclude` stays; leave it while that file exists.
+Plugins outlive the Feature, so remove them while `claude-code` is still declared.
+
+- **To drop a plugin,** run `claude plugins uninstall <id>@grimoire --scope local` in each clone, then take it out of `plugins`.
+- **To remove the Feature:**
+  1. In each clone, uninstall each plugin as above, then run `claude plugins marketplace remove grimoire --scope local`.
+  2. Remove the Feature from the project's config and from `defaultFeatures`.
+
+Keep `--scope local`: without it, the marketplace command also edits the committed `.claude/settings.json`. The `.claude/settings.local.json` line in the clone's `.git/info/exclude` stays; leave it while that file exists.

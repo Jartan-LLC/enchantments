@@ -30,7 +30,7 @@ The container still starts, and what went wrong is printed the next time it star
 
 ## Removal
 
-The `gh-config` volume stays for the other containers that use it. Once none does, `docker volume rm gh-config` (under Docker Compose, `<project>_gh-config`).
+The `gh-config` volume stays for the other containers that use it. Once none does, delete it with `docker volume rm gh-config` (under Docker Compose, `<project>_gh-config`).
 
 
 ---
