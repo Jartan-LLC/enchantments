@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.3
 
 - The report of a failed `liza toolchain configure` names its likely cause and the fix.
 
