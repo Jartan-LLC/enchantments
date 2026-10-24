@@ -1,7 +1,8 @@
 # Repository settings
 
-The GitHub settings CI relies on, with the values to recreate each one and a command to
-check it. [A bad release](bad-release.md)'s audit runs these checks.
+The GitHub settings CI relies on, with the values to recreate each one and, for the
+environments and rulesets, a command to check it. [A bad release](bad-release.md)'s audit
+runs these checks.
 
 ## The pin-bump App
 

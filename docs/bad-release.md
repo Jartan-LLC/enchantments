@@ -62,8 +62,9 @@ Unless it's a plain bug, assume it was. A Feature can get root on the Docker hos
      (`git log --since`, `gh pr list --state merged --search 'merged:>=<start>'`), and
      revert any you didn't make.
    - Check the `main` and `feature-tags` rulesets and the `ghcr` and `pin-bumps`
-     environments with [Repository settings](repository-settings.md)' checks, never
-     against a peer repo the same token could have changed.
+     environments with the commands in [Repository settings](repository-settings.md),
+     which compare each with the values written there, never with a peer repo the same
+     token could have changed.
    - For every id, compare
      `gh api orgs/Jartan-LLC/packages/container/enchantments%2F<id>/versions` with the
      runs whose `publish` you approved.
