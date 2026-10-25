@@ -1,3 +1,11 @@
+## Unreleased
+
+### Minor
+
+- npm lock:
+  - body-parser: 2.3.0 → 2.4.0
+  - qs: 6.16.0 → 6.16.1
+
 ## 1.3.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
