@@ -1,3 +1,8 @@
+## Unreleased
+
+- npm lock:
+  - undici: 7.30.0 → 7.30.1
+
 ## 1.3.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
