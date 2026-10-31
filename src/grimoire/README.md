@@ -19,7 +19,7 @@ Installs plugins from the grimoire Claude Code marketplace at local scope.
 
 ## How it works
 
-- **Once the container is created, in the workspace,** the grimoire marketplace is added and the plugins in the `plugins` option are installed for this clone. If the repo's `.claude/settings.json` pins the `Jartan-LLC/grimoire` marketplace to a `ref`, that ref is used. `.claude/settings.local.json` is added to the clone's `.git/info/exclude`, so `git status` stays clean. Installing plugins needs the `claude-code` Feature. With an empty `plugins` list, nothing is installed.
+- **Once the container is created, in the workspace,** the grimoire marketplace is added and the plugins in the `plugins` option are installed for this clone. If the repo's `.claude/settings.json` pins the `Jartan-LLC/grimoire` marketplace to a `ref`, that ref is used, unless your user settings declare a grimoire marketplace: Claude adds it only from that entry's source, so the hook adds it from there and says so. `.claude/settings.local.json` is added to the clone's `.git/info/exclude`, so `git status` stays clean. Installing plugins needs the `claude-code` Feature. With an empty `plugins` list, nothing is installed.
 - **Each time the container starts,** when `plugins` lists any, you're warned if `node` isn't on `PATH`, since the plugins' hooks run it. A Node that only your shell's startup files add, such as nvm's, isn't seen there; ignore the warning then.
 
 To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.

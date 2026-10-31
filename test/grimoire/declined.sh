@@ -67,6 +67,28 @@ jq -n '{extraKnownMarketplaces: {grimoire: {source:
 check "grimoire's ref is applied however the repo is cased" \
   grep -qx 'plugins marketplace add Jartan-LLC/grimoire#v1 --scope local' \
   "$fake/calls"
+# Claude refuses an add whose source differs from the user settings' entry.
+mkdir -p "$fake/.claude"
+jq -n '{extraKnownMarketplaces: {grimoire: {source:
+  {source: "github", repo: "Jartan-LLC/grimoire"}}}}' \
+  >"$fake/.claude/settings.json"
+(cd "$repo/sub" && HOME=$fake bash "$hook") 2>"$fake/err"
+check "a user entry's source is added instead of the repo's ref" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire --scope local' \
+  "$fake/calls"
+check "and the hook says the repo's ref isn't applied" \
+  grep -q 'not Jartan-LLC/grimoire#v1' "$fake/err"
+check "and nothing is recorded as failed" \
+  test ! -s "$fake/.cache/enchantments/grimoire.failures"
+jq -n '{extraKnownMarketplaces: {grimoire: {source:
+  {source: "github", repo: "someone/grimoire", ref: "mine"}}}}' \
+  >"$fake/.claude/settings.json"
+: >"$fake/calls"
+(cd "$repo/sub" && HOME=$fake bash "$hook") 2>/dev/null
+check "a user entry's fork and ref are added as declared" \
+  grep -qx 'plugins marketplace add someone/grimoire#mine --scope local' \
+  "$fake/calls"
+rm "$fake/.claude/settings.json"
 check "from a subfolder, the plugin the repo root declines is skipped" \
   bash -c "! grep -q 'install claudivis@grimoire' '$fake/calls'"
 check "from a subfolder, the others install" \

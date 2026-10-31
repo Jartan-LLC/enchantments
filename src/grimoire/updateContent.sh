@@ -71,6 +71,19 @@ ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
   | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
   | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
+marketplace="Jartan-LLC/grimoire${ref:+#$ref}"
+# Claude adds a marketplace only from the source the user settings declare for
+# it, so a user's own entry is followed instead.
+user_source=$(jq -r '.extraKnownMarketplaces.grimoire.source
+  | select(.source == "github" and .repo)
+  | .repo + (.ref // "" | if . == "" then "" else "#" + . end)' \
+  "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2>/dev/null)
+if [ -n "$user_source" ]; then
+  [ "${user_source,,}" = "${marketplace,,}" ] \
+    || echo "Warning: $id: the marketplace is added from your user" \
+      "settings' source, $user_source, not $marketplace." >&2
+  marketplace=$user_source
+fi
 # Runs claude for up to 300 seconds, discarding its output. On failure, passes
 # its error output on to stderr and prints why: the last error line, the exit
 # status when there's none, or that it timed out or was killed.
@@ -91,8 +104,8 @@ run_claude() { # claude-args...
   return 1
 }
 
-if ! why=$(run_claude plugins marketplace add \
-  "Jartan-LLC/grimoire${ref:+#$ref}" --scope local); then
+if ! why=$(run_claude plugins marketplace add "$marketplace" \
+  --scope local); then
   record_failure "$id" "adding the grimoire marketplace failed ($why); $retry"
   exit 0
 fi
