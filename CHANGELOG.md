@@ -30,6 +30,10 @@ Sections are months, newest first.
 - Containers that share a Feature volume must run as one uid. A container
   running as another uid warns instead of taking the volume, as it used to,
   locking the others out of their logins.
+- `liza`: when activation names copies of your files that an interrupted
+  activation left in `.git/liza/originals/`, compare each with its file, keep
+  what you want and move the copy out of that folder, then run
+  `liza-activate`.
 
 ### Maintenance
 
