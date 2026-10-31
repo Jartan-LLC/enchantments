@@ -145,6 +145,48 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
+# An ignored file where init writes is backed up; ignored files elsewhere
+# aren't.
+ignored=$(stub_clone ignored)
+mkdir -p "$ignored/.claude/workspace/plan"
+echo notes >"$ignored/.claude/workspace/plan/notes.md"
+echo notes >"$ignored/.claude/workspace/notes.md"
+echo "user policy" >"$ignored/.bash-policy.yaml"
+echo /.bash-policy.yaml >>"$ignored/.git/info/exclude"
+# Copies of files init leaves alone are dropped after it, so the stub looks
+# while it runs.
+stub_liza <<'EOF'
+settings "$hook"
+[ -e .git/liza/originals/.claude ] && touch .git/workspace-copied
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$ignored" 2>/dev/null
+check "an ignored file init overwrites is backed up" \
+  test "$(cat "$ignored/.git/liza/originals/.bash-policy.yaml")" \
+  = "user policy"
+check "ignored files outside init's paths aren't" \
+  test ! -e "$ignored/.git/workspace-copied"
+stub_deactivate "$ignored" 2>/dev/null
+check "deactivation puts the ignored file back" \
+  test "$(cat "$ignored/.bash-policy.yaml")" = "user policy"
+
+# A backup interrupted before init runs leaves no copies and no locks.
+term=$(stub_clone term)
+echo "user policy" >"$term/.bash-policy.yaml"
+mkdir -p "$stub_home/term-bin"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '#!/bin/sh\nkill -TERM "$PPID"\nexec %s "$@"\n' "$(command -v cp)" \
+  >"$stub_home/term-bin/cp"
+chmod +x "$stub_home/term-bin/cp"
+(cd "$term" && HOME="$stub_home" PATH="$stub_home/term-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
+term_rc=$?
+check "a backup interrupted before init exits non-zero" test "$term_rc" -ne 0
+check "and leaves no copies" test ! -e "$term/.git/liza/originals"
+check "and releases both locks" \
+  test ! -e "$term/.claude/.liza-shim.lock" \
+  -a ! -e "$term/.git/liza-activation.lock"
+
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
 exclude_file=$(git rev-parse --git-path info/exclude)

@@ -165,7 +165,14 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-read_top_paths candidates "$top" < <(init_area_untracked)
+# An ignored file counts only where init writes: the top level, .claude/ itself
+# and .claude/hooks/. Ignored content elsewhere, such as a workspace folder,
+# would be fingerprinted and copied file by file.
+read_top_paths candidates "$top" < <(
+  init_area_untracked --exclude-standard
+  init_area_untracked --ignored --exclude-standard \
+    | grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
+)
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...
@@ -177,6 +184,8 @@ prune_originals() { # paths to keep...
 }
 
 declare -A fp_before=()
+# An interrupted backup drops its copies: init hasn't run, so none is needed.
+trap 'prune_originals; unlock' EXIT
 for path in "${candidates[@]}"; do
   in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
@@ -186,7 +195,6 @@ for path in "${candidates[@]}"; do
   # runs.
   copy=$originals/${path#"$top"/}
   if ! { mkdir -p "$(dirname "$copy")" && cp -P -p "$path" "$copy"; }; then
-    prune_originals
     echo "liza shim: could not back up $path before init; nothing was" \
       "changed." >&2
     exit 1

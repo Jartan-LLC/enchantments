@@ -1,3 +1,10 @@
+## Unreleased
+
+- Activation backs up ignored files only where `liza init` writes (the top
+  level, `.claude/` itself and `.claude/hooks/`), so ignored content elsewhere,
+  such as a workspace folder, no longer slows it down. An interrupted backup
+  leaves no copies behind.
+
 ## 1.1.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
