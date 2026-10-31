@@ -37,8 +37,10 @@ same_content() { # a b
 }
 
 # Puts a copy of file or symlink $1 at $2, replacing what's there without
-# following it. A failed copy leaves $2 as it was. Returns 0 explicitly: in an
-# EXIT trap, a bare return gives the status the trap interrupted.
+# following it. A failed copy leaves $2 as it was. The copy goes through
+# $2.liza-tmp, so one a SIGKILL cuts off never takes the final name; a
+# .liza-tmp is never a finished copy. Returns 0 explicitly: in an EXIT trap, a
+# bare return gives the status the trap interrupted.
 put_copy() { # source dest
   rm -f -- "$2.liza-tmp"
   cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return 0
@@ -120,15 +122,20 @@ record_dir_of() { # top
   git_path "$1" liza
 }
 
+# Runs find with actions $2... over the finished copies under originals/
+# folder $1.
+finished_copies() { # dir find-actions...
+  find "$1" \( -type f -o -type l \) ! -name '*.liza-tmp' "${@:2}"
+}
+
 # Succeeds when the clone at $1 holds this shim's activation record, or the
 # originals an interrupted activation saved. Empty folders left once the user
-# moves those out, and a copy a killed backup didn't finish, don't count.
+# moves those out don't count.
 activated() { # top
   local dir
   dir=$(record_dir_of "$1" 2>/dev/null) || return 1
   [ -f "$dir/activation.json" ] && return 0
-  [ -n "$(find "$dir/originals" \( -type f -o -type l \) \
-    ! -name '*.liza-tmp' -print -quit 2>/dev/null)" ]
+  [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 
 # Succeeds when the clone at $1's CLAUDE.local.md is activation's link.

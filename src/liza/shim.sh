@@ -187,7 +187,7 @@ prune_originals() { # paths to keep...
   for path in "${!fp_before[@]}"; do
     in_list "$path" "$@" && continue
     copy=$originals/${path#"$top"/}
-    # put_copy leaves the .liza-tmp when the backup is interrupted mid-copy.
+    # An interrupted put_copy leaves its .liza-tmp.
     rm -f -- "$copy" "$copy.liza-tmp"
   done
   find "$record_dir" -depth -type d -empty -delete 2>/dev/null
@@ -222,7 +222,7 @@ trap 'prune_originals; unlock' EXIT
 for path in "${!fp_before[@]}"; do
   copy=$originals/${path#"$top"/}
   # Without this copy, init could destroy the file for good: stop before it
-  # runs. put_copy keeps a copy cut off by a SIGKILL out of its final name.
+  # runs.
   if ! { mkdir -p "$(dirname "$copy")" && put_copy "$path" "$copy"; }; then
     echo "liza shim: could not back up $path before init; nothing was" \
       "changed." >&2

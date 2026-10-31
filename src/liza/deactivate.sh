@@ -136,7 +136,7 @@ fi
 
 # An original the record doesn't list (the record's write failed after it was
 # saved) is the user's only copy of that file: put it beside the file rather
-# than drop it. A .liza-tmp is a copy a killed backup didn't finish.
+# than drop it.
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue
@@ -148,8 +148,7 @@ if [ -d "$record_dir/originals" ]; then
     else
       failed+=("saving $path.pre-liza")
     fi
-  done < <(find "$record_dir/originals" \( -type f -o -type l \) \
-    ! -name '*.liza-tmp' -print0)
+  done < <(finished_copies "$record_dir/originals" -print0)
 fi
 
 # --- Clean up: the contract link, emptied settings and dirs, then what is
