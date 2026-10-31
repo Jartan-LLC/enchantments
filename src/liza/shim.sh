@@ -435,6 +435,7 @@ if ! { record_jq 'record_activation($pre[0]; $post[0]; $created;
   rm -f "$record.tmp"
   echo "liza shim: could not record this activation; liza-deactivate will" \
     "only partly undo it. Originals of files init overwrote are in" \
-    "$originals; liza-activate refuses until they're moved out of it." >&2
+    "$originals; liza-activate refuses until the copies of files init" \
+    "rewrote are moved out of it." >&2
   exit 1
 fi
