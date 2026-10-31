@@ -257,6 +257,9 @@ printf '#!/bin/sh\nfor last; do :; done\necho partial >"$last"\n%s\n' \
 chmod +x "$stub_home/kill-bin/cp"
 (cd "$killed" && HOME="$stub_home" PATH="$stub_home/kill-bin:$PATH" \
   bash "$shim" init --claude --yes </dev/null >/dev/null) 2>/dev/null
+check "a backup killed mid-copy leaves only the unfinished copy" \
+  test -e "$killed/.git/liza/originals/.bash-policy.yaml.liza-tmp" \
+  -a ! -e "$killed/.git/liza/originals/.bash-policy.yaml"
 rmdir "$killed/.claude/.liza-shim.lock" "$killed/.git/liza-activation.lock"
 stub_liza <<'EOF'
 settings "$hook"
