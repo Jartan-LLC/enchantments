@@ -157,33 +157,42 @@ echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
 echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
 init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh)
-# A name that isn't valid UTF-8, with the shim run in a UTF-8 locale. The
-# record holds paths as JSON strings, which can't carry it, so deactivation
-# saves its original beside it instead and isn't checked here.
-odd=$'odd\xffname'
-for rel in "${init_paths[@]}" "$odd"; do
+for rel in "${init_paths[@]}"; do
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
 done
+# A name that isn't valid UTF-8 is left out, whatever the locale, though the
+# stub overwrites it.
+odd=$'odd\xffname'
+echo "user file" >"$ignored/$odd"
 # Copies of files init leaves alone are dropped after it, so the stub looks
 # while it runs.
 stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
+[ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
 done
 EOF
-LC_ALL=C.UTF-8 INIT_PATHS=$(printf '%s\n' "${init_paths[@]}" "$odd") \
-  stub_init "$ignored" 2>/dev/null
+ignored_init() {
+  LC_ALL=C ODD=$odd INIT_PATHS=$(printf '%s\n' "${init_paths[@]}" "$odd") \
+    stub_init "$ignored" 2>/dev/null
+}
+ignored_init
+ignored_rc=$?
+check "init succeeds with ignored files" test "$ignored_rc" -eq 0
 for rel in "${init_paths[@]}"; do
   check "an ignored $rel init overwrites is backed up" \
     test "$(cat "$ignored/.git/liza/originals/$rel")" = "user file"
 done
-check "so is one whose name isn't valid UTF-8" \
-  test "$(cat "$ignored/.git/liza/originals/$odd")" = "user file"
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
+check "nor is a file whose name isn't valid UTF-8" \
+  test ! -e "$ignored/.git/odd-copied"
+ignored_init
+ignored_rc=$?
+check "and init runs again over it" test "$ignored_rc" -eq 0
 stub_deactivate "$ignored" 2>/dev/null
 for rel in "${init_paths[@]}"; do
   check "deactivation puts the ignored $rel back" \

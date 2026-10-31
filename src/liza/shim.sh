@@ -125,7 +125,7 @@ fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
 # grep runs under LC_ALL=C here and in init_write_ignored to match bytes: in a
-# UTF-8 locale it drops a name that isn't valid UTF-8.
+# UTF-8 locale it would drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
@@ -178,9 +178,12 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
+# Leaves out names that aren't valid UTF-8 ('.' won't match): init's are ASCII.
 read_top_paths candidates "$top" < <(
-  init_area_untracked --exclude-standard
-  init_write_ignored
+  {
+    init_area_untracked --exclude-standard
+    init_write_ignored
+  } | LC_ALL=C.UTF-8 grep -z -a -x '.*'
 )
 
 # Drops the copies of candidates other than the paths given.

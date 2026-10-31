@@ -9,9 +9,6 @@
   to move out. Running it again had replaced such a copy, which may be your
   only one, and then deleted it. A copy that matches its file serves as the
   backup.
-- An untracked file whose name isn't valid UTF-8 is backed up before
-  `liza init` too. It was skipped, so init could overwrite it with no copy
-  kept. `liza-deactivate` saves its original beside it as `<name>.pre-liza`.
 - After an interrupted `liza init`, the files put back are no longer reported
   as not restored, and their copies no longer stay in `.git/liza/originals/`.
 
