@@ -151,8 +151,13 @@ ignored=$(stub_clone ignored)
 mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks"
 echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
+echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
 init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh)
-for rel in "${init_paths[@]}"; do
+# A name that isn't valid UTF-8, with the shim run in a UTF-8 locale. The
+# record holds paths as JSON strings, which can't carry it, so deactivation
+# saves its original beside it instead and isn't checked here.
+odd=$'odd\xffname'
+for rel in "${init_paths[@]}" "$odd"; do
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
 done
@@ -161,15 +166,18 @@ done
 stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
-for rel in .bash-policy.yaml .claude/notes.md .claude/hooks/user.sh; do
+printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
 done
 EOF
-stub_init "$ignored" 2>/dev/null
+LC_ALL=C.UTF-8 INIT_PATHS=$(printf '%s\n' "${init_paths[@]}" "$odd") \
+  stub_init "$ignored" 2>/dev/null
 for rel in "${init_paths[@]}"; do
   check "an ignored $rel init overwrites is backed up" \
     test "$(cat "$ignored/.git/liza/originals/$rel")" = "user file"
 done
+check "so is one whose name isn't valid UTF-8" \
+  test "$(cat "$ignored/.git/liza/originals/$odd")" = "user file"
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
 stub_deactivate "$ignored" 2>/dev/null
@@ -210,26 +218,60 @@ check "and releases both locks" \
   test ! -e "$cpfail/.claude/.liza-shim.lock" \
   -a ! -e "$cpfail/.git/liza-activation.lock"
 
-# A copy no record lists, left by an interrupted init, makes init refuse rather
-# than back the file up over it.
+# Copies no record lists, left by an interrupted activation, make init refuse
+# when they differ from their files, naming them all, before it copies
+# anything.
 leftover=$(stub_clone leftover)
+left_originals=$leftover/.git/liza/originals
+mkdir -p "$leftover/.claude/hooks" "$left_originals/.claude/hooks"
 echo liza >"$leftover/.bash-policy.yaml"
-mkdir -p "$leftover/.git/liza/originals"
-echo "user policy" >"$leftover/.git/liza/originals/.bash-policy.yaml"
+echo "user policy" >"$left_originals/.bash-policy.yaml"
+echo liza >"$leftover/.claude/hooks/user.sh"
+echo "user hook" >"$left_originals/.claude/hooks/user.sh"
+echo "user notes" >"$leftover/.agent-notes.md"
 stub_liza <<'EOF'
 settings "$hook"
 echo liza >.bash-policy.yaml
 EOF
-stub_init "$leftover" 2>/dev/null
+LIZA_SHIM_REFUSAL=$stub_home/leftover.refusal stub_init "$leftover" 2>/dev/null
 leftover_rc=$?
-check "init refuses while a copy no record lists is there" \
+check "init refuses while copies no record lists differ from their files" \
   test "$leftover_rc" -eq 75
-check "and keeps that copy" \
-  test "$(cat "$leftover/.git/liza/originals/.bash-policy.yaml")" \
-  = "user policy"
+check "and keeps those copies" \
+  test "$(cat "$left_originals/.bash-policy.yaml")" = "user policy" \
+  -a "$(cat "$left_originals/.claude/hooks/user.sh")" = "user hook"
+refusal=$(cat "$stub_home/leftover.refusal" 2>/dev/null)
+check "and names them all" \
+  test -z "${refusal##*"$left_originals/.bash-policy.yaml"*}" \
+  -a -z "${refusal##*"$left_originals/.claude/hooks/user.sh"*}"
+check "and copies nothing" test ! -e "$left_originals/.agent-notes.md"
 check "and releases both locks" \
   test ! -e "$leftover/.claude/.liza-shim.lock" \
   -a ! -e "$leftover/.git/liza-activation.lock"
+
+# Leftover copies matching their files serve as the backup.
+matching=$(stub_clone matching)
+match_originals=$matching/.git/liza/originals
+mkdir -p "$match_originals/.claude"
+for rel in .bash-policy.yaml .claude/notes.md; do
+  echo "user file" >"$matching/$rel"
+  echo "user file" >"$match_originals/$rel"
+done
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$matching" 2>/dev/null
+matching_rc=$?
+check "init goes ahead over copies matching their files" \
+  test "$matching_rc" -eq 0
+check "and keeps the copy of the file it overwrote" \
+  test "$(cat "$match_originals/.bash-policy.yaml")" = "user file"
+check "and drops the copy of the file it left alone" \
+  test ! -e "$match_originals/.claude/notes.md"
+stub_deactivate "$matching" 2>/dev/null
+check "deactivation puts the overwritten file back" \
+  test "$(cat "$matching/.bash-policy.yaml")" = "user file"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

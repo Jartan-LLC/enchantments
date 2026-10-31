@@ -49,7 +49,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
+The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. If it names copies of your files that an interrupted activation left in `originals/`, compare each with its file, keep what you want, and move the copy out of `originals/`, then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
 
 ## Removal
 

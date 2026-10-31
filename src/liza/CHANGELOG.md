@@ -4,10 +4,14 @@
   level, `.claude/` itself and `.claude/hooks/`), so ignored content elsewhere,
   such as a workspace folder, no longer slows it down. An interrupted backup
   leaves no copies behind.
-- Activation refuses when a copy of one of your files left by an interrupted
-  `liza init` is in the way, and names the copy to move out of
-  `.git/liza/originals/`. Running it again had replaced that copy, which may be
-  your only one, and then deleted it.
+- Activation refuses while copies of your files that an interrupted activation
+  left in `.git/liza/originals/` differ from those files, and names them all
+  to move out. Running it again had replaced such a copy, which may be your
+  only one, and then deleted it. A copy that matches its file serves as the
+  backup.
+- An untracked file whose name isn't valid UTF-8 is backed up before
+  `liza init` too. It was skipped, so init could overwrite it with no copy
+  kept. `liza-deactivate` saves its original beside it as `<name>.pre-liza`.
 
 ## 1.1.0
 

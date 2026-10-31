@@ -124,9 +124,12 @@ if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
 fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
+# grep runs under LC_ALL=C here and in init_write_ignored to match bytes: in a
+# UTF-8 locale it drops a name that isn't valid UTF-8.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
-    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+    | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
+      -e .claude/settings.json
 }
 # The ignored ones init may overwrite: those at the top level, in .claude/
 # itself and under .claude/hooks/, where Liza documents that it writes files.
@@ -135,7 +138,7 @@ init_area_untracked() { # ls-files-options...
 # fingerprints and copies each file.
 init_write_ignored() {
   init_area_untracked --ignored --exclude-standard \
-    | grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
+    | LC_ALL=C grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
 }
 # A file init creates counts as its own whether git shows it or an exclude line
 # hides it. Hidden ones are listed across the whole area, not only
@@ -190,21 +193,37 @@ prune_originals() { # paths to keep...
 }
 
 declare -A fp_before=()
-# An interrupted backup drops its copies: init hasn't run, so none is needed.
-trap 'prune_originals; unlock' EXIT
+to_copy=() left_over=()
 for path in "${candidates[@]}"; do
   in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
   [ -n "$fp" ] || continue
   copy=$originals/${path#"$top"/}
   # No record lists a copy already here (those paths are skipped above): an
-  # interrupted init left it, and it may be the user's only one. Backing the
-  # file up over it, or pruning it after init, would lose it.
+  # interrupted activation left it. One matching the file serves as this run's
+  # backup. One that differs may be the user's only copy: backing the file up
+  # over it, or pruning it after init, would lose it.
   if [ -e "$copy" ] || [ -L "$copy" ]; then
-    refuse "$copy is left from an interrupted init and may be your only" \
-      "copy of $path; move it out of $originals first."
+    left=$(fingerprint "$copy")
+    if [ "${left#"$copy" }" != "${fp#"$path" }" ]; then
+      left_over+=("$copy")
+      continue
+    fi
+  else
+    to_copy+=("$path")
   fi
   fp_before[$path]=$fp
+done
+if [ "${#left_over[@]}" -gt 0 ]; then
+  printf -v list '%s, ' "${left_over[@]}"
+  refuse "an interrupted activation left copies that differ from your files" \
+    "and may be your only ones: ${list%, }. Compare each with its file, keep" \
+    "what you want, and move the copy out of $originals."
+fi
+# An interrupted backup drops its copies: init hasn't run, so none is needed.
+trap 'prune_originals; unlock' EXIT
+for path in "${to_copy[@]}"; do
+  copy=$originals/${path#"$top"/}
   # Without this copy, init could destroy the file for good: stop before it
   # runs.
   if ! { mkdir -p "$(dirname "$copy")" && cp -P -p "$path" "$copy"; }; then
