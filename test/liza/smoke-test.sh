@@ -630,16 +630,19 @@ check "and names it" \
   grep -q -F -- "f.sh.pre-liza" "$stub_home/orphan-deactivate.err"
 
 # Files under Liza's own exclude lines: one its tools generate goes, edited or
-# not; one the user had before activation stays, in .claude/ too, and so does
-# one at a nested path the shim doesn't scan.
+# not; one the user had before activation stays, in .claude/ too, ignored or
+# not, and so does one at a nested path the shim doesn't scan.
 generated_clone=$(stub_clone generated-clone)
 echo "user file" >"$generated_clone/insights.json"
-mkdir -p "$generated_clone/sub" "$generated_clone/.claude/agents"
+mkdir -p "$generated_clone/sub" "$generated_clone/.claude/agents" \
+  "$generated_clone/.claude/ignored"
 echo "user file" >"$generated_clone/sub/x.log"
 echo "user file" >"$generated_clone/.claude/agents/mine.md"
+echo "user file" >"$generated_clone/.claude/ignored/mine.md"
+echo /.claude/ignored/ >>"$generated_clone/.git/info/exclude"
 stub_liza <<'EOF'
 printf '%s\n' insights.json generated.log sub/x.log /.claude/agents/mine.md \
-  >>.git/info/exclude
+  /.claude/ignored/mine.md >>.git/info/exclude
 settings "$hook"
 EOF
 stub_init "$generated_clone" 2>/dev/null
@@ -653,6 +656,8 @@ check "and keeps one the user had before activation, with its edit" \
   grep -qx "# edited" "$generated_clone/insights.json"
 check "and one in .claude/" \
   test "$(cat "$generated_clone/.claude/agents/mine.md")" = "user file"
+check "and one in .claude/ the user ignores" \
+  test "$(cat "$generated_clone/.claude/ignored/mine.md")" = "user file"
 check "and keeps a nested one, named" \
   test "$(cat "$generated_clone/sub/x.log")" = "user file" \
   -a -n "$(grep -F sub/x.log "$stub_home/generated.err")"

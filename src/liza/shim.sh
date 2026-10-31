@@ -417,7 +417,7 @@ exclude_added=$(comm -13 <(sort -u <<<"$exclude_before") \
 preexisting=()
 while IFS= read -r line; do
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
-    && [ -n "${fp_before["$top/$rel"]+set}" ] \
+    && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
 
