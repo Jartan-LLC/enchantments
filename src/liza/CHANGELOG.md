@@ -4,7 +4,9 @@
   `.claude/` itself, `.claude/hooks/` and the skill links in `.claude/skills/`.
   Ignored content elsewhere, such as a workspace folder, no longer slows it
   down. An interrupted backup leaves no copies behind, unless it is killed
-  outright.
+  outright. Copies left by a backup interrupted before this release may stay:
+  in a clone with no `.git/liza/activation.json`, remove
+  `.git/liza/originals/` before running `liza-activate` or `liza-deactivate`.
 - Activation refuses while copies of your files that an interrupted activation
   left in `.git/liza/originals/` differ from those files, and names them all
   to move out. Running it again had replaced such a copy, which may be your

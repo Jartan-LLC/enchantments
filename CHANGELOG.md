@@ -34,6 +34,9 @@ Sections are months, newest first.
   activation left in `.git/liza/originals/`, compare each with its file, keep
   what you want and move the copy out of that folder, then run
   `liza-activate`.
+- `liza`: in a clone where an interrupted activation left
+  `.git/liza/originals/` but no `.git/liza/activation.json`, remove that
+  folder before running `liza-activate` or `liza-deactivate`.
 
 ### Maintenance
 
