@@ -124,15 +124,29 @@ if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
 fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
-# grep runs under LC_ALL=C to match bytes: in a UTF-8 locale it would drop a
-# name that isn't valid UTF-8, with a warning.
+# grep runs under LC_ALL=C here and in init_write_ignored to match bytes: in a
+# UTF-8 locale it would drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
+# The ignored ones activation may overwrite: those at the top level, in
+# .claude/ itself and under .claude/hooks/, where Liza documents that init
+# writes files for Claude, and the entries in .claude/skills/, where the shim
+# replaces a symlink with a link to Liza's skill.
+# Every top-level one counts, as init's top-level files aren't a fixed list.
+# The rest, such as a workspace folder, would only slow the backup, which
+# fingerprints and copies each file. Shown ones all count: liza-deactivate
+# keeps a file under one of Liza's exclude lines only if it was a candidate.
+init_write_ignored() {
+  init_area_untracked --ignored --exclude-standard \
+    | LC_ALL=C grep -z -x -E \
+      '[^/]*|\.claude/[^/]*|\.claude/hooks/.*|\.claude/skills/[^/]*'
+}
 # A file init creates counts as its own whether git shows it or an exclude line
-# hides it.
+# hides it. Hidden ones are listed across the whole area, not only
+# init_write_ignored's paths, so one created anywhere in it is recorded.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
@@ -168,17 +182,14 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-# Untracked files at the top level, in .claude/ itself and under
-# .claude/hooks/, where Liza documents that init writes files for Claude, and
-# the skill links in .claude/skills/. Every top-level one counts, as init's
-# top-level files aren't a fixed list. The rest, such as a workspace folder,
-# would only slow the backup, which fingerprints and copies each file.
-# Under C.UTF-8, neither '.' nor '[^/]' matches a byte that isn't valid UTF-8,
-# which leaves such names out: init's are ASCII. Without that locale, grep
-# falls back to C and keeps them.
+# Under C.UTF-8, '.' doesn't match a byte that isn't valid UTF-8, which leaves
+# such names out: init's are ASCII. Without that locale, grep falls back to C
+# and keeps them.
 read_top_paths candidates "$top" < <(
-  init_area_untracked | LC_ALL=C.UTF-8 grep -z -a -x -E \
-    '[^/]*|\.claude/[^/]*|\.claude/hooks/.*|\.claude/skills/[^/]*'
+  {
+    init_area_untracked --exclude-standard
+    init_write_ignored
+  } | LC_ALL=C.UTF-8 grep -z -a -x '.*'
 )
 
 # Drops the copies of candidates other than the paths given.

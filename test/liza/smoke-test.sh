@@ -149,15 +149,14 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
-# Untracked files where activation writes are backed up, ignored ones too;
-# files elsewhere aren't, whether ignored or not.
+# Ignored files where activation writes are backed up; ignored files elsewhere
+# aren't.
 ignored=$(stub_clone ignored)
 mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks" \
-  "$ignored/.claude/agents" "$ignored/.claude/skills"
+  "$ignored/.claude/skills"
 echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
 echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
-echo notes >"$ignored/.claude/agents/notes.md"
 # The shim replaces a symlink of the user's where it links a skill.
 mkdir -p "$stub_home/.liza/skills/stub-skill"
 touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
@@ -177,7 +176,6 @@ echo "user file" >"$ignored/$odd"
 stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
-[ -e .git/liza/originals/.claude/agents ] && touch .git/agents-copied
 [ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
@@ -199,8 +197,6 @@ check "an ignored skill link the shim replaces is backed up" \
   = user-skill
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
-check "nor are files git shows outside them" \
-  test ! -e "$ignored/.git/agents-copied"
 check "nor is a file whose name isn't valid UTF-8" \
   test ! -e "$ignored/.git/odd-copied"
 ignored_init
@@ -628,14 +624,16 @@ check "and names it" \
   grep -q -F -- "f.sh.pre-liza" "$stub_home/orphan-deactivate.err"
 
 # Files under Liza's own exclude lines: one its tools generate goes, edited or
-# not; one the user had before activation stays, and so does one at a nested
-# path the shim doesn't scan.
+# not; one the user had before activation stays, in .claude/ too, and so does
+# one at a nested path the shim doesn't scan.
 generated_clone=$(stub_clone generated-clone)
 echo "user file" >"$generated_clone/insights.json"
-mkdir -p "$generated_clone/sub"
+mkdir -p "$generated_clone/sub" "$generated_clone/.claude/agents"
 echo "user file" >"$generated_clone/sub/x.log"
+echo "user file" >"$generated_clone/.claude/agents/mine.md"
 stub_liza <<'EOF'
-printf 'insights.json\ngenerated.log\nsub/x.log\n' >>.git/info/exclude
+printf '%s\n' insights.json generated.log sub/x.log /.claude/agents/mine.md \
+  >>.git/info/exclude
 settings "$hook"
 EOF
 stub_init "$generated_clone" 2>/dev/null
@@ -647,6 +645,8 @@ check "deactivate over generated files succeeds" test "$generated_rc" -eq 0
 check "and removes a generated file" test ! -e "$generated_clone/generated.log"
 check "and keeps one the user had before activation, with its edit" \
   grep -qx "# edited" "$generated_clone/insights.json"
+check "and one in .claude/" \
+  test "$(cat "$generated_clone/.claude/agents/mine.md")" = "user file"
 check "and keeps a nested one, named" \
   test "$(cat "$generated_clone/sub/x.log")" = "user file" \
   -a -n "$(grep -F sub/x.log "$stub_home/generated.err")"
