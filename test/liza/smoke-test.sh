@@ -152,17 +152,20 @@ check "git status clean after the failures" test -z "$(git status --porcelain)"
 # Ignored files where activation writes are backed up; ignored files elsewhere
 # aren't.
 ignored=$(stub_clone ignored)
-mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks" \
-  "$ignored/.claude/skills"
+mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks/sub" \
+  "$ignored/.claude/skills/real"
 echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
 echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
-# The shim replaces a symlink of the user's where it links a skill.
+# The shim replaces a symlink of the user's where it links a skill, and leaves
+# a real skill folder alone.
 mkdir -p "$stub_home/.liza/skills/stub-skill"
 touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
 ln -s user-skill "$ignored/.claude/skills/stub-skill"
+echo notes >"$ignored/.claude/skills/real/SKILL.md"
 echo /.claude/skills/ >>"$ignored/.git/info/exclude"
-init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh)
+init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh
+  .claude/hooks/sub/x.sh)
 for rel in "${init_paths[@]}"; do
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
@@ -176,6 +179,7 @@ echo "user file" >"$ignored/$odd"
 stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
+[ -e .git/liza/originals/.claude/skills/real ] && touch .git/real-copied
 [ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
@@ -197,6 +201,8 @@ check "an ignored skill link the shim replaces is backed up" \
   = user-skill
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
+check "nor are files inside a real skill folder" \
+  test ! -e "$ignored/.git/real-copied"
 check "nor is a file whose name isn't valid UTF-8" \
   test ! -e "$ignored/.git/odd-copied"
 ignored_init
