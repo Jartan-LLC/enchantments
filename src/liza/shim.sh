@@ -124,26 +124,15 @@ if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
 fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
-# grep runs under LC_ALL=C here and in init_write_ignored to match bytes: in a
-# UTF-8 locale it would drop a name that isn't valid UTF-8, with a warning.
+# grep runs under LC_ALL=C to match bytes: in a UTF-8 locale it would drop a
+# name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
-# The ignored ones init may overwrite: those at the top level, in .claude/
-# itself and under .claude/hooks/, where Liza documents that it writes files
-# for Claude.
-# Every top-level one counts, as init's top-level files aren't a fixed list.
-# The rest, such as a workspace folder, would only slow the backup, which
-# fingerprints and copies each file.
-init_write_ignored() {
-  init_area_untracked --ignored --exclude-standard \
-    | LC_ALL=C grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
-}
 # A file init creates counts as its own whether git shows it or an exclude line
-# hides it. Hidden ones are listed across the whole area, not only
-# init_write_ignored's paths, so one created anywhere in it is recorded.
+# hides it.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
@@ -167,11 +156,11 @@ exclude_before=$(cat "$exclude_file" 2>/dev/null)
 pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 
 # --- Back up the user's files init may clobber ---
-# Liza's init overwrites or removes an untracked file of the user's at a path
-# it writes to. Each such candidate (file or symlink) is copied to originals/
-# first, and the copy stays only if init changes the file. Liza's own files
-# are skipped, and so is a file an earlier activation already saved: that
-# first copy is the user's.
+# Liza's init, and the skill links this shim makes after it, overwrite or
+# remove an untracked file of the user's at a path they write to. Each such
+# candidate (file or symlink) is copied to originals/ first, and the copy stays
+# only if the file is changed. Liza's own files are skipped, and so is a file
+# an earlier activation already saved: that first copy is the user's.
 originals="$record_dir/originals"
 mapfile -t saved < <(record_query overwritten_paths "$record" 2>/dev/null)
 declare -A saved_before=()
@@ -179,12 +168,17 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-# Leaves out names that aren't valid UTF-8 ('.' won't match): init's are ASCII.
+# Untracked files at the top level, in .claude/ itself and under
+# .claude/hooks/, where Liza documents that init writes files for Claude, and
+# the skill links in .claude/skills/. Every top-level one counts, as init's
+# top-level files aren't a fixed list. The rest, such as a workspace folder,
+# would only slow the backup, which fingerprints and copies each file.
+# Under C.UTF-8, neither '.' nor '[^/]' matches a byte that isn't valid UTF-8,
+# which leaves such names out: init's are ASCII. Without that locale, grep
+# falls back to C and keeps them.
 read_top_paths candidates "$top" < <(
-  {
-    init_area_untracked --exclude-standard
-    init_write_ignored
-  } | LC_ALL=C.UTF-8 grep -z -a -x '.*'
+  init_area_untracked | LC_ALL=C.UTF-8 grep -z -a -x -E \
+    '[^/]*|\.claude/[^/]*|\.claude/hooks/.*|\.claude/skills/[^/]*'
 )
 
 # Drops the copies of candidates other than the paths given.

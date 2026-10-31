@@ -149,13 +149,20 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
-# Ignored files where init writes are backed up; ignored files elsewhere
-# aren't.
+# Untracked files where activation writes are backed up, ignored ones too;
+# files elsewhere aren't, whether ignored or not.
 ignored=$(stub_clone ignored)
-mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks"
+mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks" \
+  "$ignored/.claude/agents" "$ignored/.claude/skills"
 echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
 echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
+echo notes >"$ignored/.claude/agents/notes.md"
+# The shim replaces a symlink of the user's where it links a skill.
+mkdir -p "$stub_home/.liza/skills/stub-skill"
+touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
+ln -s user-skill "$ignored/.claude/skills/stub-skill"
+echo /.claude/skills/ >>"$ignored/.git/info/exclude"
 init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh)
 for rel in "${init_paths[@]}"; do
   echo "user file" >"$ignored/$rel"
@@ -170,6 +177,7 @@ echo "user file" >"$ignored/$odd"
 stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
+[ -e .git/liza/originals/.claude/agents ] && touch .git/agents-copied
 [ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
@@ -186,8 +194,13 @@ for rel in "${init_paths[@]}"; do
   check "an ignored $rel init overwrites is backed up" \
     test "$(cat "$ignored/.git/liza/originals/$rel")" = "user file"
 done
+check "an ignored skill link the shim replaces is backed up" \
+  test "$(readlink "$ignored/.git/liza/originals/.claude/skills/stub-skill")" \
+  = user-skill
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
+check "nor are files git shows outside them" \
+  test ! -e "$ignored/.git/agents-copied"
 check "nor is a file whose name isn't valid UTF-8" \
   test ! -e "$ignored/.git/odd-copied"
 ignored_init
@@ -198,6 +211,9 @@ for rel in "${init_paths[@]}"; do
   check "deactivation puts the ignored $rel back" \
     test "$(cat "$ignored/$rel")" = "user file"
 done
+check "and the ignored skill link" \
+  test "$(readlink "$ignored/.claude/skills/stub-skill")" = user-skill
+rm -r -- "$stub_home/.liza/skills"
 
 # A backup interrupted before init runs leaves no copies and no locks.
 term=$(stub_clone term)
