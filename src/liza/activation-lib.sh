@@ -29,10 +29,11 @@ fingerprint() {
 }
 
 # Puts a copy of file or symlink $1 at $2, replacing what's there without
-# following it. A failed copy leaves $2 as it was.
+# following it. A failed copy leaves $2 as it was. Returns 0 explicitly: in an
+# EXIT trap, a bare return gives the status the trap interrupted.
 put_copy() { # source dest
   rm -f -- "$2.liza-tmp"
-  cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return
+  cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return 0
   rm -f -- "$2.liza-tmp"
   return 1
 }

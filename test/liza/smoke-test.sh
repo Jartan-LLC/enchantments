@@ -121,11 +121,12 @@ check "and keeps what it replaced, named" \
 rm -rf -- "$liza_git_dir"
 
 # The same when init is interrupted (the whole process group, as Ctrl-C would
-# be).
+# be). Run from a subshell: bash starts a background simple command with
+# SIGINT ignored, and the shim couldn't trap it.
 echo "user file" >.claude/hooks/user.sh
 printf 'echo liza >.claude/hooks/user.sh\nsleep 30\n' | stub_liza
-HOME="$stub_home" setsid bash "$shim" init --claude --yes </dev/null \
-  >/dev/null 2>"$clone/.git/interrupt.err" &
+(HOME="$stub_home" exec setsid bash "$shim" init --claude --yes </dev/null \
+  >/dev/null 2>"$clone/.git/interrupt.err") &
 shim_pid=$!
 for _ in $(seq 50); do
   [ "$(cat .claude/hooks/user.sh)" = liza ] && break
@@ -136,9 +137,12 @@ check "the stub overwrote the user file before the interrupt" \
 kill -INT -- "-$shim_pid"
 wait "$shim_pid"
 interrupt_rc=$?
-check "interrupted init exits non-zero" test "$interrupt_rc" -ne 0
+check "interrupted init exits 130" test "$interrupt_rc" -eq 130
 check "and puts the user file back" \
   test "$(cat .claude/hooks/user.sh)" = "user file"
+check "and doesn't report it unrestored or keep its copy" \
+  test -z "$(grep -F "could not restore" "$clone/.git/interrupt.err")" \
+  -a ! -e "$liza_git_dir/originals/.claude/hooks/user.sh"
 check "and releases the lock and the committed settings" \
   test ! -e .claude/.liza-shim.lock -a ! -e .claude/settings.json.liza-shim-held
 rm -rf -- "$liza_git_dir"
