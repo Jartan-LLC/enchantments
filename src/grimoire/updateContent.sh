@@ -64,9 +64,10 @@ declined() { # plugin
   return 1
 }
 
-# A repo that pins this marketplace to a ref keeps it: a local declaration
-# without one would follow the default branch instead. A ref for a fork or
-# another source names a commit this repo may not have.
+# A repo that pins this marketplace to a ref keeps it, unless the user settings
+# declare grimoire (below): a local declaration without one would follow the
+# default branch instead. A ref for a fork or another source names a commit
+# this repo may not have.
 grimoire_repo=Jartan-LLC/grimoire
 ref=$(jq -r --arg repo "${grimoire_repo,,}" \
   '.extraKnownMarketplaces.grimoire.source

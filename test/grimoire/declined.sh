@@ -127,11 +127,25 @@ mkdir -p "$fake/cfg"
 jq -n '{extraKnownMarketplaces: {grimoire: {source:
   {source: "github", repo: "someone/grimoire", ref: "cfg"}}}}' \
   >"$fake/cfg/settings.json"
+# The HOME entry is the one the hook must ignore.
 CLAUDE_CONFIG_DIR=$fake/cfg \
   run_with_user_entry '{"source": "github", "repo": "Jartan-LLC/grimoire"}'
 check "the user entry is read from CLAUDE_CONFIG_DIR when it's set" \
   grep -qx 'plugins marketplace add someone/grimoire#cfg --scope local' \
   "$fake/calls"
+# A repo that pins nothing.
+mv "$repo/.claude/settings.json" "$fake/repo-settings.json"
+run_with_user_entry \
+  '{"source": "github", "repo": "Jartan-LLC/grimoire", "ref": "mine"}'
+check "with no repo pin, a user entry's ref is added" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire#mine --scope local' \
+  "$fake/calls"
+check "and the hook says grimoire's default branch isn't used" \
+  grep -q 'Jartan-LLC/grimoire#mine, not Jartan-LLC/grimoire\.$' "$fake/err"
+run_with_user_entry '{"source": "github", "repo": "Jartan-LLC/grimoire"}'
+check "with no ref on either side, the hook doesn't warn" \
+  test ! -s "$fake/err"
+mv "$fake/repo-settings.json" "$repo/.claude/settings.json"
 rm "$fake/.claude/settings.json"
 
 # A failed step reports claude's last error line, not its first, or its exit
