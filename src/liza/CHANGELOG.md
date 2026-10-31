@@ -4,6 +4,10 @@
   level, `.claude/` itself and `.claude/hooks/`), so ignored content elsewhere,
   such as a workspace folder, no longer slows it down. An interrupted backup
   leaves no copies behind.
+- Activation refuses when a copy of one of your files left by an interrupted
+  `liza init` is in the way, and names the copy to move out of
+  `.git/liza/originals/`. Running it again had replaced that copy, which may be
+  your only one, and then deleted it.
 
 ## 1.1.0
 

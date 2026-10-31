@@ -122,14 +122,24 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# Untracked paths at the top level and in .claude/, where init writes, minus
-# the two settings files activation manages itself.
+# Untracked paths at the top level and in .claude/, the area activation
+# watches, minus the two settings files activation manages itself.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
 }
+# The ignored ones init may overwrite: those at the top level, in .claude/
+# itself and under .claude/hooks/, where Liza documents that it writes files.
+# Every top-level one counts, as init's top-level files aren't a fixed list.
+# The rest, such as a workspace folder, would only slow the backup, which
+# fingerprints and copies each file.
+init_write_ignored() {
+  init_area_untracked --ignored --exclude-standard \
+    | grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
+}
 # A file init creates counts as its own whether git shows it or an exclude line
-# hides it.
+# hides it. Hidden ones are listed across the whole area, not only
+# init_write_ignored's paths, so one created anywhere in it is recorded.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
@@ -165,13 +175,9 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-# An ignored file counts only where init writes: the top level, .claude/ itself
-# and .claude/hooks/. Ignored content elsewhere, such as a workspace folder,
-# would be fingerprinted and copied file by file.
 read_top_paths candidates "$top" < <(
   init_area_untracked --exclude-standard
-  init_area_untracked --ignored --exclude-standard \
-    | grep -z -x -E '[^/]*|\.claude/[^/]*|\.claude/hooks/.*'
+  init_write_ignored
 )
 
 # Drops the copies of candidates other than the paths given.
@@ -190,10 +196,17 @@ for path in "${candidates[@]}"; do
   in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
   [ -n "$fp" ] || continue
+  copy=$originals/${path#"$top"/}
+  # No record lists a copy already here (those paths are skipped above): an
+  # interrupted init left it, and it may be the user's only one. Backing the
+  # file up over it, or pruning it after init, would lose it.
+  if [ -e "$copy" ] || [ -L "$copy" ]; then
+    refuse "$copy is left from an interrupted init and may be your only" \
+      "copy of $path; move it out of $originals first."
+  fi
   fp_before[$path]=$fp
   # Without this copy, init could destroy the file for good: stop before it
   # runs.
-  copy=$originals/${path#"$top"/}
   if ! { mkdir -p "$(dirname "$copy")" && cp -P -p "$path" "$copy"; }; then
     echo "liza shim: could not back up $path before init; nothing was" \
       "changed." >&2

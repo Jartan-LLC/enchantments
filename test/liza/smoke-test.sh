@@ -145,30 +145,38 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
-# An ignored file where init writes is backed up; ignored files elsewhere
+# Ignored files where init writes are backed up; ignored files elsewhere
 # aren't.
 ignored=$(stub_clone ignored)
-mkdir -p "$ignored/.claude/workspace/plan"
+mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks"
 echo notes >"$ignored/.claude/workspace/plan/notes.md"
 echo notes >"$ignored/.claude/workspace/notes.md"
-echo "user policy" >"$ignored/.bash-policy.yaml"
-echo /.bash-policy.yaml >>"$ignored/.git/info/exclude"
+init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh)
+for rel in "${init_paths[@]}"; do
+  echo "user file" >"$ignored/$rel"
+  echo "/$rel" >>"$ignored/.git/info/exclude"
+done
 # Copies of files init leaves alone are dropped after it, so the stub looks
 # while it runs.
 stub_liza <<'EOF'
 settings "$hook"
-[ -e .git/liza/originals/.claude ] && touch .git/workspace-copied
-echo liza >.bash-policy.yaml
+[ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
+for rel in .bash-policy.yaml .claude/notes.md .claude/hooks/user.sh; do
+  echo liza >"$rel"
+done
 EOF
 stub_init "$ignored" 2>/dev/null
-check "an ignored file init overwrites is backed up" \
-  test "$(cat "$ignored/.git/liza/originals/.bash-policy.yaml")" \
-  = "user policy"
+for rel in "${init_paths[@]}"; do
+  check "an ignored $rel init overwrites is backed up" \
+    test "$(cat "$ignored/.git/liza/originals/$rel")" = "user file"
+done
 check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
 stub_deactivate "$ignored" 2>/dev/null
-check "deactivation puts the ignored file back" \
-  test "$(cat "$ignored/.bash-policy.yaml")" = "user policy"
+for rel in "${init_paths[@]}"; do
+  check "deactivation puts the ignored $rel back" \
+    test "$(cat "$ignored/$rel")" = "user file"
+done
 
 # A backup interrupted before init runs leaves no copies and no locks.
 term=$(stub_clone term)
@@ -186,6 +194,42 @@ check "and leaves no copies" test ! -e "$term/.git/liza/originals"
 check "and releases both locks" \
   test ! -e "$term/.claude/.liza-shim.lock" \
   -a ! -e "$term/.git/liza-activation.lock"
+
+# So does a failed copy, which stops init.
+cpfail=$(stub_clone cpfail)
+echo "user policy" >"$cpfail/.bash-policy.yaml"
+mkdir -p "$stub_home/fail-bin"
+printf '#!/bin/sh\nexit 1\n' >"$stub_home/fail-bin/cp"
+chmod +x "$stub_home/fail-bin/cp"
+(cd "$cpfail" && HOME="$stub_home" PATH="$stub_home/fail-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
+cpfail_rc=$?
+check "a backup whose copy fails exits 1" test "$cpfail_rc" -eq 1
+check "and leaves no copies" test ! -e "$cpfail/.git/liza/originals"
+check "and releases both locks" \
+  test ! -e "$cpfail/.claude/.liza-shim.lock" \
+  -a ! -e "$cpfail/.git/liza-activation.lock"
+
+# A copy no record lists, left by an interrupted init, makes init refuse rather
+# than back the file up over it.
+leftover=$(stub_clone leftover)
+echo liza >"$leftover/.bash-policy.yaml"
+mkdir -p "$leftover/.git/liza/originals"
+echo "user policy" >"$leftover/.git/liza/originals/.bash-policy.yaml"
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$leftover" 2>/dev/null
+leftover_rc=$?
+check "init refuses while a copy no record lists is there" \
+  test "$leftover_rc" -eq 75
+check "and keeps that copy" \
+  test "$(cat "$leftover/.git/liza/originals/.bash-policy.yaml")" \
+  = "user policy"
+check "and releases both locks" \
+  test ! -e "$leftover/.claude/.liza-shim.lock" \
+  -a ! -e "$leftover/.git/liza-activation.lock"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
