@@ -3,12 +3,12 @@
 - Activation backs up ignored files only where `liza init` writes (the top
   level, `.claude/` itself and `.claude/hooks/`), so ignored content elsewhere,
   such as a workspace folder, no longer slows it down. An interrupted backup
-  leaves no copies behind.
+  leaves no copies behind, unless it is killed outright.
 - Activation refuses while copies of your files that an interrupted activation
   left in `.git/liza/originals/` differ from those files, and names them all
   to move out. Running it again had replaced such a copy, which may be your
-  only one, and then deleted it. A copy that matches its file serves as the
-  backup.
+  only one, and then deleted it. A copy that matches its file doesn't stop
+  it.
 - After an interrupted `liza init`, the files put back are no longer reported
   as not restored, and their copies no longer stay in `.git/liza/originals/`.
 

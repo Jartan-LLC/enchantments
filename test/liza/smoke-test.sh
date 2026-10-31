@@ -231,9 +231,27 @@ check "and releases both locks" \
   test ! -e "$cpfail/.claude/.liza-shim.lock" \
   -a ! -e "$cpfail/.git/liza-activation.lock"
 
+# A backup killed mid-copy leaves no partial copy to stop the next run.
+killed=$(stub_clone killed)
+echo "user policy" >"$killed/.bash-policy.yaml"
+mkdir -p "$stub_home/kill-bin"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '#!/bin/sh\nfor last; do :; done\necho partial >"$last"\n%s\n' \
+  'kill -KILL "$PPID"' >"$stub_home/kill-bin/cp"
+chmod +x "$stub_home/kill-bin/cp"
+(cd "$killed" && HOME="$stub_home" PATH="$stub_home/kill-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null) 2>/dev/null
+rmdir "$killed/.claude/.liza-shim.lock" "$killed/.git/liza-activation.lock"
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+stub_init "$killed" 2>/dev/null
+killed_rc=$?
+check "init runs again after a backup killed mid-copy" test "$killed_rc" -eq 0
+
 # Copies no record lists, left by an interrupted activation, make init refuse
 # when they differ from their files, naming them all, before it copies
-# anything.
+# anything. One matching its file doesn't.
 leftover=$(stub_clone leftover)
 left_originals=$leftover/.git/liza/originals
 mkdir -p "$leftover/.claude/hooks" "$left_originals/.claude/hooks"
@@ -241,7 +259,12 @@ echo liza >"$leftover/.bash-policy.yaml"
 echo "user policy" >"$left_originals/.bash-policy.yaml"
 echo liza >"$leftover/.claude/hooks/user.sh"
 echo "user hook" >"$left_originals/.claude/hooks/user.sh"
+ln -s liza "$leftover/.claude/hooks/link.sh"
+ln -s user "$left_originals/.claude/hooks/link.sh"
+echo "user notes" >"$leftover/.claude/notes.md"
+echo "user notes" >"$left_originals/.claude/notes.md"
 echo "user notes" >"$leftover/.agent-notes.md"
+echo partial >"$left_originals/.agent-notes.md.liza-tmp"
 stub_liza <<'EOF'
 settings "$hook"
 echo liza >.bash-policy.yaml
@@ -252,17 +275,33 @@ check "init refuses while copies no record lists differ from their files" \
   test "$leftover_rc" -eq 75
 check "and keeps those copies" \
   test "$(cat "$left_originals/.bash-policy.yaml")" = "user policy" \
-  -a "$(cat "$left_originals/.claude/hooks/user.sh")" = "user hook"
+  -a "$(cat "$left_originals/.claude/hooks/user.sh")" = "user hook" \
+  -a "$(readlink "$left_originals/.claude/hooks/link.sh")" = user
 refusal=$(cat "$stub_home/leftover.refusal" 2>/dev/null)
 check "and names them all" \
   test -z "${refusal##*"$left_originals/.bash-policy.yaml"*}" \
-  -a -z "${refusal##*"$left_originals/.claude/hooks/user.sh"*}"
+  -a -z "${refusal##*"$left_originals/.claude/hooks/user.sh"*}" \
+  -a -z "${refusal##*"$left_originals/.claude/hooks/link.sh"*}"
+check "but not the one matching its file" \
+  test -n "${refusal##*"$left_originals/.claude/notes.md"*}"
 check "and copies nothing" test ! -e "$left_originals/.agent-notes.md"
 check "and releases both locks" \
   test ! -e "$leftover/.claude/.liza-shim.lock" \
   -a ! -e "$leftover/.git/liza-activation.lock"
+# Once the copies are moved out, the empty folders and the unfinished copy
+# left in originals/ don't keep another worktree from activating.
+(cd "$left_originals" && rm -- .bash-policy.yaml .claude/notes.md \
+  .claude/hooks/user.sh .claude/hooks/link.sh)
+sibling=$stub_home/leftover-sibling
+git -C "$leftover" worktree add -q "$sibling" \
+  && echo '{}' >"$sibling/.claude/settings.local.json"
+stub_init "$sibling" 2>/dev/null
+sibling_rc=$?
+check "another worktree activates once the copies are moved out" \
+  test "$sibling_rc" -eq 0
 
-# Leftover copies matching their files serve as the backup.
+# Leftover copies matching their files don't stop init, which backs the files
+# up over them.
 matching=$(stub_clone matching)
 match_originals=$matching/.git/liza/originals
 mkdir -p "$match_originals/.claude"
@@ -270,6 +309,14 @@ for rel in .bash-policy.yaml .claude/notes.md; do
   echo "user file" >"$matching/$rel"
   echo "user file" >"$match_originals/$rel"
 done
+chmod 640 "$matching/.bash-policy.yaml"
+chmod 600 "$match_originals/.bash-policy.yaml"
+ln -s target "$matching/.claude/link"
+ln -s target "$match_originals/.claude/link"
+# Copies a killed backup didn't finish, of a file init may write and of one
+# since removed.
+echo partial >"$match_originals/.claude/notes.md.liza-tmp"
+echo partial >"$match_originals/gone.md.liza-tmp"
 stub_liza <<'EOF'
 settings "$hook"
 echo liza >.bash-policy.yaml
@@ -280,11 +327,16 @@ check "init goes ahead over copies matching their files" \
   test "$matching_rc" -eq 0
 check "and keeps the copy of the file it overwrote" \
   test "$(cat "$match_originals/.bash-policy.yaml")" = "user file"
-check "and drops the copy of the file it left alone" \
-  test ! -e "$match_originals/.claude/notes.md"
+check "and drops the copies of the files it left alone" \
+  test ! -e "$match_originals/.claude/notes.md" \
+  -a ! -L "$match_originals/.claude/link" \
+  -a ! -e "$match_originals/.claude/notes.md.liza-tmp"
 stub_deactivate "$matching" 2>/dev/null
-check "deactivation puts the overwritten file back" \
-  test "$(cat "$matching/.bash-policy.yaml")" = "user file"
+check "deactivation puts the overwritten file back, with its mode" \
+  test "$(cat "$matching/.bash-policy.yaml")" = "user file" \
+  -a "$(stat -c %a "$matching/.bash-policy.yaml")" = 640
+check "and puts no unfinished copy beside its file" \
+  test ! -e "$matching/gone.md.liza-tmp.pre-liza"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

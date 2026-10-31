@@ -132,7 +132,8 @@ init_area_untracked() { # ls-files-options...
       -e .claude/settings.json
 }
 # The ignored ones init may overwrite: those at the top level, in .claude/
-# itself and under .claude/hooks/, where Liza documents that it writes files.
+# itself and under .claude/hooks/, where Liza documents that it writes files
+# for Claude.
 # Every top-level one counts, as init's top-level files aren't a fixed list.
 # The rest, such as a workspace folder, would only slow the backup, which
 # fingerprints and copies each file.
@@ -188,32 +189,31 @@ read_top_paths candidates "$top" < <(
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...
-  local path
+  local path copy
   for path in "${!fp_before[@]}"; do
-    in_list "$path" "$@" || rm -f -- "$originals/${path#"$top"/}"
+    in_list "$path" "$@" && continue
+    copy=$originals/${path#"$top"/}
+    # put_copy leaves the .liza-tmp when the backup is interrupted mid-copy.
+    rm -f -- "$copy" "$copy.liza-tmp"
   done
   find "$record_dir" -depth -type d -empty -delete 2>/dev/null
 }
 
 declare -A fp_before=()
-to_copy=() left_over=()
+left_over=()
 for path in "${candidates[@]}"; do
   in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
   [ -n "$fp" ] || continue
   copy=$originals/${path#"$top"/}
   # No record lists a copy already here (those paths are skipped above): an
-  # interrupted activation left it. One matching the file serves as this run's
-  # backup. One that differs may be the user's only copy: backing the file up
-  # over it, or pruning it after init, would lose it.
-  if [ -e "$copy" ] || [ -L "$copy" ]; then
-    left=$(fingerprint "$copy")
-    if [ "${left#"$copy" }" != "${fp#"$path" }" ]; then
-      left_over+=("$copy")
-      continue
-    fi
-  else
-    to_copy+=("$path")
+  # interrupted activation left it. One that differs from its file may be the
+  # user's only copy: backing the file up over it, or pruning it after init,
+  # would lose it. Backing it up over one that matches loses nothing.
+  if { [ -e "$copy" ] || [ -L "$copy" ]; } \
+    && ! same_content "$copy" "$path"; then
+    left_over+=("$copy")
+    continue
   fi
   fp_before[$path]=$fp
 done
@@ -225,11 +225,11 @@ if [ "${#left_over[@]}" -gt 0 ]; then
 fi
 # An interrupted backup drops its copies: init hasn't run, so none is needed.
 trap 'prune_originals; unlock' EXIT
-for path in "${to_copy[@]}"; do
+for path in "${!fp_before[@]}"; do
   copy=$originals/${path#"$top"/}
   # Without this copy, init could destroy the file for good: stop before it
-  # runs.
-  if ! { mkdir -p "$(dirname "$copy")" && cp -P -p "$path" "$copy"; }; then
+  # runs. put_copy keeps a copy cut off by a SIGKILL out of its final name.
+  if ! { mkdir -p "$(dirname "$copy")" && put_copy "$path" "$copy"; }; then
     echo "liza shim: could not back up $path before init; nothing was" \
       "changed." >&2
     exit 1
@@ -441,6 +441,6 @@ if ! { record_jq 'record_activation($pre[0]; $post[0]; $created;
   rm -f "$record.tmp"
   echo "liza shim: could not record this activation; liza-deactivate will" \
     "only partly undo it. Originals of files init overwrote are in" \
-    "$originals." >&2
+    "$originals; liza-activate refuses until they're moved out of it." >&2
   exit 1
 fi

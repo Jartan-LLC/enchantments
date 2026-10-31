@@ -28,6 +28,14 @@ fingerprint() {
   done
 }
 
+# Succeeds when files or symlinks $1 and $2 have the same fingerprint, paths
+# aside, and fails when either is missing.
+same_content() { # a b
+  local a b
+  a=$(fingerprint "$1") b=$(fingerprint "$2")
+  [ -n "$a" ] && [ "${a#"$1" }" = "${b#"$2" }" ]
+}
+
 # Puts a copy of file or symlink $1 at $2, replacing what's there without
 # following it. A failed copy leaves $2 as it was. Returns 0 explicitly: in an
 # EXIT trap, a bare return gives the status the trap interrupted.
@@ -113,11 +121,14 @@ record_dir_of() { # top
 }
 
 # Succeeds when the clone at $1 holds this shim's activation record, or the
-# originals an interrupted activation saved.
+# originals an interrupted activation saved. Empty folders left once the user
+# moves those out, and a copy a killed backup didn't finish, don't count.
 activated() { # top
   local dir
   dir=$(record_dir_of "$1" 2>/dev/null) || return 1
-  [ -f "$dir/activation.json" ] || [ -d "$dir/originals" ]
+  [ -f "$dir/activation.json" ] && return 0
+  [ -n "$(find "$dir/originals" \( -type f -o -type l \) \
+    ! -name '*.liza-tmp' -print -quit 2>/dev/null)" ]
 }
 
 # Succeeds when the clone at $1's CLAUDE.local.md is activation's link.
