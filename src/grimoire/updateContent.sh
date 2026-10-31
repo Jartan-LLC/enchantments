@@ -64,13 +64,34 @@ declined() { # plugin
   return 1
 }
 
-# A repo that pins this marketplace to a ref keeps it: a local declaration
+# Unless the user settings declare grimoire with a github source (below), a
+# repo that pins this marketplace to a ref keeps it: a local declaration
 # without one would follow the default branch instead. A ref for a fork or
 # another source names a commit this repo may not have.
-ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
-  | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
-  | .ref // empty' \
+grimoire_repo=Jartan-LLC/grimoire
+ref=$(jq -r --arg repo "${grimoire_repo,,}" \
+  '.extraKnownMarketplaces.grimoire.source
+  | select(.repo // "" | ascii_downcase == $repo) | .ref // empty' \
   "$settings/settings.json" 2>/dev/null)
+marketplace="$grimoire_repo${ref:+#$ref}"
+
+# Claude adds a marketplace only from the source the user settings declare for
+# it, so a github source there is followed instead. GitHub ignores the case of
+# owner and repo names, but not of refs.
+user_entry=$(jq -r '.extraKnownMarketplaces.grimoire.source
+  | select(.source == "github" and .repo) | "\(.repo)#\(.ref // "")"' \
+  "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2>/dev/null)
+IFS='#' read -r user_repo user_ref <<<"$user_entry"
+if [ -n "$user_repo" ]; then
+  user_source="$user_repo${user_ref:+#$user_ref}"
+  if [ "${user_repo,,}" != "${grimoire_repo,,}" ] \
+    || [ "$user_ref" != "$ref" ]; then
+    echo "Warning: $id: the marketplace is added from your user settings'" \
+      "source, $user_source, not $marketplace." >&2
+  fi
+  marketplace=$user_source
+fi
+
 # Runs claude for up to 300 seconds, discarding its output. On failure, passes
 # its error output on to stderr and prints why: the last error line, the exit
 # status when there's none, or that it timed out or was killed.
@@ -91,8 +112,8 @@ run_claude() { # claude-args...
   return 1
 }
 
-if ! why=$(run_claude plugins marketplace add \
-  "Jartan-LLC/grimoire${ref:+#$ref}" --scope local); then
+if ! why=$(run_claude plugins marketplace add "$marketplace" \
+  --scope local); then
   record_failure "$id" "adding the grimoire marketplace failed ($why); $retry"
   exit 0
 fi

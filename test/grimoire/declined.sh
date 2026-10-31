@@ -40,6 +40,8 @@ check "nothing left unreported" \
 # The hook again, from a subfolder of another repo, in a scratch HOME whose
 # claude stub logs its calls.
 hook=/usr/local/share/enchantments/grimoire/updateContent.sh
+# The hook reads the user settings from CLAUDE_CONFIG_DIR when it's set.
+unset CLAUDE_CONFIG_DIR
 fake=$(mktemp -d)
 mkdir -p "$fake/.local/bin"
 cat >"$fake/.local/bin/claude" <<STUB
@@ -75,6 +77,76 @@ check "an exclude line without a newline stays whole" \
   grep -qx last-line "$repo/.git/info/exclude"
 check "the settings line is added on its own" \
   grep -qxF .claude/settings.local.json "$repo/.git/info/exclude"
+
+# Claude refuses an add whose source differs from the user settings' entry, so
+# a github entry there is followed. The repo still pins v1.
+mkdir -p "$fake/.claude"
+run_with_user_entry() { # source-json
+  jq -n --argjson s "$1" '{extraKnownMarketplaces: {grimoire: {source: $s}}}' \
+    >"$fake/.claude/settings.json"
+  : >"$fake/calls"
+  (cd "$repo/sub" && HOME=$fake bash "$hook") 2>"$fake/err"
+}
+run_with_user_entry '{"source": "github", "repo": "Jartan-LLC/grimoire"}'
+check "a user entry's source is added instead of the repo's ref" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire --scope local' \
+  "$fake/calls"
+check "and the repo's ref isn't" \
+  bash -c "! grep -q 'grimoire#v1' '$fake/calls'"
+check "and the hook says the repo's ref isn't applied" \
+  grep -q 'not Jartan-LLC/grimoire#v1' "$fake/err"
+check "and nothing is recorded as failed" \
+  test ! -s "$fake/.cache/enchantments/grimoire.failures"
+run_with_user_entry \
+  '{"source": "github", "repo": "someone/grimoire", "ref": "mine"}'
+check "a user entry's fork and ref are added as declared" \
+  grep -qx 'plugins marketplace add someone/grimoire#mine --scope local' \
+  "$fake/calls"
+check "and the hook says the fork is used" \
+  grep -q 'someone/grimoire#mine, not Jartan-LLC/grimoire#v1' "$fake/err"
+run_with_user_entry \
+  '{"source": "github", "repo": "jartan-llc/GRIMOIRE", "ref": "v1"}'
+check "a user entry matching the repo's, however cased, is added" \
+  grep -qx 'plugins marketplace add jartan-llc/GRIMOIRE#v1 --scope local' \
+  "$fake/calls"
+check "without a warning" test ! -s "$fake/err"
+run_with_user_entry \
+  '{"source": "github", "repo": "Jartan-LLC/grimoire", "ref": "V1"}'
+check "a user entry whose ref differs only in case is added as declared" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire#V1 --scope local' \
+  "$fake/calls"
+check "and the hook says the repo's ref isn't used" \
+  grep -q 'Jartan-LLC/grimoire#V1, not Jartan-LLC/grimoire#v1' "$fake/err"
+run_with_user_entry \
+  '{"source": "git", "url": "https://example.com/grimoire.git"}'
+check "a user entry with another source type isn't followed" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire#v1 --scope local' \
+  "$fake/calls"
+check "and isn't warned about" test ! -s "$fake/err"
+mkdir -p "$fake/cfg"
+jq -n '{extraKnownMarketplaces: {grimoire: {source:
+  {source: "github", repo: "someone/grimoire", ref: "cfg"}}}}' \
+  >"$fake/cfg/settings.json"
+# The HOME entry is the one the hook must ignore.
+CLAUDE_CONFIG_DIR=$fake/cfg \
+  run_with_user_entry '{"source": "github", "repo": "Jartan-LLC/grimoire"}'
+check "the user entry is read from CLAUDE_CONFIG_DIR when it's set" \
+  grep -qx 'plugins marketplace add someone/grimoire#cfg --scope local' \
+  "$fake/calls"
+# A repo that pins nothing.
+mv "$repo/.claude/settings.json" "$fake/repo-settings.json"
+run_with_user_entry \
+  '{"source": "github", "repo": "Jartan-LLC/grimoire", "ref": "mine"}'
+check "with no repo pin, a user entry's ref is added" \
+  grep -qx 'plugins marketplace add Jartan-LLC/grimoire#mine --scope local' \
+  "$fake/calls"
+check "and the hook says grimoire's default branch isn't used" \
+  grep -q 'Jartan-LLC/grimoire#mine, not Jartan-LLC/grimoire\.$' "$fake/err"
+run_with_user_entry '{"source": "github", "repo": "Jartan-LLC/grimoire"}'
+check "with no ref on either side, the hook doesn't warn" \
+  test ! -s "$fake/err"
+mv "$fake/repo-settings.json" "$repo/.claude/settings.json"
+rm "$fake/.claude/settings.json"
 
 # A failed step reports claude's last error line, not its first, or its exit
 # status.
