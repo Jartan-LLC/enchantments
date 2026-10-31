@@ -64,36 +64,32 @@ declined() { # plugin
   return 1
 }
 
-# Prints the source to add the marketplace from. By default that's the repo's:
-# a repo that pins this marketplace to a ref keeps it, since a local declaration
+# A repo that pins this marketplace to a ref keeps it: a local declaration
 # without one would follow the default branch instead. A ref for a fork or
-# another source names a commit this repo may not have. Claude adds a
-# marketplace only from the source the user settings declare for it, so a user
-# entry with a github source is followed instead, with a warning on stderr when
-# it isn't the repo's.
-marketplace_source() {
-  local ref repo_source user_repo user_ref user_source
-  ref=$(jq -r '.extraKnownMarketplaces.grimoire.source
-    | select(.repo // "" | ascii_downcase == "jartan-llc/grimoire")
-    | .ref // empty' \
-    "$settings/settings.json" 2>/dev/null)
-  repo_source="Jartan-LLC/grimoire${ref:+#$ref}"
-  {
-    read -r user_repo
-    read -r user_ref
-  } <<<"$(jq -r '.extraKnownMarketplaces.grimoire.source
-    | select(.source == "github" and .repo) | .repo, .ref // ""' \
-    "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2>/dev/null)"
-  if [ -z "$user_repo" ]; then
-    echo "$repo_source"
-    return
-  fi
+# another source names a commit this repo may not have.
+grimoire_repo=Jartan-LLC/grimoire
+ref=$(jq -r --arg repo "${grimoire_repo,,}" \
+  '.extraKnownMarketplaces.grimoire.source
+  | select(.repo // "" | ascii_downcase == $repo) | .ref // empty' \
+  "$settings/settings.json" 2>/dev/null)
+marketplace="$grimoire_repo${ref:+#$ref}"
+
+# Claude adds a marketplace only from the source the user settings declare for
+# it, so a github source there is followed instead. GitHub ignores the case of
+# owner and repo names, but not of refs.
+user_entry=$(jq -r '.extraKnownMarketplaces.grimoire.source
+  | select(.source == "github" and .repo) | "\(.repo)#\(.ref // "")"' \
+  "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" 2>/dev/null)
+IFS='#' read -r user_repo user_ref <<<"$user_entry"
+if [ -n "$user_repo" ]; then
   user_source="$user_repo${user_ref:+#$user_ref}"
-  [ "${user_source,,}" = "${repo_source,,}" ] \
-    || echo "Warning: $id: the marketplace is added from your user" \
-      "settings' source, $user_source, not $repo_source." >&2
-  echo "$user_source"
-}
+  if [ "${user_repo,,}" != "${grimoire_repo,,}" ] \
+    || [ "$user_ref" != "$ref" ]; then
+    echo "Warning: $id: the marketplace is added from your user settings'" \
+      "source, $user_source, not $marketplace." >&2
+  fi
+  marketplace=$user_source
+fi
 
 # Runs claude for up to 300 seconds, discarding its output. On failure, passes
 # its error output on to stderr and prints why: the last error line, the exit
@@ -115,7 +111,6 @@ run_claude() { # claude-args...
   return 1
 }
 
-marketplace=$(marketplace_source)
 if ! why=$(run_claude plugins marketplace add "$marketplace" \
   --scope local); then
   record_failure "$id" "adding the grimoire marketplace failed ($why); $retry"

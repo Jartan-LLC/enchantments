@@ -1,9 +1,8 @@
 ## Unreleased
 
 - Plugins install when your user settings declare the grimoire marketplace
-  with a github source other than the repo's, such as one without the repo's
-  pinned ref: the marketplace is added from your entry's source, and the hook
-  warns that the repo's isn't used.
+  with a github source other than the repo's, such as one without its pinned
+  ref. The marketplace is then added from your source, with a warning.
 
 ## 1.0.1
 
