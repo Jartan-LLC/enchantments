@@ -752,6 +752,16 @@ write_fail_init
 check "a failed init that can't put the clone's edit back keeps it, named" \
   test "$(cat "$write_held" 2>/dev/null)" = "$(lines mine b c d e)" \
   -a -n "$(grep -F "${write_held%/*}" "$stub_home/write-fail.err")"
+# And an init that removes the file, when the clone's edit can't go back.
+mv -- "$write_held" "$write_fail/.bash-policy.yaml"
+stub_liza <<'EOF'
+settings "$hook"
+rm -f .bash-policy.yaml
+EOF
+write_fail_init
+check "an init that removes the file, if it can't go back, keeps it, named" \
+  test "$(cat "$write_held" 2>/dev/null)" = "$(lines mine b c d e)" \
+  -a -n "$(grep -F "$write_held" "$stub_home/write-fail.err")"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
