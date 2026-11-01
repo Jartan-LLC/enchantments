@@ -393,9 +393,14 @@ check "the next activation with the same output merges cleanly" \
   -a ! -s "$stub_home/policy.err"
 check "and git status stays clean" \
   test -z "$(git -C "$policy" status --porcelain)"
+lines a3 b c d e4 >"$liza_policy"
+stub_init "$policy" 2>/dev/null
+check "a later clean merge drops Liza's outdated version" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e4)" \
+  -a ! -e "$policy/.bash-policy.yaml.liza"
 stub_deactivate "$policy" 2>"$stub_home/policy.err"
 check "deactivation keeps the merged file, named" \
-  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e2)" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e4)" \
   -a -n "$(grep -F "$policy/.bash-policy.yaml" "$stub_home/policy.err")"
 check "and removes Liza's version and the stored ones" \
   test ! -e "$policy/.bash-policy.yaml.liza" -a ! -e "$policy/.git/liza"
@@ -476,6 +481,73 @@ check "an interrupted init puts back the clone's edit too" \
 check "and drops the held copy" \
   test ! -e "$failed_clone/.git/liza/clone-versions" \
   -a -z "$(grep "could not" "$stub_home/failed.err")"
+
+# A clone activated by an earlier Feature version has no stored base: a file
+# the record shows Liza wrote, and the clone never edited, takes Liza's new
+# version, and deactivation still removes it.
+upgraded=$(stub_clone upgraded-policy)
+stub_liza <<EOF
+settings "\$hook"
+cp "$liza_policy" .bash-policy.yaml
+EOF
+lines a b c d e >"$liza_policy"
+stub_init "$upgraded" 2>/dev/null
+rm -rf -- "$upgraded/.git/liza/liza-versions"
+lines a b c d e2 >"$liza_policy"
+stub_init "$upgraded" 2>"$stub_home/upgraded.err"
+check "a file Liza wrote, unedited, with no stored base takes Liza's change" \
+  test "$(cat "$upgraded/.bash-policy.yaml")" = "$(lines a b c d e2)" \
+  -a ! -e "$upgraded/.bash-policy.yaml.liza" -a ! -s "$stub_home/upgraded.err"
+stub_deactivate "$upgraded" 2>/dev/null
+check "and deactivation removes it" test ! -e "$upgraded/.bash-policy.yaml"
+
+# A held copy an interrupted or failed activation left makes init refuse when
+# it differs from its file, as a leftover in originals/ does. One matching its
+# file doesn't.
+held_left=$(stub_clone held-leftover)
+held_copies=$held_left/.git/liza/clone-versions
+mkdir -p "$held_copies"
+echo liza >"$held_left/.bash-policy.yaml"
+echo mine >"$held_copies/.bash-policy.yaml"
+echo "user ignore" >"$held_left/.claudeignore"
+echo "user ignore" >"$held_copies/.claudeignore"
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+LIZA_SHIM_REFUSAL=$stub_home/held.refusal stub_init "$held_left" 2>/dev/null
+held_left_rc=$?
+refusal=$(cat "$stub_home/held.refusal" 2>/dev/null)
+check "init refuses while a held copy differs from its file, naming it" \
+  test "$held_left_rc" -eq 75 \
+  -a "$(cat "$held_copies/.bash-policy.yaml")" = mine \
+  -a -z "${refusal##*"$held_copies/.bash-policy.yaml"*}" \
+  -a -n "${refusal##*"$held_copies/.claudeignore"*}"
+rm -- "$held_copies/.bash-policy.yaml"
+stub_init "$held_left" 2>/dev/null
+held_left_rc=$?
+check "and goes ahead over a matching one, which it drops" \
+  test "$held_left_rc" -eq 0 -a ! -e "$held_copies"
+
+# A file init removes, where the clone had edited Liza's, comes back, and
+# deactivation keeps it.
+removed=$(stub_clone removed-policy)
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$removed" 2>/dev/null
+echo mine >"$removed/.bash-policy.yaml"
+stub_liza <<'EOF'
+settings "$hook"
+rm -f .bash-policy.yaml
+EOF
+stub_init "$removed" 2>/dev/null
+check "a file init removes comes back with the clone's edit" \
+  test "$(cat "$removed/.bash-policy.yaml" 2>/dev/null)" = mine \
+  -a ! -e "$removed/.git/liza/clone-versions"
+stub_deactivate "$removed" 2>/dev/null
+check "and deactivation keeps it" \
+  test "$(cat "$removed/.bash-policy.yaml" 2>/dev/null)" = mine
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

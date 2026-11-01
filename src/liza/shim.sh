@@ -224,11 +224,22 @@ for path in "${candidates[@]}"; do
   fi
   fp_before[$path]=$fp
 done
+# So may a held copy of a file init replaces without asking (below), which an
+# interrupted activation or a failed merge write leaves in clone-versions/.
+clone_versions="$record_dir/clone-versions"
+merged_files=(.bash-policy.yaml .claudeignore)
+for name in "${merged_files[@]}"; do
+  copy=$clone_versions/$name
+  if { [ -e "$copy" ] || [ -L "$copy" ]; } \
+    && ! same_content "$copy" "$top/$name"; then
+    left_over+=("$copy")
+  fi
+done
 if [ "${#left_over[@]}" -gt 0 ]; then
   printf -v list '%s, ' "${left_over[@]}"
-  refuse "an interrupted activation left copies that differ from your files" \
-    "and may be your only ones: ${list%, }. Compare each with its file, keep" \
-    "what you want, and move the copy out of $originals."
+  refuse "an interrupted or failed activation left copies that differ from" \
+    "your files and may be your only ones: ${list%, }. Compare each with its" \
+    "file, keep what you want, and move the copy out of its folder."
 fi
 # An interrupted backup drops its copies: init hasn't run, so none is needed.
 trap 'prune_originals; unlock' EXIT
@@ -243,9 +254,8 @@ for path in "${!fp_before[@]}"; do
   fi
 done
 
-# The clone's versions of the files init replaces without asking, held for
-# the run below, with their fingerprints.
-clone_versions="$record_dir/clone-versions"
+# The fingerprints of the clone's versions held in clone-versions/ for the run
+# below.
 declare -A held_fp=()
 drop_held() {
   rm -rf -- "$clone_versions"
@@ -330,7 +340,6 @@ trap 'release; restore_after_failure; unlock' EXIT
 # With --yes, init replaces these, and once Liza created one, the record lists
 # it, so it isn't backed up above. A symlink or a directory there is left to
 # init.
-merged_files=(.bash-policy.yaml .claudeignore)
 liza_versions="$record_dir/liza-versions"
 merging=()
 for name in "${merged_files[@]}"; do
@@ -374,14 +383,16 @@ fi
 # on a conflict, it goes back as it was, with Liza's output beside it. Leaves
 # Liza's output in $2.liza.
 keep_clone_version() { # path held base
-  local merged=$1.liza-merged
+  local merged=$2.merged
   if ! cp -p "$1" "$2.liza"; then
     echo "liza shim: could not merge your $1 after init; it is in $2." >&2
     return 1
   fi
+  # cp -p gives the result the clone's file mode; the merge then replaces its
+  # content.
   if [ -f "$3" ] && cp -p "$2" "$merged" \
     && git merge-file -q -p "$2" "$3" "$2.liza" >"$merged" \
-    && mv -f "$merged" "$1"; then
+    && put_copy "$merged" "$1"; then
     return 0
   fi
   rm -f -- "$merged"
@@ -393,6 +404,16 @@ keep_clone_version() { # path held base
     "merge what you need from it." >&2
 }
 
+# Succeeds when the clone's held version of the file named $1 is Liza's output
+# from the last activation, which stored no base: an earlier Feature version
+# stored none, but its record has the file's fingerprint.
+liza_wrote_held() { # name
+  { [ ! -f "$liza_versions/$1" ] && [ -f "$record" ]; } || return 1
+  # shellcheck disable=SC2016 # a jq program
+  [ "$(record_jq '.files[] | select(.path == $p) | .fp' -r --arg p "$top/$1" \
+    "$record" 2>/dev/null)" = "${held_fp[$1]##* }" ]
+}
+
 # Wherever init wrote the file, Liza's output becomes the next merge base, so a
 # conflict is reported once. A file init left alone keeps its base: Liza may
 # not have written it, and the clone's file as a base would later merge Liza's
@@ -401,9 +422,23 @@ keep_held=false
 declare -A liza_fp=()
 for name in "${merging[@]}"; do
   path=$top/$name held=$clone_versions/$name liza_output=$path
-  { [ -f "$path" ] && [ ! -L "$path" ]; } || continue
-  if [ -f "$held" ]; then
+  if [ -L "$path" ] || [ ! -f "$path" ]; then
+    # Init removed the file or put something else there: the held copy is the
+    # clone's only one.
+    [ -f "$held" ] || continue
+    if ! put_copy "$held" "$path"; then
+      echo "liza shim: could not put your $path back after init; it is in" \
+        "$held." >&2
+      keep_held=true
+    fi
+    continue
+  fi
+  if [ -f "$held" ] && ! liza_wrote_held "$name"; then
     cmp -s "$held" "$path" && continue
+    # Liza's version left beside the file at an earlier conflict, unedited, is
+    # outdated once init writes another: the merge below starts from it.
+    cmp -s "$path.liza" "$liza_versions/$name" \
+      && ! cmp -s "$path.liza" "$path" && rm -f -- "$path.liza"
     if ! keep_clone_version "$path" "$held" "$liza_versions/$name"; then
       keep_held=true
       continue

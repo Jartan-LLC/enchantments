@@ -28,7 +28,9 @@
   replace them with Liza's version. When the two conflict, or the file is yours
   from before Liza, yours stays and Liza's version goes beside it as
   `<name>.liza`. A failed or interrupted `liza init` puts your version back,
-  and `liza-deactivate` keeps a merged file as one you've edited.
+  and `liza-deactivate` keeps a merged file as one you've edited. Activation
+  refuses while a copy of either file that an interrupted or failed activation
+  left in the clone's git dir differs from the file.
 
 ## 1.1.0
 
