@@ -268,14 +268,14 @@ restore_from() { # path copy-dir
   if [ -e "$1" ] || [ -L "$1" ]; then
     if ! { mkdir -p "$(dirname "$record_dir/replaced/$rel")" \
       && cp -P -p "$1" "$record_dir/replaced/$rel"; }; then
-      echo "liza shim: left $1 as the failed init left it; its original is" \
+      echo "liza shim: left $1 as the failed init left it; your version is" \
         "in $2." >&2
       return 1
     fi
     replaced=true
   fi
   put_copy "$2/$rel" "$1" && return 0
-  echo "liza shim: could not restore $1 after the failed init; its original" \
+  echo "liza shim: could not restore $1 after the failed init; your version" \
     "is in $2." >&2
   return 1
 }
@@ -440,8 +440,9 @@ for name in "${merging[@]}"; do
   fi
   if [ -f "$held" ] && ! liza_wrote_held "$name"; then
     cmp -s "$held" "$path" && continue
-    # Liza's version left beside the file at an earlier conflict, unedited, is
-    # outdated once init writes another: the merge below starts from it.
+    # An unedited <name>.liza from an earlier conflict holds this merge's base,
+    # so it is outdated once init writes something else: a clean merge would
+    # leave it stale beside the file, and a conflict replaces it.
     cmp -s "$path.liza" "$liza_versions/$name" \
       && ! cmp -s "$path.liza" "$path" && rm -f -- "$path.liza"
     if ! keep_clone_version "$path" "$held" "$liza_versions/$name"; then
