@@ -135,12 +135,13 @@ else
 fi
 
 # An original the record doesn't list (the record's write failed after it was
-# saved) is the user's only copy of that file: put it beside the file rather
-# than drop it.
+# saved) may be the user's only copy of that file: put it beside the file rather
+# than drop it. One that matches its file isn't, and goes with the rest.
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue
     path="$top/${original#"$record_dir/originals/"}"
+    same_content "$path" "$original" && continue
     if [ -e "$path.pre-liza" ] || [ -L "$path.pre-liza" ] \
       || { mkdir -p "$(dirname "$path")" \
         && cp -P -p "$original" "$path.pre-liza"; }; then

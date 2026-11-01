@@ -33,11 +33,10 @@ Sections are months, newest first.
 - `liza`: when activation names copies of your files that an interrupted
   activation left in `.git/liza/originals/`, compare each with its file, keep
   what you want and move the copy out of that folder, then run
-  `liza-activate`.
-- `liza`: in a clone where an interrupted activation left
-  `.git/liza/originals/` but no `.git/liza/activation.json`, compare each
-  copy in that folder with its file and keep what you want, then remove the
-  folder before running `liza-activate` or `liza-deactivate`.
+  `liza-activate`. In a clone where an interrupted activation left that
+  folder but no `.git/liza/activation.json`, run `liza-deactivate` instead,
+  compare each `<name>.pre-liza` it leaves with its file and keep what you
+  want, then run `liza-activate`.
 
 ### Maintenance
 

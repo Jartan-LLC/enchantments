@@ -682,16 +682,23 @@ check "and restores the user's original in place" \
   -a ! -e "$reinit_clone/.claude/keep/f.sh.pre-liza"
 
 # Originals with no record and no contract link (an activation interrupted
-# before either): deactivate still saves them beside their files.
+# before either): deactivate still saves them beside their files, and drops
+# one that matches its file.
 interrupted_clone=$(stub_clone interrupted-clone)
 mkdir -p "$interrupted_clone/.git/liza/originals/.claude/keep" \
   "$interrupted_clone/.claude/keep"
 echo "user file" >"$interrupted_clone/.git/liza/originals/.claude/keep/f.sh"
 echo liza >"$interrupted_clone/.claude/keep/f.sh"
+for f in "$interrupted_clone"{,/.git/liza/originals}/.claude/keep/same.md; do
+  echo "user notes" >"$f"
+done
 stub_deactivate "$interrupted_clone" 2>/dev/null
 check "deactivate saves originals left without a record" \
   test "$(cat "$interrupted_clone/.claude/keep/f.sh.pre-liza" 2>/dev/null)" \
   = "user file"
+check "and drops one matching its file" \
+  test ! -e "$interrupted_clone/.claude/keep/same.md.pre-liza" \
+  -a ! -e "$interrupted_clone/.git/liza/originals"
 
 # Linked worktrees share the git hooks and the exclude file, so Liza is active
 # in one worktree of a repo at a time. Each activation then owns all it
