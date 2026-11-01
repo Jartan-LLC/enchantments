@@ -7,6 +7,18 @@ changes to how this repository releases, for its maintainers.
 
 Sections are months, newest first.
 
+## 2026-11
+
+- `liza`: activation keeps its record and copies in the clone's git dir, in
+  the folder `git rev-parse --git-path liza` prints (`.git/liza/` outside a
+  linked worktree). When activation names copies of your files that an
+  interrupted activation left in `originals/` there, compare each with its
+  file, keep what you want and move the copy out of that folder, then run
+  `liza-activate`. In a clone where an interrupted activation left
+  `originals/` but no `activation.json`, run `liza-deactivate` instead,
+  compare each `<name>.pre-liza` it leaves with its file and keep what you
+  want, then run `liza-activate`.
+
 ## 2026-10
 
 - The first Features, each declared as `ghcr.io/jartan-llc/enchantments/<id>:1`:
@@ -30,13 +42,6 @@ Sections are months, newest first.
 - Containers that share a Feature volume must run as one uid. A container
   running as another uid warns instead of taking the volume, as it used to,
   locking the others out of their logins.
-- `liza`: when activation names copies of your files that an interrupted
-  activation left in `.git/liza/originals/`, compare each with its file, keep
-  what you want and move the copy out of that folder, then run
-  `liza-activate`. In a clone where an interrupted activation left that
-  folder but no `.git/liza/activation.json`, run `liza-deactivate` instead,
-  compare each `<name>.pre-liza` it leaves with its file and keep what you
-  want, then run `liza-activate`.
 
 ### Maintenance
 

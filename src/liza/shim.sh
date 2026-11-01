@@ -124,8 +124,8 @@ if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
 fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
-# grep runs under LC_ALL=C here and in init_write_ignored to match bytes: in a
-# UTF-8 locale it would drop a name that isn't valid UTF-8, with a warning.
+# grep runs under LC_ALL=C here to match bytes: in a UTF-8 locale it would
+# drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
