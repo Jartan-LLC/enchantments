@@ -12,6 +12,10 @@ liza_toolchain=/usr/local/share/enchantments/liza-toolchain
 # The shim's exit code when it refuses an init, which a caller reports as is.
 # shellcheck disable=SC2034 # read by the scripts that source this
 liza_refused=75
+# The files init replaces without asking, which the shim holds in the record
+# dir's clone-versions/ during init and merges with the clone's edits.
+# shellcheck disable=SC2034 # read by the scripts that source this
+merged_files=(.bash-policy.yaml .claudeignore)
 
 # Prints "<path> <fingerprint>" for each existing file or symlink given, so
 # activation can record what it created and deactivation can tell whether it has

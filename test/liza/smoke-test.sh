@@ -585,6 +585,27 @@ stub_deactivate "$removed" 2>/dev/null
 check "and deactivation keeps it" \
   test "$(cat "$removed/.bash-policy.yaml" 2>/dev/null)" = mine
 
+# A held copy a failed merge write left, which differs from its file, goes
+# beside the file at deactivation, named, as an unlisted original does. One
+# matching its file goes.
+held_deact=$(stub_clone held-deactivation)
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$held_deact" 2>/dev/null
+mkdir -p "$held_deact/.git/liza/clone-versions"
+echo mine >"$held_deact/.git/liza/clone-versions/.bash-policy.yaml"
+echo "user ignore" >"$held_deact/.claudeignore"
+echo "user ignore" >"$held_deact/.git/liza/clone-versions/.claudeignore"
+stub_deactivate "$held_deact" 2>"$stub_home/held-deact.err"
+check "deactivation puts a differing held copy beside its file, named" \
+  test "$(cat "$held_deact/.bash-policy.yaml.pre-liza" 2>/dev/null)" = mine \
+  -a -n "$(grep -F .bash-policy.yaml.pre-liza "$stub_home/held-deact.err")"
+check "and drops a matching one with the rest" \
+  test ! -e "$held_deact/.claudeignore.pre-liza" \
+  -a ! -e "$held_deact/.git/liza"
+
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
 exclude_file=$(git rev-parse --git-path info/exclude)

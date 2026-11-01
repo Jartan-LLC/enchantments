@@ -42,7 +42,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 
 ## Undoing activation
 
-`liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A `.bash-policy.yaml` or `.claudeignore` that activation merged with your edits counts as edited. A failed run keeps its record, and running it again finishes the job.
+`liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A `.bash-policy.yaml` or `.claudeignore` that activation merged with your edits counts as edited. A copy of either file that an interrupted or failed activation left in the clone's git dir, and that differs from the file, goes beside it as `<name>.pre-liza`. A failed run keeps its record, and running it again finishes the job.
 
 ## Image requirements
 

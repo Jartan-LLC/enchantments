@@ -228,7 +228,6 @@ done
 # may also be the user's only one: an interrupted activation or a failed merge
 # write leaves it there.
 clone_versions="$record_dir/clone-versions"
-merged_files=(.bash-policy.yaml .claudeignore)
 for name in "${merged_files[@]}"; do
   copy=$clone_versions/$name
   if { [ -e "$copy" ] || [ -L "$copy" ]; } \

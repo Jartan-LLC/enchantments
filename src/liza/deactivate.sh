@@ -135,22 +135,29 @@ else
 fi
 
 # An original the record doesn't list (the record's write failed after it was
-# saved) may be the user's only copy of that file: put it beside the file rather
-# than drop it. One that matches its file isn't, and goes with the rest.
+# saved) may be the user's only copy of that file, and so may a held copy an
+# interrupted activation or a failed merge write left in clone-versions/: put it
+# beside the file rather than drop it. One that matches its file isn't, and goes
+# with the rest.
+keep_beside() { # copy path
+  same_content "$2" "$1" && return 0
+  if [ -e "$2.pre-liza" ] || [ -L "$2.pre-liza" ] \
+    || { mkdir -p "$(dirname "$2")" && cp -P -p "$1" "$2.pre-liza"; }; then
+    kept+=("$2 (original in $2.pre-liza)")
+  else
+    failed+=("saving $2.pre-liza")
+  fi
+}
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue
-    path="$top/${original#"$record_dir/originals/"}"
-    same_content "$path" "$original" && continue
-    if [ -e "$path.pre-liza" ] || [ -L "$path.pre-liza" ] \
-      || { mkdir -p "$(dirname "$path")" \
-        && cp -P -p "$original" "$path.pre-liza"; }; then
-      kept+=("$path (original in $path.pre-liza)")
-    else
-      failed+=("saving $path.pre-liza")
-    fi
+    keep_beside "$original" "$top/${original#"$record_dir/originals/"}"
   done < <(finished_copies "$record_dir/originals" -print0)
 fi
+for name in "${merged_files[@]}"; do
+  held=$record_dir/clone-versions/$name
+  [ -f "$held" ] && keep_beside "$held" "$top/$name"
+done
 
 # --- Clean up: the contract link, emptied settings and dirs, then what is
 # left for the user ---
@@ -175,12 +182,13 @@ if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
     failed+=("exclude cleanup")
   fi
 fi
-# Only a complete undo drops the record, the originals and Liza's stored
-# versions; after a failure they stay, and a rerun picks up where this one
-# stopped.
+# Only a complete undo drops the record, the originals, the held copies and
+# Liza's stored versions; after a failure they stay, and a rerun picks up where
+# this one stopped.
 if [ ${#failed[@]} -eq 0 ]; then
   rm -f -- "$record" "$record.tmp"
-  rm -rf -- "${record_dir:?}/originals" "${record_dir:?}/liza-versions"
+  rm -rf -- "${record_dir:?}/originals" "${record_dir:?}/clone-versions" \
+    "${record_dir:?}/liza-versions"
   rmdir "$record_dir" 2>/dev/null
 fi
 # Local settings activation created that still hold your own entries stay; once

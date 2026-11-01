@@ -31,7 +31,8 @@
   activated. A failed or interrupted `liza init` puts your version back, and
   `liza-deactivate` keeps a merged file as one you've edited. Activation
   refuses while a copy of either file that an interrupted or failed activation
-  left in the clone's git dir differs from the file.
+  left in the clone's git dir differs from the file; `liza-deactivate` puts
+  such a copy beside the file as `<name>.pre-liza`.
 
 ## 1.1.0
 
