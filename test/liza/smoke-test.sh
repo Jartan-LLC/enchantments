@@ -500,6 +500,40 @@ check "a file Liza wrote, unedited, with no stored base takes Liza's change" \
   -a ! -e "$upgraded/.bash-policy.yaml.liza" -a ! -s "$stub_home/upgraded.err"
 stub_deactivate "$upgraded" 2>/dev/null
 check "and deactivation removes it" test ! -e "$upgraded/.bash-policy.yaml"
+# One the clone edited keeps the edit, with Liza's version beside it.
+upgraded=$(stub_clone upgraded-edited-policy)
+lines a b c d e >"$liza_policy"
+stub_init "$upgraded" 2>/dev/null
+lines mine b c d e >"$upgraded/.bash-policy.yaml"
+rm -rf -- "$upgraded/.git/liza/liza-versions"
+lines a b c d e2 >"$liza_policy"
+stub_init "$upgraded" 2>"$stub_home/upgraded.err"
+check "an edited one with no stored base keeps the clone's edit" \
+  test "$(cat "$upgraded/.bash-policy.yaml")" = "$(lines mine b c d e)" \
+  -a "$(cat "$upgraded/.bash-policy.yaml.liza")" = "$(lines a b c d e2)" \
+  -a -n "$(grep -F .bash-policy.yaml.liza "$stub_home/upgraded.err")"
+# A file of the clone's own from before Liza, which the record lists as
+# overwritten, takes Liza's change as well when unedited. The merge that
+# changes it records it so; then Liza's output goes in its place and the stored
+# base goes, as an earlier Feature version left it.
+upgraded=$(stub_clone upgraded-own-policy)
+lines mine b c d e >"$upgraded/.bash-policy.yaml"
+lines a b c d e >"$liza_policy"
+stub_init "$upgraded" 2>/dev/null
+lines a b c d e2 >"$liza_policy"
+stub_init "$upgraded" 2>/dev/null
+mv -- "$upgraded/.git/liza/liza-versions/.bash-policy.yaml" \
+  "$upgraded/.bash-policy.yaml"
+rm -rf -- "$upgraded/.git/liza/liza-versions"
+lines a b c d e3 >"$liza_policy"
+stub_init "$upgraded" 2>"$stub_home/upgraded.err"
+check "the clone's own file Liza overwrote, unedited, takes Liza's change" \
+  test "$(cat "$upgraded/.bash-policy.yaml")" = "$(lines a b c d e3)" \
+  -a ! -e "$upgraded/.bash-policy.yaml.liza" -a ! -s "$stub_home/upgraded.err"
+stub_deactivate "$upgraded" 2>/dev/null
+check "and deactivation puts the clone's original back" \
+  test "$(cat "$upgraded/.bash-policy.yaml")" = "$(lines mine b c d e)" \
+  -a ! -e "$upgraded/.bash-policy.yaml.pre-liza"
 
 # A held copy an interrupted or failed activation left makes init refuse when
 # it differs from its file, as a leftover in originals/ does. One matching its

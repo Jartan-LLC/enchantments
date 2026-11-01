@@ -224,8 +224,9 @@ for path in "${candidates[@]}"; do
   fi
   fp_before[$path]=$fp
 done
-# So may a held copy of a file init replaces without asking (below), which an
-# interrupted activation or a failed merge write leaves in clone-versions/.
+# A held copy in clone-versions/ of a file init replaces without asking (below)
+# may also be the user's only one: an interrupted activation or a failed merge
+# write leaves it there.
 clone_versions="$record_dir/clone-versions"
 merged_files=(.bash-policy.yaml .claudeignore)
 for name in "${merged_files[@]}"; do
@@ -406,12 +407,14 @@ keep_clone_version() { # path held base
 
 # Succeeds when the clone's held version of the file named $1 is Liza's output
 # from the last activation, which stored no base: an earlier Feature version
-# stored none, but its record has the file's fingerprint.
+# stored none, but its record has the fingerprint of Liza's output, under
+# overwritten for a file of the clone's own from before Liza.
 liza_wrote_held() { # name
   { [ ! -f "$liza_versions/$1" ] && [ -f "$record" ]; } || return 1
   # shellcheck disable=SC2016 # a jq program
-  [ "$(record_jq '.files[] | select(.path == $p) | .fp' -r --arg p "$top/$1" \
-    "$record" 2>/dev/null)" = "${held_fp[$1]##* }" ]
+  [ "$(record_jq '(.files + (.overwritten // []))[] | select(.path == $p)
+    | .fp' -r --arg p "$top/$1" "$record" 2>/dev/null)" \
+    = "${held_fp[$1]##* }" ]
 }
 
 # Wherever init wrote the file, Liza's output becomes the next merge base, so a

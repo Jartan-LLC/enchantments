@@ -17,7 +17,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 | skills | links in `.claude/skills/` |
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
-- `liza init` replaces `.bash-policy.yaml` and `.claudeignore` without asking. Activation merges your edits to them with what Liza changed since the last activation. When the two conflict, or the file is yours from before Liza, yours stays, Liza's version goes beside it as `<name>.liza`, and activation names it. If `liza init` fails or is interrupted, your version goes back. A symlink or directory at either path is left to `liza init`.
+- `liza init` replaces `.bash-policy.yaml` and `.claudeignore` without asking. Activation merges your edits to them with what Liza changed since the last activation. When the two conflict, the file is yours from before Liza, or you edited it in a clone an earlier version of this Feature activated, yours stays, Liza's version goes beside it as `<name>.liza`, and activation names it. If `liza init` fails or is interrupted, your version goes back. A symlink or directory at either path is left to `liza init`.
 - `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
 - Liza is active in one worktree of a repo at a time. To move it, run `liza-deactivate` in the active worktree, then `liza-activate` in the other.
 - Run `liza-deactivate` before `git worktree remove`; otherwise Liza's git hooks and exclude lines stay in the repo.
