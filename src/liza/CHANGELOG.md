@@ -35,11 +35,12 @@
   replace them with Liza's version. Yours stays as it is, with Liza's version
   beside it as `<name>.liza`, when the two conflict, when the file is yours
   from before Liza, or when you edited it in a clone an earlier version
-  activated. A failed or interrupted `liza init` puts your version back, and
-  `liza-deactivate` keeps a merged file as one you've edited. Activation
-  refuses while a copy of either file that an interrupted or failed activation
-  left in the clone's git dir differs from the file; `liza-deactivate` puts
-  such a copy beside the file as `<name>.pre-liza`.
+  activated. `liza-deactivate` keeps a merged file as one you've edited.
+- A failed or interrupted `liza init` puts your `.bash-policy.yaml` and
+  `.claudeignore` back. Activation refuses while a copy of either file that an
+  interrupted or failed activation left in the clone's git dir differs from
+  the file; `liza-deactivate` puts such a copy beside the file as
+  `<name>.pre-liza`.
 
 ## 1.1.0
 

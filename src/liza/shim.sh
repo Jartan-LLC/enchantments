@@ -419,10 +419,10 @@ liza_wrote_held() { # name
     = "${held_fp[$1]##* }" ]
 }
 
-# Wherever init wrote the file, Liza's output becomes the next merge base, so a
-# conflict is reported once. A file init left alone keeps its base: Liza may
-# not have written it, and the clone's file as a base would later merge Liza's
-# template over the clone's content.
+# Where init's output differs from the clone's file, it becomes the next merge
+# base, so a conflict is reported once. Where the two are equal, the file keeps
+# its base: init may not have written it, and the clone's file as a base would
+# later merge Liza's template over the clone's content.
 keep_held=false
 declare -A liza_fp=()
 for name in "${merging[@]}"; do
