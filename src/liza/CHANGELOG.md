@@ -25,10 +25,11 @@
   as not restored, and their copies no longer stay in the clone's git dir.
 - Activation keeps your edits to `.bash-policy.yaml` and `.claudeignore`,
   merged with what Liza changed since the last activation, where it used to
-  replace them with Liza's version. When the two conflict, the file is yours
-  from before Liza, or you edited it in a clone an earlier version activated,
-  yours stays and Liza's version goes beside it as `<name>.liza`. A failed or interrupted `liza init` puts your version back,
-  and `liza-deactivate` keeps a merged file as one you've edited. Activation
+  replace them with Liza's version. Yours stays as it is, with Liza's version
+  beside it as `<name>.liza`, when the two conflict, when the file is yours
+  from before Liza, or when you edited it in a clone an earlier version
+  activated. A failed or interrupted `liza init` puts your version back, and
+  `liza-deactivate` keeps a merged file as one you've edited. Activation
   refuses while a copy of either file that an interrupted or failed activation
   left in the clone's git dir differs from the file.
 
