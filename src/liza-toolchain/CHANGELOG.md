@@ -1,5 +1,8 @@
 ## Unreleased
 
+- npm lock:
+  - undici: 7.30.0 → 7.30.1
+
 ### Minor
 
 - `uv`: 0.13.1 → 0.13.5
