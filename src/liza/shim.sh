@@ -418,7 +418,10 @@ exclude_added=$(comm -13 <(sort -u <<<"$exclude_before") \
   <(sort -u "$exclude_file"))
 preexisting=()
 while IFS= read -r line; do
+  # Only in the area the shim lists: deactivate.sh names a file elsewhere as
+  # one the shim couldn't see.
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
+    && [[ "$rel" != */* || "$rel" == .claude/* ]] \
     && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
