@@ -28,11 +28,23 @@ fingerprint() {
   done
 }
 
+# Succeeds when files or symlinks $1 and $2 have the same fingerprint, paths
+# aside, and fails when either is missing.
+same_content() { # a b
+  local a b
+  a=$(fingerprint "$1") b=$(fingerprint "$2")
+  [ -n "$a" ] && [ "${a#"$1" }" = "${b#"$2" }" ]
+}
+
 # Puts a copy of file or symlink $1 at $2, replacing what's there without
-# following it. A failed copy leaves $2 as it was.
+# following it. A failed copy leaves $2 as it was. The copy goes through
+# $2.liza-tmp, so a copy cut off by SIGKILL never takes the final name: a
+# .liza-tmp is never a finished copy.
+# Returns 0 explicitly: in an EXIT trap, a bare return gives the status the
+# trap interrupted.
 put_copy() { # source dest
   rm -f -- "$2.liza-tmp"
-  cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return
+  cp -P -p -- "$1" "$2.liza-tmp" && mv -f -T -- "$2.liza-tmp" "$2" && return 0
   rm -f -- "$2.liza-tmp"
   return 1
 }
@@ -111,12 +123,20 @@ record_dir_of() { # top
   git_path "$1" liza
 }
 
+# Runs find with actions $2... over the finished copies under originals/
+# folder $1.
+finished_copies() { # dir find-actions...
+  find "$1" \( -type f -o -type l \) ! -name '*.liza-tmp' "${@:2}"
+}
+
 # Succeeds when the clone at $1 holds this shim's activation record, or the
-# originals an interrupted activation saved.
+# originals an interrupted activation saved. Empty folders left once the user
+# moves those out don't count.
 activated() { # top
   local dir
   dir=$(record_dir_of "$1" 2>/dev/null) || return 1
-  [ -f "$dir/activation.json" ] || [ -d "$dir/originals" ]
+  [ -f "$dir/activation.json" ] && return 0
+  [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 
 # Succeeds when the clone at $1's CLAUDE.local.md is activation's link.

@@ -121,11 +121,12 @@ check "and keeps what it replaced, named" \
 rm -rf -- "$liza_git_dir"
 
 # The same when init is interrupted (the whole process group, as Ctrl-C would
-# be).
+# be). Run from a subshell: bash starts a background simple command with
+# SIGINT ignored, and the shim couldn't trap it.
 echo "user file" >.claude/hooks/user.sh
 printf 'echo liza >.claude/hooks/user.sh\nsleep 30\n' | stub_liza
-HOME="$stub_home" setsid bash "$shim" init --claude --yes </dev/null \
-  >/dev/null 2>"$clone/.git/interrupt.err" &
+(HOME="$stub_home" exec setsid bash "$shim" init --claude --yes </dev/null \
+  >/dev/null 2>"$clone/.git/interrupt.err") &
 shim_pid=$!
 for _ in $(seq 50); do
   [ "$(cat .claude/hooks/user.sh)" = liza ] && break
@@ -136,14 +137,227 @@ check "the stub overwrote the user file before the interrupt" \
 kill -INT -- "-$shim_pid"
 wait "$shim_pid"
 interrupt_rc=$?
-check "interrupted init exits non-zero" test "$interrupt_rc" -ne 0
+check "interrupted init exits 130" test "$interrupt_rc" -eq 130
 check "and puts the user file back" \
   test "$(cat .claude/hooks/user.sh)" = "user file"
+check "and doesn't report it unrestored or keep its copy" \
+  test -z "$(grep -F "could not restore" "$clone/.git/interrupt.err")" \
+  -a ! -e "$liza_git_dir/originals/.claude/hooks/user.sh"
 check "and releases the lock and the committed settings" \
   test ! -e .claude/.liza-shim.lock -a ! -e .claude/settings.json.liza-shim-held
 rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
+
+# Ignored files where activation writes are backed up; ignored files elsewhere
+# aren't.
+ignored=$(stub_clone ignored)
+mkdir -p "$ignored/.claude/workspace/plan" "$ignored/.claude/hooks/sub" \
+  "$ignored/.claude/skills/real"
+echo notes >"$ignored/.claude/workspace/plan/notes.md"
+echo notes >"$ignored/.claude/workspace/notes.md"
+echo /.claude/workspace/ >>"$ignored/.git/info/exclude"
+# The shim replaces a symlink of the user's where it links a skill, and leaves
+# a real skill folder alone.
+mkdir -p "$stub_home/.liza/skills/stub-skill"
+touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
+ln -s user-skill "$ignored/.claude/skills/stub-skill"
+echo notes >"$ignored/.claude/skills/real/SKILL.md"
+echo /.claude/skills/ >>"$ignored/.git/info/exclude"
+init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh
+  .claude/hooks/sub/x.sh)
+for rel in "${init_paths[@]}"; do
+  echo "user file" >"$ignored/$rel"
+  echo "/$rel" >>"$ignored/.git/info/exclude"
+done
+# A name that isn't valid UTF-8 is left out, whatever the caller's locale,
+# though the stub overwrites it.
+odd=$'odd\xffname'
+echo "user file" >"$ignored/$odd"
+# Copies of files init leaves alone are dropped after it, so the stub looks
+# while it runs.
+stub_liza <<'EOF'
+settings "$hook"
+[ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
+[ -e .git/liza/originals/.claude/skills/real ] && touch .git/real-copied
+[ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
+printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
+  echo liza >"$rel"
+done
+EOF
+ignored_init() {
+  LC_ALL=C ODD=$odd INIT_PATHS=$(printf '%s\n' "${init_paths[@]}" "$odd") \
+    stub_init "$ignored" 2>/dev/null
+}
+ignored_init
+ignored_rc=$?
+check "init succeeds with ignored files" test "$ignored_rc" -eq 0
+for rel in "${init_paths[@]}"; do
+  check "an ignored $rel init overwrites is backed up" \
+    test "$(cat "$ignored/.git/liza/originals/$rel")" = "user file"
+done
+check "an ignored skill link the shim replaces is backed up" \
+  test "$(readlink "$ignored/.git/liza/originals/.claude/skills/stub-skill")" \
+  = user-skill
+check "ignored files outside init's paths aren't" \
+  test ! -e "$ignored/.git/workspace-copied"
+check "nor are files inside a real skill folder" \
+  test ! -e "$ignored/.git/real-copied"
+check "nor is a file whose name isn't valid UTF-8" \
+  test ! -e "$ignored/.git/odd-copied"
+ignored_init
+ignored_rc=$?
+check "and init runs again over it" test "$ignored_rc" -eq 0
+stub_deactivate "$ignored" 2>/dev/null
+for rel in "${init_paths[@]}"; do
+  check "deactivation puts the ignored $rel back" \
+    test "$(cat "$ignored/$rel")" = "user file"
+done
+check "and the ignored skill link" \
+  test "$(readlink "$ignored/.claude/skills/stub-skill")" = user-skill
+rm -r -- "$stub_home/.liza/skills"
+
+# A backup interrupted before init runs leaves no copies and no locks.
+term=$(stub_clone term)
+echo "user policy" >"$term/.bash-policy.yaml"
+mkdir -p "$stub_home/term-bin"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '#!/bin/sh\nkill -TERM "$PPID"\nexec %s "$@"\n' "$(command -v cp)" \
+  >"$stub_home/term-bin/cp"
+chmod +x "$stub_home/term-bin/cp"
+(cd "$term" && HOME="$stub_home" PATH="$stub_home/term-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
+term_rc=$?
+check "a backup interrupted before init exits 130" test "$term_rc" -eq 130
+check "and leaves no copies" test ! -e "$term/.git/liza/originals"
+check "and releases both locks" \
+  test ! -e "$term/.claude/.liza-shim.lock" \
+  -a ! -e "$term/.git/liza-activation.lock"
+
+# So does a failed copy, which stops init.
+cpfail=$(stub_clone cpfail)
+echo "user policy" >"$cpfail/.bash-policy.yaml"
+mkdir -p "$stub_home/fail-bin"
+printf '#!/bin/sh\nexit 1\n' >"$stub_home/fail-bin/cp"
+chmod +x "$stub_home/fail-bin/cp"
+(cd "$cpfail" && HOME="$stub_home" PATH="$stub_home/fail-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
+cpfail_rc=$?
+check "a backup whose copy fails exits 1" test "$cpfail_rc" -eq 1
+check "and leaves no copies" test ! -e "$cpfail/.git/liza/originals"
+check "and releases both locks" \
+  test ! -e "$cpfail/.claude/.liza-shim.lock" \
+  -a ! -e "$cpfail/.git/liza-activation.lock"
+
+# A backup killed mid-copy leaves no partial copy to stop the next run.
+killed=$(stub_clone killed)
+echo "user policy" >"$killed/.bash-policy.yaml"
+mkdir -p "$stub_home/kill-bin"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '#!/bin/sh\nfor last; do :; done\necho partial >"$last"\n%s\n' \
+  'kill -KILL "$PPID"' >"$stub_home/kill-bin/cp"
+chmod +x "$stub_home/kill-bin/cp"
+(cd "$killed" && HOME="$stub_home" PATH="$stub_home/kill-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null) 2>/dev/null
+check "a backup killed mid-copy leaves only the unfinished copy" \
+  test -e "$killed/.git/liza/originals/.bash-policy.yaml.liza-tmp" \
+  -a ! -e "$killed/.git/liza/originals/.bash-policy.yaml"
+rmdir "$killed/.claude/.liza-shim.lock" "$killed/.git/liza-activation.lock"
+stub_liza <<'EOF'
+settings "$hook"
+EOF
+stub_init "$killed" 2>/dev/null
+killed_rc=$?
+check "init runs again after a backup killed mid-copy" test "$killed_rc" -eq 0
+
+# Copies no record lists, left by an interrupted activation, make init refuse
+# when they differ from their files, naming them all, before it copies
+# anything. One matching its file doesn't.
+leftover=$(stub_clone leftover)
+left_originals=$leftover/.git/liza/originals
+mkdir -p "$leftover/.claude/hooks" "$left_originals/.claude/hooks"
+echo liza >"$leftover/.bash-policy.yaml"
+echo "user policy" >"$left_originals/.bash-policy.yaml"
+echo liza >"$leftover/.claude/hooks/user.sh"
+echo "user hook" >"$left_originals/.claude/hooks/user.sh"
+ln -s liza "$leftover/.claude/hooks/link.sh"
+ln -s user "$left_originals/.claude/hooks/link.sh"
+echo "user notes" >"$leftover/.claude/notes.md"
+echo "user notes" >"$left_originals/.claude/notes.md"
+echo "user notes" >"$leftover/.agent-notes.md"
+echo partial >"$left_originals/.agent-notes.md.liza-tmp"
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+LIZA_SHIM_REFUSAL=$stub_home/leftover.refusal stub_init "$leftover" 2>/dev/null
+leftover_rc=$?
+check "init refuses while copies no record lists differ from their files" \
+  test "$leftover_rc" -eq 75
+check "and keeps those copies" \
+  test "$(cat "$left_originals/.bash-policy.yaml")" = "user policy" \
+  -a "$(cat "$left_originals/.claude/hooks/user.sh")" = "user hook" \
+  -a "$(readlink "$left_originals/.claude/hooks/link.sh")" = user
+refusal=$(cat "$stub_home/leftover.refusal" 2>/dev/null)
+check "and names them all" \
+  test -z "${refusal##*"$left_originals/.bash-policy.yaml"*}" \
+  -a -z "${refusal##*"$left_originals/.claude/hooks/user.sh"*}" \
+  -a -z "${refusal##*"$left_originals/.claude/hooks/link.sh"*}"
+check "but not the one matching its file" \
+  test -n "${refusal##*"$left_originals/.claude/notes.md"*}"
+check "and copies nothing" test ! -e "$left_originals/.agent-notes.md"
+check "and releases both locks" \
+  test ! -e "$leftover/.claude/.liza-shim.lock" \
+  -a ! -e "$leftover/.git/liza-activation.lock"
+# Once the copies are moved out, the empty folders and the unfinished copy
+# left in originals/ don't keep another worktree from activating.
+(cd "$left_originals" && rm -- .bash-policy.yaml .claude/notes.md \
+  .claude/hooks/user.sh .claude/hooks/link.sh)
+sibling=$stub_home/leftover-sibling
+git -C "$leftover" worktree add -q "$sibling" \
+  && echo '{}' >"$sibling/.claude/settings.local.json"
+stub_init "$sibling" 2>/dev/null
+sibling_rc=$?
+check "another worktree activates once the copies are moved out" \
+  test "$sibling_rc" -eq 0
+
+# Leftover copies matching their files don't stop init, which backs the files
+# up over them.
+matching=$(stub_clone matching)
+match_originals=$matching/.git/liza/originals
+mkdir -p "$match_originals/.claude"
+for rel in .bash-policy.yaml .claude/notes.md; do
+  echo "user file" >"$matching/$rel"
+  echo "user file" >"$match_originals/$rel"
+done
+chmod 640 "$matching/.bash-policy.yaml"
+chmod 600 "$match_originals/.bash-policy.yaml"
+ln -s target "$matching/.claude/link"
+ln -s target "$match_originals/.claude/link"
+# Copies a killed backup didn't finish, of a file init may write and of one
+# since removed.
+echo partial >"$match_originals/.claude/notes.md.liza-tmp"
+echo partial >"$match_originals/gone.md.liza-tmp"
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$matching" 2>/dev/null
+matching_rc=$?
+check "init goes ahead over copies matching their files" \
+  test "$matching_rc" -eq 0
+check "and keeps the copy of the file it overwrote" \
+  test "$(cat "$match_originals/.bash-policy.yaml")" = "user file"
+check "and drops the copies of the files it left alone" \
+  test ! -e "$match_originals/.claude/notes.md" \
+  -a ! -L "$match_originals/.claude/link" \
+  -a ! -e "$match_originals/.claude/notes.md.liza-tmp"
+stub_deactivate "$matching" 2>/dev/null
+check "deactivation puts the overwritten file back, with its mode" \
+  test "$(cat "$matching/.bash-policy.yaml")" = "user file" \
+  -a "$(stat -c %a "$matching/.bash-policy.yaml")" = 640
+check "and puts no unfinished copy beside its file" \
+  test ! -e "$matching/gone.md.liza-tmp.pre-liza"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
@@ -416,14 +630,19 @@ check "and names it" \
   grep -q -F -- "f.sh.pre-liza" "$stub_home/orphan-deactivate.err"
 
 # Files under Liza's own exclude lines: one its tools generate goes, edited or
-# not; one the user had before activation stays, and so does one at a nested
-# path the shim doesn't scan.
+# not; one the user had before activation stays, in .claude/ too, ignored or
+# not, and so does one at a nested path the shim doesn't scan.
 generated_clone=$(stub_clone generated-clone)
 echo "user file" >"$generated_clone/insights.json"
-mkdir -p "$generated_clone/sub"
+mkdir -p "$generated_clone/sub" "$generated_clone/.claude/agents" \
+  "$generated_clone/.claude/ignored"
 echo "user file" >"$generated_clone/sub/x.log"
+echo "user file" >"$generated_clone/.claude/agents/mine.md"
+echo "user file" >"$generated_clone/.claude/ignored/mine.md"
+echo /.claude/ignored/ >>"$generated_clone/.git/info/exclude"
 stub_liza <<'EOF'
-printf 'insights.json\ngenerated.log\nsub/x.log\n' >>.git/info/exclude
+printf '%s\n' insights.json generated.log sub/x.log /.claude/agents/mine.md \
+  /.claude/ignored/mine.md >>.git/info/exclude
 settings "$hook"
 EOF
 stub_init "$generated_clone" 2>/dev/null
@@ -435,6 +654,10 @@ check "deactivate over generated files succeeds" test "$generated_rc" -eq 0
 check "and removes a generated file" test ! -e "$generated_clone/generated.log"
 check "and keeps one the user had before activation, with its edit" \
   grep -qx "# edited" "$generated_clone/insights.json"
+check "and one in .claude/" \
+  test "$(cat "$generated_clone/.claude/agents/mine.md")" = "user file"
+check "and one in .claude/ the user ignores" \
+  test "$(cat "$generated_clone/.claude/ignored/mine.md")" = "user file"
 check "and keeps a nested one, named" \
   test "$(cat "$generated_clone/sub/x.log")" = "user file" \
   -a -n "$(grep -F sub/x.log "$stub_home/generated.err")"
@@ -459,16 +682,23 @@ check "and restores the user's original in place" \
   -a ! -e "$reinit_clone/.claude/keep/f.sh.pre-liza"
 
 # Originals with no record and no contract link (an activation interrupted
-# before either): deactivate still saves them beside their files.
+# before either): deactivate still saves them beside their files, and drops
+# one that matches its file.
 interrupted_clone=$(stub_clone interrupted-clone)
 mkdir -p "$interrupted_clone/.git/liza/originals/.claude/keep" \
   "$interrupted_clone/.claude/keep"
 echo "user file" >"$interrupted_clone/.git/liza/originals/.claude/keep/f.sh"
 echo liza >"$interrupted_clone/.claude/keep/f.sh"
+for f in "$interrupted_clone"{,/.git/liza/originals}/.claude/keep/same.md; do
+  echo "user notes" >"$f"
+done
 stub_deactivate "$interrupted_clone" 2>/dev/null
 check "deactivate saves originals left without a record" \
   test "$(cat "$interrupted_clone/.claude/keep/f.sh.pre-liza" 2>/dev/null)" \
   = "user file"
+check "and drops one matching its file" \
+  test ! -e "$interrupted_clone/.claude/keep/same.md.pre-liza" \
+  -a ! -e "$interrupted_clone/.git/liza/originals"
 
 # Linked worktrees share the git hooks and the exclude file, so Liza is active
 # in one worktree of a repo at a time. Each activation then owns all it

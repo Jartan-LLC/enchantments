@@ -122,14 +122,31 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# Untracked paths at the top level and in .claude/, where init writes, minus
-# the two settings files activation manages itself.
+# Untracked paths at the top level and in .claude/, the area activation
+# watches, minus the two settings files activation manages itself.
+# grep runs under LC_ALL=C here to match bytes: in a UTF-8 locale it would
+# drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
   git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
-    | grep -z -v -x -F -e .claude/settings.local.json -e .claude/settings.json
+    | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
+      -e .claude/settings.json
+}
+# The ignored ones activation may overwrite: those at the top level, in
+# .claude/ itself and under .claude/hooks/, where Liza documents that init
+# writes files for Claude, and the entries in .claude/skills/, where the shim
+# replaces a symlink with a link to Liza's skill.
+# Every top-level one counts: Liza documents no closed list of the files init
+# writes there.
+# The rest, such as a workspace folder, would only slow the backup, which
+# fingerprints and copies each file.
+init_write_ignored() {
+  init_area_untracked --ignored --exclude-standard \
+    | LC_ALL=C grep -z -x -E \
+      '[^/]*|\.claude/[^/]*|\.claude/hooks/.*|\.claude/skills/[^/]*'
 }
 # A file init creates counts as its own whether git shows it or an exclude line
-# hides it.
+# hides it. Hidden ones are listed across the whole area, not only
+# init_write_ignored's paths, so one created anywhere in it is recorded.
 shown_untracked() {
   git -C "$top" ls-files -z --others --exclude-standard
 }
@@ -153,11 +170,11 @@ exclude_before=$(cat "$exclude_file" 2>/dev/null)
 pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 
 # --- Back up the user's files init may clobber ---
-# Liza's init overwrites or removes an untracked file of the user's at a path
-# it writes to. Each such candidate (file or symlink) is copied to originals/
-# first, and the copy stays only if init changes the file. Liza's own files
-# are skipped, and so is a file an earlier activation already saved: that
-# first copy is the user's.
+# Liza's init, and the skill links this shim makes after it, overwrite or
+# remove an untracked file of the user's at a path they write to. Each such
+# candidate (file or symlink) is copied to originals/ first, and the copy stays
+# only if the file is changed. Liza's own files are skipped, and so is a file
+# an earlier activation already saved: that first copy is the user's.
 originals="$record_dir/originals"
 mapfile -t saved < <(record_query overwritten_paths "$record" 2>/dev/null)
 declare -A saved_before=()
@@ -165,28 +182,61 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-read_top_paths candidates "$top" < <(init_area_untracked)
+# Shown untracked files all count, wherever they are in the area: a repo whose
+# git status lists many of them can ignore them to skip the backup.
+# Under C.UTF-8, '.' doesn't match a byte that isn't valid UTF-8, which leaves
+# such names out: init's are ASCII. Without that locale, grep falls back to C
+# and keeps them.
+read_top_paths candidates "$top" < <(
+  {
+    init_area_untracked --exclude-standard
+    init_write_ignored
+  } | LC_ALL=C.UTF-8 grep -z -a -x '.*'
+)
 
 # Drops the copies of candidates other than the paths given.
 prune_originals() { # paths to keep...
-  local path
+  local path copy
   for path in "${!fp_before[@]}"; do
-    in_list "$path" "$@" || rm -f -- "$originals/${path#"$top"/}"
+    in_list "$path" "$@" && continue
+    copy=$originals/${path#"$top"/}
+    # An interrupted put_copy leaves its .liza-tmp.
+    rm -f -- "$copy" "$copy.liza-tmp"
   done
   find "$record_dir" -depth -type d -empty -delete 2>/dev/null
 }
 
 declare -A fp_before=()
+left_over=()
 for path in "${candidates[@]}"; do
   in_list "$path" "${recorded_files[@]}" "${saved[@]}" && continue
   fp=$(fingerprint "$path")
   [ -n "$fp" ] || continue
+  copy=$originals/${path#"$top"/}
+  # No record lists a copy already here (those paths are skipped above): an
+  # interrupted activation left it. One that differs from its file may be the
+  # user's only copy: backing the file up over it, or pruning it after init,
+  # would lose it. Backing it up over one that matches loses nothing.
+  if { [ -e "$copy" ] || [ -L "$copy" ]; } \
+    && ! same_content "$copy" "$path"; then
+    left_over+=("$copy")
+    continue
+  fi
   fp_before[$path]=$fp
+done
+if [ "${#left_over[@]}" -gt 0 ]; then
+  printf -v list '%s, ' "${left_over[@]}"
+  refuse "an interrupted activation left copies that differ from your files" \
+    "and may be your only ones: ${list%, }. Compare each with its file, keep" \
+    "what you want, and move the copy out of $originals."
+fi
+# An interrupted backup drops its copies: init hasn't run, so none is needed.
+trap 'prune_originals; unlock' EXIT
+for path in "${!fp_before[@]}"; do
+  copy=$originals/${path#"$top"/}
   # Without this copy, init could destroy the file for good: stop before it
   # runs.
-  copy=$originals/${path#"$top"/}
-  if ! { mkdir -p "$(dirname "$copy")" && cp -P -p "$path" "$copy"; }; then
-    prune_originals
+  if ! { mkdir -p "$(dirname "$copy")" && put_copy "$path" "$copy"; }; then
     echo "liza shim: could not back up $path before init; nothing was" \
       "changed." >&2
     exit 1
@@ -368,8 +418,11 @@ exclude_added=$(comm -13 <(sort -u <<<"$exclude_before") \
   <(sort -u "$exclude_file"))
 preexisting=()
 while IFS= read -r line; do
+  # Only in the area the shim lists: deactivate.sh names a file elsewhere as
+  # one the shim couldn't see.
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
-    && [ -n "${fp_before["$top/$rel"]+set}" ] \
+    && [[ "$rel" != */* || "$rel" == .claude/* ]] \
+    && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
 
@@ -398,6 +451,7 @@ if ! { record_jq 'record_activation($pre[0]; $post[0]; $created;
   rm -f "$record.tmp"
   echo "liza shim: could not record this activation; liza-deactivate will" \
     "only partly undo it. Originals of files init overwrote are in" \
-    "$originals." >&2
+    "$originals; liza-activate refuses until the copies of files init" \
+    "rewrote are moved out of it." >&2
   exit 1
 fi

@@ -87,12 +87,9 @@ else
     original="$record_dir/originals/${path#"$top"/}"
     [ -e "$original" ] || [ -L "$original" ] || continue
     accounted+=("$original")
+    # Already restored by an earlier, failed run.
+    same_content "$path" "$original" && continue
     now=$(fingerprint "$path")
-    restored=$(fingerprint "$original")
-    # Already restored by an earlier, failed run: the two fingerprints (minus
-    # their differing paths) match.
-    [ -n "$now" ] && [ "${now#"$path" }" = "${restored#"$original" }" ] \
-      && continue
     if [ "${now:-"$path absent"}" = "$entry" ]; then
       put_copy "$original" "$path" || failed+=("restoring $path")
     else
@@ -138,12 +135,13 @@ else
 fi
 
 # An original the record doesn't list (the record's write failed after it was
-# saved) is the user's only copy of that file: put it beside the file rather
-# than drop it.
+# saved) may be the user's only copy of that file: put it beside the file rather
+# than drop it. One that matches its file isn't, and goes with the rest.
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue
     path="$top/${original#"$record_dir/originals/"}"
+    same_content "$path" "$original" && continue
     if [ -e "$path.pre-liza" ] || [ -L "$path.pre-liza" ] \
       || { mkdir -p "$(dirname "$path")" \
         && cp -P -p "$original" "$path.pre-liza"; }; then
@@ -151,7 +149,7 @@ if [ -d "$record_dir/originals" ]; then
     else
       failed+=("saving $path.pre-liza")
     fi
-  done < <(find "$record_dir/originals" \( -type f -o -type l \) -print0)
+  done < <(finished_copies "$record_dir/originals" -print0)
 fi
 
 # --- Clean up: the contract link, emptied settings and dirs, then what is

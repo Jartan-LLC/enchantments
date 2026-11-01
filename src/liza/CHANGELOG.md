@@ -1,3 +1,29 @@
+## Unreleased
+
+- Activation backs up ignored files only where it writes: the top level,
+  `.claude/` itself, `.claude/hooks/` and the skill links in `.claude/skills/`.
+  Ignored content elsewhere, such as a workspace folder, no longer slows it
+  down; a workspace folder git shows is still backed up, so ignore it to skip
+  it. An interrupted backup leaves no copies behind, unless it is killed
+  outright.
+- Copies a backup interrupted before this release left in
+  `originals/`, in the folder `git rev-parse --git-path liza` prints
+  (`.git/liza/` outside a linked worktree), may stay: in a clone with no
+  `activation.json` in that folder, run `liza-deactivate`, compare each
+  `<name>.pre-liza` it leaves with its file and keep what you want, then run
+  `liza-activate`.
+- Activation refuses while copies of your files that an interrupted activation
+  left in the clone's git dir differ from those files, and names them all
+  to move out; the empty folders left once they're out no longer stop another
+  worktree from activating. Before, activating again replaced such a copy,
+  which may be your only one, and then deleted it. A copy that matches its
+  file doesn't stop it.
+- `liza-deactivate` drops a copy in the clone's git dir that its record
+  doesn't list when the copy matches its file, instead of putting it beside
+  the file as `<name>.pre-liza`.
+- After an interrupted `liza init`, the files put back are no longer reported
+  as not restored, and their copies no longer stay in the clone's git dir.
+
 ## 1.1.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
