@@ -473,6 +473,8 @@ for _ in $(seq 50); do
   [ "$(cat "$failed_clone/.bash-policy.yaml")" = liza-3 ] && break
   sleep 0.1
 done
+check "the stub overwrote the clone's edit before the interrupt" \
+  test "$(cat "$failed_clone/.bash-policy.yaml")" = liza-3
 kill -INT -- "-$shim_pid"
 wait "$shim_pid"
 check "an interrupted init puts back the clone's edit too" \
