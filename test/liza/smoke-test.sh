@@ -663,6 +663,74 @@ check "deactivation with no record puts a held copy beside its file" \
   test "$(cat "$held_alone/.bash-policy.yaml.pre-liza" 2>/dev/null)" = mine \
   -a ! -e "$held_alone/.git/liza"
 
+# A hold whose copy fails stops init, leaving the clone's file as it was.
+hold_fail=$(stub_clone hold-fail)
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$hold_fail" 2>/dev/null
+echo mine >"$hold_fail/.bash-policy.yaml"
+stub_liza <<'EOF'
+settings "$hook"
+echo liza-2 >.bash-policy.yaml
+EOF
+mkdir -p "$stub_home/hold-bin"
+cat >"$stub_home/hold-bin/cp" <<EOF
+#!/bin/sh
+case "\$*" in *clone-versions*) exit 1 ;; esac
+exec $(command -v cp) "\$@"
+EOF
+chmod +x "$stub_home/hold-bin/cp"
+(cd "$hold_fail" && HOME="$stub_home" PATH="$stub_home/hold-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
+hold_fail_rc=$?
+check "a hold whose copy fails exits 1 and leaves the file as it was" \
+  test "$hold_fail_rc" -eq 1 -a "$(cat "$hold_fail/.bash-policy.yaml")" = mine
+
+# When the clone's file can't be written after init, the clone's edit stays in
+# clone-versions/, named, and activation still succeeds.
+write_fail=$(stub_clone write-fail)
+write_held=$write_fail/.git/liza/clone-versions/.bash-policy.yaml
+stub_liza <<EOF
+settings "\$hook"
+cp "$liza_policy" .bash-policy.yaml
+EOF
+lines a b c d e >"$liza_policy"
+stub_init "$write_fail" 2>/dev/null
+lines mine b c d e >"$write_fail/.bash-policy.yaml"
+lines a b c d e2 >"$liza_policy"
+mkdir -p "$stub_home/write-bin"
+cat >"$stub_home/write-bin/cp" <<EOF
+#!/bin/sh
+for last; do :; done
+case "\$last" in
+  */.git/*) ;;
+  */.bash-policy.yaml.liza-tmp) exit 1 ;;
+esac
+exec $(command -v cp) "\$@"
+EOF
+chmod +x "$stub_home/write-bin/cp"
+write_fail_init() {
+  (cd "$write_fail" && HOME="$stub_home" PATH="$stub_home/write-bin:$PATH" \
+    bash "$shim" init --claude --yes </dev/null >/dev/null \
+    2>"$stub_home/write-fail.err")
+}
+write_fail_init
+write_fail_rc=$?
+check "a merge whose result can't be written still activates" \
+  test "$write_fail_rc" -eq 0
+check "and keeps the clone's edit in clone-versions/, named" \
+  test "$(cat "$write_held" 2>/dev/null)" = "$(lines mine b c d e)" \
+  -a -n "$(grep -F "$write_held" "$stub_home/write-fail.err")"
+# So does a failed init that can't put the clone's edit back.
+mv -- "$write_held" "$write_fail/.bash-policy.yaml"
+printf 'echo liza-3 >.bash-policy.yaml\nexit 1\n' | stub_liza
+write_fail_init
+check "a failed init that can't put the clone's edit back keeps it, named" \
+  test "$(cat "$write_held" 2>/dev/null)" = "$(lines mine b c d e)" \
+  -a -n "$(grep -F "${write_held%/*}" "$stub_home/write-fail.err")"
+
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.
 exclude_file=$(git rev-parse --git-path info/exclude)
