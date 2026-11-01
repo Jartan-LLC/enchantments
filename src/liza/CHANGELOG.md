@@ -14,9 +14,9 @@
 - Activation refuses while copies of your files that an interrupted activation
   left in the clone's git dir differ from those files, and names them all
   to move out; the empty folders left once they're out no longer stop another
-  worktree from activating. Running it again had replaced such a copy, which
-  may be your only one, and then deleted it. A copy that matches its file
-  doesn't stop it.
+  worktree from activating. Before, activating again replaced such a copy,
+  which may be your only one, and then deleted it. A copy that matches its
+  file doesn't stop it.
 - `liza-deactivate` drops a copy in the clone's git dir that its record
   doesn't list when the copy matches its file, instead of putting it beside
   the file as `<name>.pre-liza`.
