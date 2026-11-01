@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.0
 
 - Activation backs up ignored files only where it writes: the top level,
   `.claude/` itself, `.claude/hooks/` and the skill links in `.claude/skills/`.
@@ -27,9 +27,6 @@
   file. When it differs from the copy deactivation would save there, the run
   fails and names the copy, which stays in the clone's git dir: keep what you
   want, move the copy out of its folder, and run `liza-deactivate` again.
-
-### Minor
-
 - Activation keeps your edits to `.bash-policy.yaml` and `.claudeignore`,
   merged with what Liza changed since the last activation, where it used to
   replace them with Liza's version. Yours stays as it is, with Liza's version

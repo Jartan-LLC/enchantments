@@ -1,6 +1,4 @@
-## Unreleased
-
-### Minor
+## 1.1.0
 
 - `stripe-cli`: v1.54.0 → v1.55.1
 
