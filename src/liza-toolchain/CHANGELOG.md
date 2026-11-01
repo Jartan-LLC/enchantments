@@ -1,10 +1,7 @@
-## Unreleased
+## 1.4.0
 
 - npm lock:
   - undici: 7.30.0 → 7.30.1
-
-### Minor
-
 - `uv`: 0.13.1 → 0.13.5
 - `stacklit`: 3c0e04153fe1 → d097d2d13c17
 - `node`: v24.22.0 → v24.22.1

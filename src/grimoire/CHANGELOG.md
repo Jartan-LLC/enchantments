@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.2
 
 - Plugins install when your user settings declare the grimoire marketplace
   with a github source other than the repo's, such as one without its pinned
