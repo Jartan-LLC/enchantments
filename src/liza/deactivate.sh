@@ -64,8 +64,9 @@ record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
 
-# Nothing to undo. Originals alone are an activation interrupted before its
-# record or link was made, and are undone; so is a contract link alone.
+# Nothing to undo. Originals or held copies alone are an activation interrupted
+# before its record or link was made, and are undone; so is a contract link
+# alone.
 activated "$top" || contract_linked "$top" || finish
 
 lock=.claude/.liza-shim.lock

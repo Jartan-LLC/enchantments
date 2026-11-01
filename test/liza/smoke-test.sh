@@ -652,6 +652,16 @@ check "deactivation leaves an older .pre-liza as it is, and fails" \
   test "$older_pre_rc" -ne 0 \
   -a "$(cat "$older_pre/.bash-policy.yaml.pre-liza")" = older \
   -a -e "$older_pre/.git/liza/originals/.bash-policy.yaml"
+# A held copy with no record (a first activation interrupted before writing
+# it) goes beside its file too.
+held_alone=$(stub_clone held-alone)
+mkdir -p "$held_alone/.git/liza/clone-versions"
+echo mine >"$held_alone/.git/liza/clone-versions/.bash-policy.yaml"
+echo liza >"$held_alone/.bash-policy.yaml"
+stub_deactivate "$held_alone" 2>/dev/null
+check "deactivation with no record puts a held copy beside its file" \
+  test "$(cat "$held_alone/.bash-policy.yaml.pre-liza" 2>/dev/null)" = mine \
+  -a ! -e "$held_alone/.git/liza"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

@@ -134,12 +134,14 @@ finished_copies() { # dir find-actions...
 }
 
 # Succeeds when the clone at $1 holds this shim's activation record, or the
-# originals an interrupted activation saved. Empty folders left once the user
-# moves those out don't count.
+# originals or held copies an interrupted activation saved. Empty folders left
+# once the user moves those out don't count.
 activated() { # top
   local dir
   dir=$(record_dir_of "$1" 2>/dev/null) || return 1
   [ -f "$dir/activation.json" ] && return 0
+  [ -n "$(finished_copies "$dir/clone-versions" -print -quit 2>/dev/null)" ] \
+    && return 0
   [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 
