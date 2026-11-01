@@ -12,6 +12,9 @@
   - httpx2: 2.13.1 → 2.16.0
   - huggingface-hub: 2.2.0 → 2.3.0
   - wcwidth: 0.9.2 → 0.9.4
+- npm lock:
+  - body-parser: 2.3.0 → 2.4.0
+  - qs: 6.16.0 → 6.17.1
 
 ## 1.3.0
 
