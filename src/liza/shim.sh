@@ -350,7 +350,7 @@ for name in "${merged_files[@]}"; do
   merging+=("$name")
   [ -f "$path" ] || continue
   if ! { mkdir -p "$clone_versions" \
-    && cp -p "$path" "$clone_versions/$name"; }; then
+    && put_copy "$path" "$clone_versions/$name"; }; then
     echo "liza shim: could not hold $path before init; nothing was" \
       "changed." >&2
     exit 1

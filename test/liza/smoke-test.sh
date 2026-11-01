@@ -687,6 +687,28 @@ chmod +x "$stub_home/hold-bin/cp"
 hold_fail_rc=$?
 check "a hold whose copy fails exits 1 and leaves the file as it was" \
   test "$hold_fail_rc" -eq 1 -a "$(cat "$hold_fail/.bash-policy.yaml")" = mine
+# A hold killed mid-copy leaves no partial copy under the final name, which
+# would count as a held copy.
+hold_kill=$(stub_clone hold-kill)
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.bash-policy.yaml
+EOF
+stub_init "$hold_kill" 2>/dev/null
+echo mine >"$hold_kill/.bash-policy.yaml"
+cat >"$stub_home/hold-bin/cp" <<EOF
+#!/bin/sh
+for last; do :; done
+case "\$last" in
+  *clone-versions*) echo partial >"\$last"; kill -KILL "\$PPID" ;;
+esac
+exec $(command -v cp) "\$@"
+EOF
+(cd "$hold_kill" && HOME="$stub_home" PATH="$stub_home/hold-bin:$PATH" \
+  bash "$shim" init --claude --yes </dev/null >/dev/null) 2>/dev/null
+check "a hold killed mid-copy leaves only the unfinished copy" \
+  test -e "$hold_kill/.git/liza/clone-versions/.bash-policy.yaml.liza-tmp" \
+  -a ! -e "$hold_kill/.git/liza/clone-versions/.bash-policy.yaml"
 
 # When the clone's file can't be written after init, the clone's edit stays in
 # clone-versions/, named, and activation still succeeds.
