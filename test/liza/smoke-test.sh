@@ -170,8 +170,8 @@ for rel in "${init_paths[@]}"; do
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
 done
-# A name that isn't valid UTF-8 is left out, whatever the locale, though the
-# stub overwrites it.
+# A name that isn't valid UTF-8 is left out, whatever the caller's locale,
+# though the stub overwrites it.
 odd=$'odd\xffname'
 echo "user file" >"$ignored/$odd"
 # Copies of files init leaves alone are dropped after it, so the stub looks
@@ -228,7 +228,7 @@ chmod +x "$stub_home/term-bin/cp"
 (cd "$term" && HOME="$stub_home" PATH="$stub_home/term-bin:$PATH" \
   bash "$shim" init --claude --yes </dev/null >/dev/null 2>&1)
 term_rc=$?
-check "a backup interrupted before init exits non-zero" test "$term_rc" -ne 0
+check "a backup interrupted before init exits 130" test "$term_rc" -eq 130
 check "and leaves no copies" test ! -e "$term/.git/liza/originals"
 check "and releases both locks" \
   test ! -e "$term/.claude/.liza-shim.lock" \
