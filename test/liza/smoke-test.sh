@@ -605,6 +605,26 @@ check "deactivation puts a differing held copy beside its file, named" \
 check "and drops a matching one with the rest" \
   test ! -e "$held_deact/.claudeignore.pre-liza" \
   -a ! -e "$held_deact/.git/liza"
+# A deactivation killed while saving a <name>.pre-liza leaves no partial copy
+# under that name, which would stop its rerun.
+pre_kill=$(stub_clone pre-liza-kill)
+stub_init "$pre_kill" 2>/dev/null
+mkdir -p "$pre_kill/.git/liza/clone-versions" "$stub_home/pre-bin"
+echo mine >"$pre_kill/.git/liza/clone-versions/.bash-policy.yaml"
+cat >"$stub_home/pre-bin/cp" <<EOF
+#!/bin/sh
+for last; do :; done
+case "\$last" in
+  *.pre-liza*) echo partial >"\$last"; kill -KILL "\$PPID" ;;
+esac
+exec $(command -v cp) "\$@"
+EOF
+chmod +x "$stub_home/pre-bin/cp"
+(cd "$pre_kill" && HOME="$stub_home" PATH="$stub_home/pre-bin:$PATH" \
+  bash "$liza_dir/deactivate.sh") 2>/dev/null
+check "deactivation killed saving a .pre-liza leaves only the unfinished copy" \
+  test -e "$pre_kill/.bash-policy.yaml.pre-liza.liza-tmp" \
+  -a ! -e "$pre_kill/.bash-policy.yaml.pre-liza"
 # A <name>.pre-liza already there, such as the clone's own file from before
 # Liza that deactivation puts back first, is never replaced: a differing held
 # copy then stays where it is and deactivation fails, naming both. Once the

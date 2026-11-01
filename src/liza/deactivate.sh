@@ -46,7 +46,7 @@ keep_beside() { # copy path
     else
       failed+=("keeping $1: $2.pre-liza exists and differs")
     fi
-  elif mkdir -p "$(dirname "$2")" && cp -P -p "$1" "$2.pre-liza"; then
+  elif mkdir -p "$(dirname "$2")" && put_copy "$1" "$2.pre-liza"; then
     kept+=("$2 (your earlier version in $2.pre-liza)")
   else
     failed+=("saving $2.pre-liza")
