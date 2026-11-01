@@ -12,6 +12,10 @@ liza_toolchain=/usr/local/share/enchantments/liza-toolchain
 # The shim's exit code when it refuses an init, which a caller reports as is.
 # shellcheck disable=SC2034 # read by the scripts that source this
 liza_refused=75
+# The files init replaces without asking, which the shim holds in the record
+# dir's clone-versions/ during init and merges with the clone's edits.
+# shellcheck disable=SC2034 # read by the scripts that source this
+merged_files=(.bash-policy.yaml .claudeignore)
 
 # Prints "<path> <fingerprint>" for each existing file or symlink given, so
 # activation can record what it created and deactivation can tell whether it has
@@ -130,12 +134,14 @@ finished_copies() { # dir find-actions...
 }
 
 # Succeeds when the clone at $1 holds this shim's activation record, or the
-# originals an interrupted activation saved. Empty folders left once the user
-# moves those out don't count.
+# originals or held copies an interrupted activation saved. Empty folders left
+# once the user moves those out don't count.
 activated() { # top
   local dir
   dir=$(record_dir_of "$1" 2>/dev/null) || return 1
   [ -f "$dir/activation.json" ] && return 0
+  [ -n "$(finished_copies "$dir/clone-versions" -print -quit 2>/dev/null)" ] \
+    && return 0
   [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 

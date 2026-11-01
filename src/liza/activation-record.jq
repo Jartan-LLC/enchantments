@@ -7,8 +7,10 @@
 #   {op: "set", path, before, after} a value activation set or removed; null when absent
 #   {op: "created", path}            a container that didn't exist before activation
 # files holds {path, fp} for each file activation created, fp from activation-lib.sh's
-# fingerprint, so a file edited since can be kept. overwritten holds the same for each
-# user file init overwrote, whose original shim.sh keeps under .git/liza/originals/.
+# fingerprint, so a file edited since can be kept. For a file shim.sh merged with the
+# clone's edits, fp is that of Liza's output, not of the merged file, so deactivation
+# counts the merged file as edited. overwritten holds the same for each user file init
+# overwrote, whose original shim.sh keeps under .git/liza/originals/.
 # exclude_lines are the lines activation added to .git/info/exclude; preexisting holds
 # the files that existed before activation at paths those lines cover.
 

@@ -35,6 +35,24 @@ remove_created() {
   }
 }
 
+# Puts copy $1 beside file $2 as $2.pre-liza, and names it, unless it matches
+# $2. An existing $2.pre-liza is never replaced: one matching the copy counts as
+# kept, and a differing one is a failure, so the copy stays where it is.
+keep_beside() { # copy path
+  same_content "$2" "$1" && return 0
+  if [ -e "$2.pre-liza" ] || [ -L "$2.pre-liza" ]; then
+    if same_content "$2.pre-liza" "$1"; then
+      kept+=("$2 (your earlier version in $2.pre-liza)")
+    else
+      failed+=("keeping $1: $2.pre-liza exists and differs")
+    fi
+  elif mkdir -p "$(dirname "$2")" && put_copy "$1" "$2.pre-liza"; then
+    kept+=("$2 (your earlier version in $2.pre-liza)")
+  else
+    failed+=("saving $2.pre-liza")
+  fi
+}
+
 if [ "${1:-}" = --tools ]; then
   remove_context7
   exit
@@ -46,8 +64,9 @@ record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
 
-# Nothing to undo. Originals alone are an activation interrupted before its
-# record or link was made, and are undone; so is a contract link alone.
+# Nothing to undo. Originals or held copies alone are an activation interrupted
+# before its record or link was made, and are undone; so is a contract link
+# alone.
 activated "$top" || contract_linked "$top" || finish
 
 lock=.claude/.liza-shim.lock
@@ -93,11 +112,7 @@ else
     if [ "${now:-"$path absent"}" = "$entry" ]; then
       put_copy "$original" "$path" || failed+=("restoring $path")
     else
-      if cp -P -p "$original" "$path.pre-liza"; then
-        kept+=("$path (original in $path.pre-liza)")
-      else
-        failed+=("saving $path.pre-liza")
-      fi
+      keep_beside "$original" "$path"
     fi
   done
   # A file activation created goes, unless it was edited since.
@@ -135,22 +150,20 @@ else
 fi
 
 # An original the record doesn't list (the record's write failed after it was
-# saved) may be the user's only copy of that file: put it beside the file rather
-# than drop it. One that matches its file isn't, and goes with the rest.
+# saved) may be the user's only copy of that file, and so may a held copy an
+# interrupted activation or a failed merge write left in clone-versions/: put it
+# beside the file rather than drop it. One that matches its file isn't, and goes
+# with the rest.
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue
-    path="$top/${original#"$record_dir/originals/"}"
-    same_content "$path" "$original" && continue
-    if [ -e "$path.pre-liza" ] || [ -L "$path.pre-liza" ] \
-      || { mkdir -p "$(dirname "$path")" \
-        && cp -P -p "$original" "$path.pre-liza"; }; then
-      kept+=("$path (original in $path.pre-liza)")
-    else
-      failed+=("saving $path.pre-liza")
-    fi
+    keep_beside "$original" "$top/${original#"$record_dir/originals/"}"
   done < <(finished_copies "$record_dir/originals" -print0)
 fi
+for name in "${merged_files[@]}"; do
+  held=$record_dir/clone-versions/$name
+  [ -f "$held" ] && keep_beside "$held" "$top/$name"
+done
 
 # --- Clean up: the contract link, emptied settings and dirs, then what is
 # left for the user ---
@@ -175,11 +188,13 @@ if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
     failed+=("exclude cleanup")
   fi
 fi
-# Only a complete undo drops the record and the originals; after a failure they
-# stay, and a rerun picks up where this one stopped.
+# Only a complete undo drops the record, the originals, the held copies and
+# Liza's stored versions; after a failure they stay, and a rerun picks up where
+# this one stopped.
 if [ ${#failed[@]} -eq 0 ]; then
   rm -f -- "$record" "$record.tmp"
-  rm -rf -- "${record_dir:?}/originals"
+  rm -rf -- "${record_dir:?}/originals" "${record_dir:?}/clone-versions" \
+    "${record_dir:?}/liza-versions"
   rmdir "$record_dir" 2>/dev/null
 fi
 # Local settings activation created that still hold your own entries stay; once

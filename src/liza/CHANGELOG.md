@@ -23,6 +23,24 @@
   the file as `<name>.pre-liza`.
 - After an interrupted `liza init`, the files put back are no longer reported
   as not restored, and their copies no longer stay in the clone's git dir.
+- `liza-deactivate` no longer replaces a `<name>.pre-liza` already beside a
+  file. When it differs from the copy deactivation would save there, the run
+  fails and names the copy, which stays in the clone's git dir: keep what you
+  want, move the copy out of its folder, and run `liza-deactivate` again.
+
+### Minor
+
+- Activation keeps your edits to `.bash-policy.yaml` and `.claudeignore`,
+  merged with what Liza changed since the last activation, where it used to
+  replace them with Liza's version. Yours stays as it is, with Liza's version
+  beside it as `<name>.liza`, when the two conflict, when the file is yours
+  from before Liza, or when you edited it in a clone an earlier version
+  activated. `liza-deactivate` keeps a merged file as one you've edited.
+- A failed or interrupted `liza init` puts your `.bash-policy.yaml` and
+  `.claudeignore` back. Activation refuses while a copy of either file that an
+  interrupted or failed activation left in the clone's git dir differs from
+  the file; `liza-deactivate` puts such a copy beside the file as
+  `<name>.pre-liza`.
 
 ## 1.1.0
 

@@ -32,6 +32,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 | skills | links in `.claude/skills/` |
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
+- `liza init` replaces `.bash-policy.yaml` and `.claudeignore` without asking. Activation merges your edits to them with what Liza changed since the last activation. Yours stays as it is, with Liza's version beside it as `<name>.liza`, when the two conflict, when the file is yours from before Liza, or when you edited it in a clone an earlier version of this Feature activated. Activation's output names `<name>.liza` (the container creation log, when a lifecycle hook ran it), not the next start's report, and a later conflict replaces it, so take what you need from it before the next activation. If `liza init` fails or is interrupted, your version goes back. A symlink or directory at either path is left to `liza init`.
 - `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
 - Liza is active in one worktree of a repo at a time. To move it, run `liza-deactivate` in the active worktree, then `liza-activate` in the other.
 - Run `liza-deactivate` before `git worktree remove`; otherwise Liza's git hooks and exclude lines stay in the repo.
@@ -41,7 +42,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 
 ## Undoing activation
 
-`liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A failed run keeps its record, and running it again finishes the job.
+`liza-deactivate` removes exactly what activation recorded in the clone's git dir (`git rev-parse --git-path liza/activation.json`). A settings value you've changed since stays as you set it, and a file you've edited since is kept and named. A file of yours that `init` overwrote is restored, or saved beside it as `<name>.pre-liza` when you've edited Liza's version since. A `.bash-policy.yaml` or `.claudeignore` that activation merged with your edits counts as edited. A copy of either file that an interrupted or failed activation left in the clone's git dir, and that differs from the file, goes beside it as `<name>.pre-liza`. A `<name>.pre-liza` already there is never replaced: when it differs from the copy, deactivation fails and names the copy, which stays in the clone's git dir. A failed run keeps its record, and running it again finishes the job.
 
 ## Image requirements
 
@@ -49,7 +50,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 
 ## When something fails
 
-The container still starts, and what went wrong is printed the next time it starts. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. If activation names copies of your files that an interrupted activation left in the clone's git dir, compare each with its file, keep what you want, and move the copy out of the folder it names (`git rev-parse --git-path liza/originals`), then run `liza-activate`. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
+The container still starts, and what went wrong is printed the next time it starts. A merged `.bash-policy.yaml` or `.claudeignore`, or your version of one, that can't be written back after `liza init` is the exception: activation still succeeds, and the warning is only in its output (the container creation log, or `liza-activate`'s output). Your version stays in the clone's git dir, and the next activation refuses and names it. If a killed `liza init` left a lock behind, activation names it: remove it with `rmdir <path>`, then run `liza-activate`. If activation names copies of your files that an interrupted or failed activation left in the clone's git dir, compare each with its file, keep what you want, and move the copy out of its folder (`git rev-parse --git-path liza/originals`, or `git rev-parse --git-path liza/clone-versions` for `.bash-policy.yaml` and `.claudeignore`), then run `liza-activate`. If `liza-deactivate` names such a copy because the `<name>.pre-liza` beside its file differs from it, keep what you want, move the copy out of its folder, and run `liza-deactivate` again. To retry a step, run it from the workspace folder: `bash /usr/local/share/enchantments/liza/<hook>.sh`. If nothing was reported but it isn't set up, see `https://github.com/Jartan-LLC/enchantments/blob/main/docs/troubleshooting.md`. `liza-activate` reports at once, and exits non-zero when something failed.
 
 ## Removal
 
