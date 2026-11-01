@@ -605,6 +605,53 @@ check "deactivation puts a differing held copy beside its file, named" \
 check "and drops a matching one with the rest" \
   test ! -e "$held_deact/.claudeignore.pre-liza" \
   -a ! -e "$held_deact/.git/liza"
+# A <name>.pre-liza already there, such as the clone's own file from before
+# Liza that deactivation puts back first, is never replaced: a differing held
+# copy then stays where it is and deactivation fails, naming both. Once the
+# user moves the copy out, a rerun finishes.
+held_clash=$(stub_clone held-clash)
+stub_liza <<EOF
+settings "\$hook"
+cp "$liza_policy" .bash-policy.yaml
+EOF
+lines mine b c d e >"$held_clash/.bash-policy.yaml"
+lines a b c d e >"$liza_policy"
+stub_init "$held_clash" 2>/dev/null
+lines a b c d e2 >"$liza_policy"
+stub_init "$held_clash" 2>/dev/null
+held_clash_copy=$held_clash/.git/liza/clone-versions/.bash-policy.yaml
+mkdir -p "${held_clash_copy%/*}"
+lines mine2 b c d e2 >"$held_clash_copy"
+lines a b c d e3 >"$held_clash/.bash-policy.yaml"
+stub_deactivate "$held_clash" 2>"$stub_home/held-clash.err"
+held_clash_rc=$?
+check "deactivation keeps a held copy whose .pre-liza exists, and fails" \
+  test "$held_clash_rc" -ne 0 \
+  -a "$(cat "$held_clash_copy" 2>/dev/null)" = "$(lines mine2 b c d e2)" \
+  -a "$(cat "$held_clash/.bash-policy.yaml.pre-liza")" \
+  = "$(lines mine b c d e)" \
+  -a -n "$(grep -F "$held_clash_copy" "$stub_home/held-clash.err")"
+rm -f -- "$held_clash_copy"
+check "and a rerun finishes once the copy is moved out" \
+  stub_deactivate "$held_clash" 2>/dev/null
+check "keeping the .pre-liza it wrote" \
+  test "$(cat "$held_clash/.bash-policy.yaml.pre-liza")" \
+  = "$(lines mine b c d e)" -a ! -e "$held_clash/.git/liza"
+# Nor does the clone's own original replace a .pre-liza an earlier deactivation
+# left.
+older_pre=$(stub_clone older-pre-liza)
+lines mine b c d e >"$older_pre/.bash-policy.yaml"
+lines a b c d e >"$liza_policy"
+stub_init "$older_pre" 2>/dev/null
+lines a b c d e2 >"$liza_policy"
+stub_init "$older_pre" 2>/dev/null
+echo older >"$older_pre/.bash-policy.yaml.pre-liza"
+stub_deactivate "$older_pre" 2>/dev/null
+older_pre_rc=$?
+check "deactivation leaves an older .pre-liza as it is, and fails" \
+  test "$older_pre_rc" -ne 0 \
+  -a "$(cat "$older_pre/.bash-policy.yaml.pre-liza")" = older \
+  -a -e "$older_pre/.git/liza/originals/.bash-policy.yaml"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

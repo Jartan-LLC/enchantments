@@ -33,6 +33,10 @@
   refuses while a copy of either file that an interrupted or failed activation
   left in the clone's git dir differs from the file; `liza-deactivate` puts
   such a copy beside the file as `<name>.pre-liza`.
+- `liza-deactivate` no longer replaces a `<name>.pre-liza` already beside a
+  file. When it differs from the copy deactivation would save there, the run
+  fails and names the copy, which stays in the clone's git dir: keep what you
+  want, move the copy out of its folder, and run `liza-deactivate` again.
 
 ## 1.1.0
 

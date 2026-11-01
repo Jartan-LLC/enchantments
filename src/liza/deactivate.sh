@@ -35,6 +35,24 @@ remove_created() {
   }
 }
 
+# Puts copy $1 beside file $2 as $2.pre-liza, and names it, unless it matches
+# $2. An existing $2.pre-liza is never replaced: one matching the copy counts as
+# kept, and a differing one is a failure, so the copy stays where it is.
+keep_beside() { # copy path
+  same_content "$2" "$1" && return 0
+  if [ -e "$2.pre-liza" ] || [ -L "$2.pre-liza" ]; then
+    if same_content "$2.pre-liza" "$1"; then
+      kept+=("$2 (original in $2.pre-liza)")
+    else
+      failed+=("keeping $1: $2.pre-liza exists and differs")
+    fi
+  elif mkdir -p "$(dirname "$2")" && cp -P -p "$1" "$2.pre-liza"; then
+    kept+=("$2 (original in $2.pre-liza)")
+  else
+    failed+=("saving $2.pre-liza")
+  fi
+}
+
 if [ "${1:-}" = --tools ]; then
   remove_context7
   exit
@@ -93,11 +111,7 @@ else
     if [ "${now:-"$path absent"}" = "$entry" ]; then
       put_copy "$original" "$path" || failed+=("restoring $path")
     else
-      if cp -P -p "$original" "$path.pre-liza"; then
-        kept+=("$path (original in $path.pre-liza)")
-      else
-        failed+=("saving $path.pre-liza")
-      fi
+      keep_beside "$original" "$path"
     fi
   done
   # A file activation created goes, unless it was edited since.
@@ -139,15 +153,6 @@ fi
 # interrupted activation or a failed merge write left in clone-versions/: put it
 # beside the file rather than drop it. One that matches its file isn't, and goes
 # with the rest.
-keep_beside() { # copy path
-  same_content "$2" "$1" && return 0
-  if [ -e "$2.pre-liza" ] || [ -L "$2.pre-liza" ] \
-    || { mkdir -p "$(dirname "$2")" && cp -P -p "$1" "$2.pre-liza"; }; then
-    kept+=("$2 (original in $2.pre-liza)")
-  else
-    failed+=("saving $2.pre-liza")
-  fi
-}
 if [ -d "$record_dir/originals" ]; then
   while IFS= read -r -d '' original; do
     in_list "$original" "${accounted[@]}" && continue

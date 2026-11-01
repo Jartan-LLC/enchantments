@@ -23,6 +23,9 @@ Sections are months, newest first.
   `clone-versions/` in the clone's git dir, compare it with your file, keep
   what you want and move the copy out of that folder, then run
   `liza-activate`.
+- `liza`: when `liza-deactivate` fails naming a copy of your file because a
+  `<name>.pre-liza` already beside the file differs from it, keep what you
+  want, move the copy out of its folder, then run `liza-deactivate` again.
 
 ## 2026-10
 
