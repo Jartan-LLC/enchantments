@@ -27,7 +27,8 @@
   merged with what Liza changed since the last activation, where it used to
   replace them with Liza's version. When the two conflict, or the file is yours
   from before Liza, yours stays and Liza's version goes beside it as
-  `<name>.liza`.
+  `<name>.liza`. A failed or interrupted `liza init` puts your version back,
+  and `liza-deactivate` keeps a merged file as one you've edited.
 
 ## 1.1.0
 

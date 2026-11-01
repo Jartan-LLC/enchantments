@@ -243,33 +243,53 @@ for path in "${!fp_before[@]}"; do
   fi
 done
 
+# The clone's versions of the files init replaces without asking, held for
+# the run below, with their fingerprints.
+clone_versions="$record_dir/clone-versions"
+declare -A held_fp=()
+drop_held() {
+  rm -rf -- "$clone_versions"
+}
+
+# Puts the copy of the file at $1 back from the directory $2, and sets the
+# caller's replaced when it set the file aside first.
+restore_from() { # path copy-dir
+  local rel=${1#"$top"/}
+  if [ -e "$1" ] || [ -L "$1" ]; then
+    if ! { mkdir -p "$(dirname "$record_dir/replaced/$rel")" \
+      && cp -P -p "$1" "$record_dir/replaced/$rel"; }; then
+      echo "liza shim: left $1 as the failed init left it; its original is" \
+        "in $2." >&2
+      return 1
+    fi
+    replaced=true
+  fi
+  put_copy "$2/$rel" "$1" && return 0
+  echo "liza shim: could not restore $1 after the failed init; its original" \
+    "is in $2." >&2
+  return 1
+}
+
 # A failed or interrupted init is undone for the user's files too: each
-# candidate it changed goes back from originals/. What it replaces could be
-# init's write or the user's own edit made during init, which can't be told
-# apart, so that is set aside in replaced/.
-restore_candidates() {
-  local path rel replaced=false kept=()
+# candidate it changed goes back from originals/, and each held file from
+# clone-versions/. What it replaces could be init's write or the user's own
+# edit made during init, which can't be told apart, so that is set aside in
+# replaced/.
+restore_after_failure() {
+  local path name replaced=false kept=() keep_held=false
   for path in "${!fp_before[@]}"; do
     [ "$(fingerprint "$path")" = "${fp_before[$path]}" ] && continue
-    rel=${path#"$top"/}
-    if [ -e "$path" ] || [ -L "$path" ]; then
-      if ! { mkdir -p "$(dirname "$record_dir/replaced/$rel")" \
-        && cp -P -p "$path" "$record_dir/replaced/$rel"; }; then
-        kept+=("$path")
-        echo "liza shim: left $path as the failed init left it; its original" \
-          "is in $originals." >&2
-        continue
-      fi
-      replaced=true
-    fi
-    put_copy "$originals/$rel" "$path" && continue
-    kept+=("$path")
-    echo "liza shim: could not restore $path after the failed init; its" \
-      "original is in $originals." >&2
+    restore_from "$path" "$originals" || kept+=("$path")
+  done
+  for name in "${!held_fp[@]}"; do
+    path=$top/$name
+    [ "$(fingerprint "$path")" = "${held_fp[$name]}" ] && continue
+    restore_from "$path" "$clone_versions" || keep_held=true
   done
   $replaced && echo "liza shim: restored the files the failed init changed;" \
     "what it replaced is in $record_dir/replaced." >&2
   prune_originals "${kept[@]}"
+  $keep_held || drop_held
 }
 
 # --- Swap the local settings in for init to merge into ---
@@ -304,18 +324,14 @@ release() {
 [ -f "$local_settings" ] && cp -p "$local_settings" "$backup_settings"
 [ -f "$shared_settings" ] && mv "$shared_settings" "$held_settings"
 [ -f "$local_settings" ] && mv "$local_settings" "$shared_settings"
-trap 'release; restore_candidates; drop_held; unlock' EXIT
+trap 'release; restore_after_failure; unlock' EXIT
 
 # --- Hold the clone's versions of the files init replaces without asking ---
 # With --yes, init replaces these, and once Liza created one, the record lists
 # it, so it isn't backed up above. A symlink or a directory there is left to
 # init.
 merged_files=(.bash-policy.yaml .claudeignore)
-clone_versions="$record_dir/clone-versions"
 liza_versions="$record_dir/liza-versions"
-drop_held() {
-  rm -rf -- "$clone_versions"
-}
 merging=()
 for name in "${merged_files[@]}"; do
   path=$top/$name
@@ -330,6 +346,7 @@ for name in "${merged_files[@]}"; do
       "changed." >&2
     exit 1
   fi
+  held_fp[$name]=$(fingerprint "$path")
 done
 
 # --- Run Liza's init ---
@@ -341,13 +358,11 @@ rc=$?
 release
 trap unlock EXIT
 if [ "$rc" -ne 0 ]; then
-  restore_candidates
-  drop_held
+  restore_after_failure
   exit "$rc"
 fi
 if ! $init_ok; then
-  restore_candidates
-  drop_held
+  restore_after_failure
   echo "liza shim: init left no valid Liza hooks in settings.local.json;" \
     "restored it and linked nothing." >&2
   exit 1
@@ -383,6 +398,7 @@ keep_clone_version() { # path held base
 # not have written it, and the clone's file as a base would later merge Liza's
 # template over the clone's content.
 keep_held=false
+declare -A liza_fp=()
 for name in "${merging[@]}"; do
   path=$top/$name held=$clone_versions/$name liza_output=$path
   { [ -f "$path" ] && [ ! -L "$path" ]; } || continue
@@ -393,6 +409,8 @@ for name in "${merging[@]}"; do
       continue
     fi
     liza_output=$held.liza
+    fp=$(fingerprint "$liza_output")
+    liza_fp[$path]=${fp##* }
   fi
   { mkdir -p "$liza_versions" \
     && put_copy "$liza_output" "$liza_versions/$name"; } \
@@ -400,6 +418,14 @@ for name in "${merging[@]}"; do
       "time." >&2
 done
 $keep_held || drop_held
+
+# Prints a fingerprint entry, with Liza's output's fingerprint for a file merged
+# above: deactivation then counts the clone's edits in it as made since
+# activation, and keeps the file.
+as_liza_wrote() { # entry
+  local path=${1% *}
+  printf '%s %s\n' "$path" "${liza_fp[$path]:-${1##* }}"
+}
 
 # --- Finish activation locally ---
 # rtk's own `rtk init -g` writes this hook to
@@ -477,14 +503,14 @@ for path in "${!fp_before[@]}"; do
   now=$(fingerprint "$path")
   now=${now:-"$path absent"}
   [ "$now" != "${fp_before[$path]}" ] || continue
-  overwritten+=("$now") keep+=("$path")
+  overwritten+=("$(as_liza_wrote "$now")") keep+=("$path")
 done
 # A file an earlier activation overwrote keeps that first original; one this
 # init rewrote again takes the new fingerprint, so deactivate still restores it.
 for path in "${saved[@]}"; do
   now=$(fingerprint "$path")
   [ "$now" != "${saved_before[$path]}" ] \
-    && overwritten+=("${now:-"$path absent"}")
+    && overwritten+=("$(as_liza_wrote "${now:-"$path absent"}")")
 done
 prune_originals "${keep[@]}"
 
@@ -517,7 +543,8 @@ if ! { record_jq 'record_activation($pre[0]; $post[0]; $created;
   --slurpfile post "$local_settings" \
   --arg created "$(fingerprint "${created[@]}")" \
   --arg recorded_before "$recorded_before" \
-  --arg recorded_after "$(fingerprint "${recorded_files[@]}")" \
+  --arg recorded_after "$(fingerprint "${recorded_files[@]}" \
+    | while IFS= read -r entry; do as_liza_wrote "$entry"; done)" \
   --arg git_before "$git_before" \
   --arg git_after "$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)" \
   --arg overwritten "$(printf '%s\n' "${overwritten[@]}")" \
