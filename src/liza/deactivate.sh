@@ -175,11 +175,12 @@ if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
     failed+=("exclude cleanup")
   fi
 fi
-# Only a complete undo drops the record and the originals; after a failure they
-# stay, and a rerun picks up where this one stopped.
+# Only a complete undo drops the record, the originals and Liza's stored
+# versions; after a failure they stay, and a rerun picks up where this one
+# stopped.
 if [ ${#failed[@]} -eq 0 ]; then
   rm -f -- "$record" "$record.tmp"
-  rm -rf -- "${record_dir:?}/originals"
+  rm -rf -- "${record_dir:?}/originals" "${record_dir:?}/liza-versions"
   rmdir "$record_dir" 2>/dev/null
 fi
 # Local settings activation created that still hold your own entries stay; once

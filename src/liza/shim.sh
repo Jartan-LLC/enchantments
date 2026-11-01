@@ -304,7 +304,33 @@ release() {
 [ -f "$local_settings" ] && cp -p "$local_settings" "$backup_settings"
 [ -f "$shared_settings" ] && mv "$shared_settings" "$held_settings"
 [ -f "$local_settings" ] && mv "$local_settings" "$shared_settings"
-trap 'release; restore_candidates; unlock' EXIT
+trap 'release; restore_candidates; drop_held; unlock' EXIT
+
+# --- Hold the clone's versions of the files init replaces without asking ---
+# With --yes, init replaces these, and once Liza created one, the record lists
+# it, so it isn't backed up above. A symlink or a directory there is left to
+# init.
+merged_files=(.bash-policy.yaml .claudeignore)
+clone_versions="$record_dir/clone-versions"
+liza_versions="$record_dir/liza-versions"
+drop_held() {
+  rm -rf -- "$clone_versions"
+}
+merging=()
+for name in "${merged_files[@]}"; do
+  path=$top/$name
+  if [ -L "$path" ] || { [ -e "$path" ] && [ ! -f "$path" ]; }; then
+    continue
+  fi
+  merging+=("$name")
+  [ -f "$path" ] || continue
+  if ! { mkdir -p "$clone_versions" \
+    && cp -p "$path" "$clone_versions/$name"; }; then
+    echo "liza shim: could not hold $path before init; nothing was" \
+      "changed." >&2
+    exit 1
+  fi
+done
 
 # --- Run Liza's init ---
 "$real_liza" "$@"
@@ -316,14 +342,64 @@ release
 trap unlock EXIT
 if [ "$rc" -ne 0 ]; then
   restore_candidates
+  drop_held
   exit "$rc"
 fi
 if ! $init_ok; then
   restore_candidates
+  drop_held
   echo "liza shim: init left no valid Liza hooks in settings.local.json;" \
     "restored it and linked nothing." >&2
   exit 1
 fi
+
+# --- Merge the clone's edits into the files init replaced ---
+# Puts the clone's version of the file at $1, held in $2, back after init,
+# merged with what Liza changed since its output in $3. Without that base, or
+# on a conflict, it goes back as it was, with Liza's output beside it. Leaves
+# Liza's output in $2.liza.
+keep_clone_version() { # path held base
+  local merged=$1.liza-merged
+  if ! cp -p "$1" "$2.liza"; then
+    echo "liza shim: could not merge your $1 after init; it is in $2." >&2
+    return 1
+  fi
+  if [ -f "$3" ] && cp -p "$2" "$merged" \
+    && git merge-file -q -p "$2" "$3" "$2.liza" >"$merged" \
+    && mv -f "$merged" "$1"; then
+    return 0
+  fi
+  rm -f -- "$merged"
+  if ! { put_copy "$2.liza" "$1.liza" && put_copy "$2" "$1"; }; then
+    echo "liza shim: could not put your $1 back after init; it is in $2." >&2
+    return 1
+  fi
+  echo "liza shim: kept your $1 over Liza's version, which is in $1.liza;" \
+    "merge what you need from it." >&2
+}
+
+# Wherever init wrote the file, Liza's output becomes the next merge base, so a
+# conflict is reported once. A file init left alone keeps its base: Liza may
+# not have written it, and the clone's file as a base would later merge Liza's
+# template over the clone's content.
+keep_held=false
+for name in "${merging[@]}"; do
+  path=$top/$name held=$clone_versions/$name liza_output=$path
+  { [ -f "$path" ] && [ ! -L "$path" ]; } || continue
+  if [ -f "$held" ]; then
+    cmp -s "$held" "$path" && continue
+    if ! keep_clone_version "$path" "$held" "$liza_versions/$name"; then
+      keep_held=true
+      continue
+    fi
+    liza_output=$held.liza
+  fi
+  { mkdir -p "$liza_versions" \
+    && put_copy "$liza_output" "$liza_versions/$name"; } \
+    || echo "liza shim: could not keep Liza's $name to merge with next" \
+      "time." >&2
+done
+$keep_held || drop_held
 
 # --- Finish activation locally ---
 # rtk's own `rtk init -g` writes this hook to

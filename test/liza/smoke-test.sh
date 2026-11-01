@@ -164,7 +164,7 @@ touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
 ln -s user-skill "$ignored/.claude/skills/stub-skill"
 echo notes >"$ignored/.claude/skills/real/SKILL.md"
 echo /.claude/skills/ >>"$ignored/.git/info/exclude"
-init_paths=(.bash-policy.yaml .claude/notes.md .claude/hooks/user.sh
+init_paths=(.user-tool.yaml .claude/notes.md .claude/hooks/user.sh
   .claude/hooks/sub/x.sh)
 for rel in "${init_paths[@]}"; do
   echo "user file" >"$ignored/$rel"
@@ -326,12 +326,12 @@ check "another worktree activates once the copies are moved out" \
 matching=$(stub_clone matching)
 match_originals=$matching/.git/liza/originals
 mkdir -p "$match_originals/.claude"
-for rel in .bash-policy.yaml .claude/notes.md; do
+for rel in .user-tool.yaml .claude/notes.md; do
   echo "user file" >"$matching/$rel"
   echo "user file" >"$match_originals/$rel"
 done
-chmod 640 "$matching/.bash-policy.yaml"
-chmod 600 "$match_originals/.bash-policy.yaml"
+chmod 640 "$matching/.user-tool.yaml"
+chmod 600 "$match_originals/.user-tool.yaml"
 ln -s target "$matching/.claude/link"
 ln -s target "$match_originals/.claude/link"
 # Copies a killed backup didn't finish, of a file init may write and of one
@@ -340,24 +340,81 @@ echo partial >"$match_originals/.claude/notes.md.liza-tmp"
 echo partial >"$match_originals/gone.md.liza-tmp"
 stub_liza <<'EOF'
 settings "$hook"
-echo liza >.bash-policy.yaml
+echo liza >.user-tool.yaml
 EOF
 stub_init "$matching" 2>/dev/null
 matching_rc=$?
 check "init goes ahead over copies matching their files" \
   test "$matching_rc" -eq 0
 check "and keeps the copy of the file it overwrote" \
-  test "$(cat "$match_originals/.bash-policy.yaml")" = "user file"
+  test "$(cat "$match_originals/.user-tool.yaml")" = "user file"
 check "and drops the copies of the files it left alone" \
   test ! -e "$match_originals/.claude/notes.md" \
   -a ! -L "$match_originals/.claude/link" \
   -a ! -e "$match_originals/.claude/notes.md.liza-tmp"
 stub_deactivate "$matching" 2>/dev/null
 check "deactivation puts the overwritten file back, with its mode" \
-  test "$(cat "$matching/.bash-policy.yaml")" = "user file" \
-  -a "$(stat -c %a "$matching/.bash-policy.yaml")" = 640
+  test "$(cat "$matching/.user-tool.yaml")" = "user file" \
+  -a "$(stat -c %a "$matching/.user-tool.yaml")" = 640
 check "and puts no unfinished copy beside its file" \
   test ! -e "$matching/gone.md.liza-tmp.pre-liza"
+
+# A clone's edits to .bash-policy.yaml, which `--yes` lets init replace, are
+# merged with what Liza changed since the last activation, or kept with Liza's
+# version beside them when the two conflict.
+policy=$(stub_clone policy)
+liza_policy="$stub_home/liza-policy"
+lines() { printf '%s\n' "$@"; }
+stub_liza <<EOF
+settings "\$hook"
+cp "$liza_policy" .bash-policy.yaml
+EOF
+lines a b c d e >"$liza_policy"
+stub_init "$policy" 2>/dev/null
+lines mine b c d e >"$policy/.bash-policy.yaml"
+stub_init "$policy" 2>"$stub_home/policy.err"
+check "re-activation keeps the clone's edit to a file Liza created" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e)" \
+  -a ! -e "$policy/.bash-policy.yaml.liza" -a ! -s "$stub_home/policy.err"
+lines a b c d e2 >"$liza_policy"
+stub_init "$policy" 2>/dev/null
+check "and merges what Liza changed since" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e2)"
+lines a3 b c d e2 >"$liza_policy"
+stub_init "$policy" 2>"$stub_home/policy.err"
+check "a conflicting change keeps the clone's version" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e2)"
+check "and puts Liza's beside it, named" \
+  test "$(cat "$policy/.bash-policy.yaml.liza")" = "$(lines a3 b c d e2)" \
+  -a -n "$(grep -F .bash-policy.yaml.liza "$stub_home/policy.err")"
+stub_init "$policy" 2>"$stub_home/policy.err"
+check "the next activation with the same output merges cleanly" \
+  test "$(cat "$policy/.bash-policy.yaml")" = "$(lines mine b c d e2)" \
+  -a ! -s "$stub_home/policy.err"
+check "and git status stays clean" \
+  test -z "$(git -C "$policy" status --porcelain)"
+stub_deactivate "$policy" 2>/dev/null
+check "deactivation removes Liza's version and the stored ones" \
+  test ! -e "$policy/.bash-policy.yaml.liza" -a ! -e "$policy/.git/liza"
+
+# A clone's own .claudeignore from before Liza has no merge base: it's kept,
+# with Liza's version beside it.
+own=$(stub_clone own-claudeignore)
+echo "user ignore" >"$own/.claudeignore"
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >.claudeignore
+EOF
+stub_init "$own" 2>"$stub_home/own.err"
+check "a clone's own .claudeignore is kept" \
+  test "$(cat "$own/.claudeignore")" = "user ignore"
+check "and Liza's goes beside it, named" \
+  test "$(cat "$own/.claudeignore.liza")" = liza \
+  -a -n "$(grep -F .claudeignore.liza "$stub_home/own.err")"
+stub_deactivate "$own" 2>/dev/null
+check "deactivation leaves it and removes Liza's and the stored versions" \
+  test "$(cat "$own/.claudeignore")" = "user ignore" \
+  -a ! -e "$own/.claudeignore.liza" -a ! -e "$own/.git/liza"
 
 # The pre-activation state, with a hook of the user's own, for the deactivation
 # checks.

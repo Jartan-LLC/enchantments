@@ -23,6 +23,11 @@
   the file as `<name>.pre-liza`.
 - After an interrupted `liza init`, the files put back are no longer reported
   as not restored, and their copies no longer stay in the clone's git dir.
+- Activation keeps your edits to `.bash-policy.yaml` and `.claudeignore`,
+  merged with what Liza changed since the last activation, where it used to
+  replace them with Liza's version. When the two conflict, or the file is yours
+  from before Liza, yours stays and Liza's version goes beside it as
+  `<name>.liza`.
 
 ## 1.1.0
 
