@@ -764,7 +764,8 @@ check "a merge whose result can't be written still activates" \
   test "$write_fail_rc" -eq 0
 check "and keeps the clone's edit in clone-versions/, named" \
   test "$(cat "$write_held" 2>/dev/null)" = "$(lines mine b c d e)" \
-  -a -n "$(grep -F "$write_held" "$stub_home/write-fail.err")"
+  -a -n "$(grep -F "$write_held" "$stub_home/write-fail.err")" \
+  -a ! -e "$write_fail/.bash-policy.yaml.liza"
 # So does a failed init that can't put the clone's edit back.
 mv -- "$write_held" "$write_fail/.bash-policy.yaml"
 printf 'echo liza-3 >.bash-policy.yaml\nexit 1\n' | stub_liza

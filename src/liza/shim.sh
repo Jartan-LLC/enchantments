@@ -391,9 +391,12 @@ keep_clone_version() { # path held base
   # cp -p gives the result the clone's file mode; the merge then replaces its
   # content.
   if [ -f "$3" ] && cp -p "$2" "$merged" \
-    && git merge-file -q -p "$2" "$3" "$2.liza" >"$merged" \
-    && put_copy "$merged" "$1"; then
-    return 0
+    && git merge-file -q -p "$2" "$3" "$2.liza" >"$merged"; then
+    put_copy "$merged" "$1" && return 0
+    rm -f -- "$merged"
+    echo "liza shim: merged your $1 with Liza's changes but could not write" \
+      "the result; your version is in $2." >&2
+    return 1
   fi
   rm -f -- "$merged"
   if ! { put_copy "$2.liza" "$1.liza" && put_copy "$2" "$1"; }; then
