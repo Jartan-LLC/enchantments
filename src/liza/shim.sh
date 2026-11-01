@@ -137,8 +137,7 @@ init_area_untracked() { # ls-files-options...
 # replaces a symlink with a link to Liza's skill.
 # Every top-level one counts, as init's top-level files aren't a fixed list.
 # The rest, such as a workspace folder, would only slow the backup, which
-# fingerprints and copies each file. Shown ones all count: git status lists
-# them, so they are few, and each stays backed up wherever it is in the area.
+# fingerprints and copies each file.
 init_write_ignored() {
   init_area_untracked --ignored --exclude-standard \
     | LC_ALL=C grep -z -x -E \
@@ -182,6 +181,8 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
+# Shown untracked files all count: git status lists them, so they are few, and
+# each stays backed up wherever it is in the area.
 # Under C.UTF-8, '.' doesn't match a byte that isn't valid UTF-8, which leaves
 # such names out: init's are ASCII. Without that locale, grep falls back to C
 # and keeps them.
