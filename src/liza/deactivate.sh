@@ -42,12 +42,12 @@ keep_beside() { # copy path
   same_content "$2" "$1" && return 0
   if [ -e "$2.pre-liza" ] || [ -L "$2.pre-liza" ]; then
     if same_content "$2.pre-liza" "$1"; then
-      kept+=("$2 (original in $2.pre-liza)")
+      kept+=("$2 (your earlier version in $2.pre-liza)")
     else
       failed+=("keeping $1: $2.pre-liza exists and differs")
     fi
   elif mkdir -p "$(dirname "$2")" && cp -P -p "$1" "$2.pre-liza"; then
-    kept+=("$2 (original in $2.pre-liza)")
+    kept+=("$2 (your earlier version in $2.pre-liza)")
   else
     failed+=("saving $2.pre-liza")
   fi
