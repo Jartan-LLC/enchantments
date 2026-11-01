@@ -1,3 +1,18 @@
+## Unreleased
+
+### Minor
+
+- `uv`: 0.13.1 → 0.13.5
+- `stacklit`: 3c0e04153fe1 → d097d2d13c17
+- `node`: v24.22.0 → v24.22.1
+- `go`: 1.27.2 → 1.27.3
+- `semble`: filelock==4.2.1, httpcore2==2.13.1, httpx2==2.13.1, huggingface-hub==2.2.0, wcwidth==0.9.2 → filelock==4.2.4, httpcore2==2.16.0, httpx2==2.16.0, huggingface-hub==2.3.0, wcwidth==0.9.4
+  - filelock: 4.2.1 → 4.2.4
+  - httpcore2: 2.13.1 → 2.16.0
+  - httpx2: 2.13.1 → 2.16.0
+  - huggingface-hub: 2.2.0 → 2.3.0
+  - wcwidth: 0.9.2 → 0.9.4
+
 ## 1.3.0
 
 - Creating the container no longer re-owns files of another uid in the volume,
