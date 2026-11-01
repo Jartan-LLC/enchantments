@@ -5,7 +5,8 @@
   Ignored content elsewhere, such as a workspace folder, no longer slows it
   down; a workspace folder git shows is still backed up, so ignore it to skip
   it. An interrupted backup leaves no copies behind, unless it is killed
-  outright. Copies a backup interrupted before this release left in
+  outright.
+- Copies a backup interrupted before this release left in
   `originals/`, in the folder `git rev-parse --git-path liza` prints
   (`.git/liza/` outside a linked worktree), may stay: in a clone with no
   `activation.json` in that folder, run `liza-deactivate`, compare each

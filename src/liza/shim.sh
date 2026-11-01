@@ -182,8 +182,8 @@ for path in "${saved[@]}"; do
   saved_before[$path]=$(fingerprint "$path")
 done
 candidates=()
-# Shown untracked files all count, wherever they are in the area, as on main: a
-# repo whose git status lists many of them can ignore them to skip the backup.
+# Shown untracked files all count, wherever they are in the area: a repo whose
+# git status lists many of them can ignore them to skip the backup.
 # Under C.UTF-8, '.' doesn't match a byte that isn't valid UTF-8, which leaves
 # such names out: init's are ASCII. Without that locale, grep falls back to C
 # and keeps them.
