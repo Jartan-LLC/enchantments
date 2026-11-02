@@ -31,7 +31,7 @@ repos:
         files: ^(src|lib|test|\.github/scripts)/.*\.sh$
         exclude: /pins\.sh$ # its digests are unsplittable literals
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
+    rev: 341e2a331ba578029e66c2e01183e7a6b5ca9ab4 # frozen: v0.24.0
     hooks:
       - id: markdownlint-cli2
   - repo: https://github.com/lycheeverse/lychee
@@ -53,7 +53,7 @@ repos:
   # The CLI has no validate command. Bump the schema's commit when a Feature needs a
   # property it predates: the schema rejects any property it doesn't list.
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0494aa7fa1314e98913a41227d8f0a515b2c1049 # frozen: 0.38.2
+    rev: a76b92851fc9eede9f9bc4073eb55202f34eb0df # frozen: 0.39.0
     hooks:
       - id: check-jsonschema
         name: validate devcontainer-feature.json
