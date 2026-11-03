@@ -13,27 +13,17 @@
   you ran it in and undo what Liza changed there.
 - Activation no longer needs git 2.36.
 
-### Major
-
-- When `CLAUDE.local.md` is a symlink of yours, activation links the
-  contract at `.claude/CLAUDE.md` instead and leaves your symlink as it is,
-  where it used to replace it with the contract link. Claude doesn't load
-  `.claude/CLAUDE.md` in a worktree inside the clone, such as a multi-agent
-  task's, and when `.claude/CLAUDE.md` is taken too, by your own file or one
-  the project commits, activation refuses and names both. To keep the
-  contract at `CLAUDE.local.md`, move your symlink aside and run
-  `liza-activate`. A clone whose symlink an earlier activation replaced
-  keeps the contract at `CLAUDE.local.md`.
-
 ### Minor
 
-- When `CLAUDE.local.md` is your own file, activation links the contract at
-  `.claude/CLAUDE.md` instead and leaves yours as it is, where it used to
-  warn and leave the contract unloaded. When `.claude/CLAUDE.md` is taken
-  too, by your own file or one the project commits, activation refuses and
-  names both, where it used to activate without the contract. Claude doesn't
-  load `.claude/CLAUDE.md` in a worktree inside the clone, such as a
-  multi-agent task's.
+- When `CLAUDE.local.md` is your own file or symlink, activation links the
+  contract at `.claude/CLAUDE.md` instead and leaves yours as it is. A file
+  used to leave the contract unloaded, with a warning; a symlink was
+  replaced with the contract link. When `.claude/CLAUDE.md` is taken too, by
+  your own file or one the project commits, activation refuses and names
+  both. To keep the contract at `CLAUDE.local.md`, move yours aside and run
+  `liza-activate`; a clone whose symlink an earlier activation replaced
+  keeps it there. Claude doesn't load `.claude/CLAUDE.md` in a worktree
+  inside the clone, such as a multi-agent task's.
 
 ## 1.2.0
 
