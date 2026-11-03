@@ -1,3 +1,13 @@
+## Unreleased
+
+- Liza is activated only in a repo's main checkout. From a linked worktree,
+  `liza init` wrote to the main checkout, its committed
+  `.claude/settings.json` included, and activation then failed; container
+  creation now skips a linked worktree with a note, and `liza-activate`
+  refuses there. `liza -C <dir> init` activates the clone you're in, where
+  Liza writes, instead of protecting `<dir>`'s files. Activation no longer
+  needs git 2.36.
+
 ## 1.2.0
 
 - Activation backs up ignored files only where it writes: the top level,

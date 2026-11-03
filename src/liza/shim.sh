@@ -11,16 +11,11 @@ real_liza="$HOME/.liza/libexec/liza"
 
 # Global flags can precede the subcommand; -C/--project-root and
 # --update-channel take a value.
-subcommand="" project_root=""
+subcommand=""
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[i]}" in
-    -C | --project-root)
-      project_root="${args[i + 1]:-}"
-      ((i++))
-      ;;
-    --project-root=*) project_root="${args[i]#*=}" ;;
-    --update-channel) ((i++)) ;;
+    -C | --project-root | --update-channel) ((i++)) ;;
     -*) ;;
     *)
       subcommand="${args[i]}"
@@ -34,7 +29,8 @@ for arg in "$@"; do
   case "$arg" in -h | --help) exec "$real_liza" "$@" ;; esac
 done
 
-top=$(git -C "${project_root:-.}" rev-parse --show-toplevel) || exit 1
+# Liza's init takes its root from the working directory, whatever -C says.
+top=$(git rev-parse --show-toplevel) || exit 1
 claude_dir="$top/.claude"
 shared_settings="$claude_dir/settings.json"
 local_settings="$claude_dir/settings.local.json"
@@ -63,38 +59,22 @@ take_lock() { # dir holder
   exit 1
 }
 
+why=$(main_checkout "$top") || refuse "$why."
+
 # --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the
 # already-swapped files. Held until the record is written, so a deactivate or
-# another init can't interleave. The repo's lock keeps two worktrees from
-# activating at once. Each is released only by the run that took it.
-# Checked before any git path is built: git paths need 2.31.
-old_git="git can't list this repo's worktrees, so another one's activation"
-old_git+=" can't be ruled out; Liza needs git 2.36 or later."
-git -C "$top" worktree list --porcelain -z >/dev/null 2>&1 \
-  || refuse "$old_git"
+# another init can't interleave. Released only by the run that took it.
 lock="$claude_dir/.liza-shim.lock"
-repo_lock="$(git -C "$top" rev-parse --path-format=absolute \
-  --git-common-dir)/liza-activation.lock"
-have_lock=false have_repo_lock=false
+have_lock=false
 unlock() {
   if $have_lock; then rmdir "$lock"; fi
-  if $have_repo_lock; then rmdir "$repo_lock"; fi
 }
 trap unlock EXIT
 trap 'exit 130' INT TERM
 mkdir -p "$claude_dir"
 take_lock "$lock" "another init"
 have_lock=true
-take_lock "$repo_lock" "another worktree's init"
-have_repo_lock=true
-# A repo's worktrees share its git hooks and exclude file.
-active=$(other_activation "$top")
-case $? in
-  0) refuse "Liza is active in $active, another worktree of this repo; run" \
-    "liza-deactivate there first." ;;
-  2) refuse "$old_git" ;;
-esac
 if [ -e "$held_settings" ]; then
   refuse "$held_settings exists from an interrupted init; move it back to" \
     "settings.json (and any settings.local.json.liza-shim-backup back to" \
