@@ -63,11 +63,14 @@ local_settings=$top/.claude/settings.local.json
 record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
+held_contract=$record_dir/$held_contract_name
 
 # Nothing to undo. Originals or held copies alone are an activation interrupted
 # before its record or link was made, and are undone; so is a contract link
-# alone.
-activated "$top" || contract_linked "$top" || finish
+# alone, and so is a held CLAUDE.local.md alone: a committed one isn't backed
+# up, and init may be killed before it links the contract.
+activated "$top" || contract_linked "$top" || [ -e "$held_contract" ] \
+  || [ -L "$held_contract" ] || finish
 
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
@@ -82,8 +85,8 @@ recorded_paths=() # the files activation created
 kept=()           # what is left for the user to check
 accounted=()      # originals the record lists
 if ! jq -e . "$record" >/dev/null 2>&1; then
-  # No readable record: only the contract link and any saved originals can be
-  # undone.
+  # No readable record: only the contract link, a held CLAUDE.local.md and any
+  # saved originals can be undone.
   echo "deactivate: no readable activation record, so Liza's settings" \
     "entries and files were left; check $local_settings and" \
     "$exclude_file." >&2
@@ -149,6 +152,14 @@ else
   done
 fi
 
+# A killed init can leave the user's CLAUDE.local.md held. It goes back before
+# the originals are checked, so any backup of it in originals/ matches it and
+# goes, rather than landing beside it as CLAUDE.local.md.pre-liza.
+if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
+  put_back_contract "${contract_places[0]}" "$held_contract" \
+    || failed+=("putting $held_contract back")
+fi
+
 # An original the record doesn't list (the record's write failed after it was
 # saved) may be the user's only copy of that file, and so may a held copy an
 # interrupted activation or a failed merge write left in clone-versions/: put it
@@ -171,7 +182,9 @@ if [ -f "$local_settings" ] \
   && [ "$(jq -c . "$local_settings" 2>/dev/null)" = "{}" ]; then
   rm -f "$local_settings"
 fi
-contract_linked "$top" && remove_created CLAUDE.local.md
+for name in "${contract_places[@]}"; do
+  contract_link "$name" && remove_created "$name"
+done
 rmdir .claude/hooks .claude/skills 2>/dev/null
 
 # After a failure the exclude lines stay too, so what's left stays hidden until

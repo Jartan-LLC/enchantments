@@ -172,8 +172,4 @@ activate_clone() { # liza-init-args...
       || record_failure liza "registering context7 failed; retry from $top:" \
         "liza-activate"
   fi
-  contract_linked "$top" \
-    || record_failure liza "$top/CLAUDE.local.md is your own file, so" \
-      "Liza's contract isn't loaded there; move it aside, then run:" \
-      "liza-activate"
 }

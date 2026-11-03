@@ -13,6 +13,18 @@
   you ran it in and undo what Liza changed there.
 - Activation no longer needs git 2.36.
 
+### Minor
+
+- When `CLAUDE.local.md` is your own file or symlink, activation links the
+  contract at `.claude/CLAUDE.md` instead and leaves yours as it is. A file
+  used to leave the contract unloaded, with a warning; a symlink was
+  replaced with the contract link. When `.claude/CLAUDE.md` is taken too, by
+  your own file or one the project commits, activation refuses and names
+  both. To keep the contract at `CLAUDE.local.md`, move yours aside and run
+  `liza-activate`; a clone whose symlink an earlier activation replaced
+  keeps it there. Claude doesn't load `.claude/CLAUDE.md` in a worktree
+  inside the clone, such as a multi-agent task's.
+
 ## 1.2.0
 
 - Activation backs up ignored files only where it writes: the top level,

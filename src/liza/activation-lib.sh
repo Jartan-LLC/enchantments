@@ -4,7 +4,7 @@
 [ -n "${activation_lib_loaded:-}" ] && return 0
 activation_lib_loaded=1
 
-# The contract, which activation links from the clone's CLAUDE.local.md.
+# The contract, which activation links from one of contract_places below.
 liza_contract="$HOME/.liza/CORE.md"
 # liza-toolchain's presence marker.
 # shellcheck disable=SC2034 # read by the scripts that source this
@@ -145,9 +145,35 @@ activated() { # top
   [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 
-# Succeeds when the clone at $1's CLAUDE.local.md is activation's link.
+# Where activation links the contract, relative to the clone's top:
+# CLAUDE.local.md, or .claude/CLAUDE.md when CLAUDE.local.md is the user's.
+contract_places=(CLAUDE.local.md .claude/CLAUDE.md)
+
+# Succeeds when the path is activation's contract link.
+contract_link() { # path
+  [ "$(readlink "$1")" = "$liza_contract" ]
+}
+
+# Succeeds when the clone at $1 has activation's contract link.
 contract_linked() { # top
-  [ "$(readlink "$1/CLAUDE.local.md")" = "$liza_contract" ]
+  local name
+  for name in "${contract_places[@]}"; do
+    contract_link "$1/$name" && return 0
+  done
+  return 1
+}
+
+# The name, in the record dir, under which the shim holds the user's
+# CLAUDE.local.md while init runs.
+# shellcheck disable=SC2034 # read by the scripts that source this
+held_contract_name=${contract_places[0]}.held
+
+# Moves the user's CLAUDE.local.md, held at $2, back to $1, over any contract
+# link there. Fails when something else is at $1.
+put_back_contract() { # path held
+  contract_link "$1" && rm -f -- "$1"
+  if [ -e "$1" ] || [ -L "$1" ]; then return 1; fi
+  mv -- "$2" "$1"
 }
 
 # Liza's init writes to the checkout whose .git is the repo's git dir: from a
