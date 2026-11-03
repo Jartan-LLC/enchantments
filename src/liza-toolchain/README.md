@@ -66,7 +66,7 @@ In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`
 - scip-python doesn't see packages installed in a uv virtual environment, which has no `pip`.
 - Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook; git-lfs, husky and lefthook install such hooks. Activation names the hook.
 - Where rtk can't run (aarch64 with glibc older than 2.39), it's removed, left out of `~/.liza/AGENT_TOOLS.md`, and reported at each create.
-- In an activated clone, rtk's hook rewrites a Bash command it has a filter for to `rtk <command>` before Claude Code checks its permission rules. Activation allows `rtk` commands, so an ask rule for a command rtk rewrites doesn't prompt. rtk leaves a command a deny rule matches as it is, but reads deny rules only from the project's `.claude/settings.json` and `.claude/settings.local.json` and from `settings.json` and `settings.local.json` in your Claude config directory (`~/.claude` unless `CLAUDE_CONFIG_DIR` is set). A deny rule only in managed settings or a `--settings` file doesn't block a command rtk rewrites.
+- In an activated clone, an ask rule for a Bash command rtk has a filter for doesn't prompt: rtk's hook rewrites the command to `rtk <command>` before Claude Code checks its permission rules, and activation allows `rtk` commands. rtk leaves a command a deny rule matches as it is, but reads deny rules only from the project's `.claude/settings.json` and `.claude/settings.local.json` and from `settings.json` and `settings.local.json` in your Claude config directory (`~/.claude` unless `CLAUDE_CONFIG_DIR` is set). A deny rule only in managed settings or a `--settings` file doesn't block a command rtk rewrites.
 
 ## Image requirements
 
