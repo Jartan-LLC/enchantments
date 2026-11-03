@@ -51,6 +51,7 @@ In a venv that a pinned uv builds from the hash-locked `semble-requirements.txt`
 - scip-python doesn't see packages installed in a uv virtual environment, which has no `pip`.
 - Liza won't activate a clone that has its own `post-checkout`, `post-commit`, `post-merge` or `post-rewrite` git hook; git-lfs, husky and lefthook install such hooks. Activation names the hook.
 - Where rtk can't run (aarch64 with glibc older than 2.39), it's removed, left out of `~/.liza/AGENT_TOOLS.md`, and reported at each create.
+- In an activated clone, rtk's hook rewrites a Bash command to `rtk <command>`, which activation allows, before Claude Code checks its permission rules, so a rule that asks before a command no longer prompts for it. rtk leaves a command a deny rule matches as it is, but reads deny rules only from the project's `.claude/settings.json` and `.claude/settings.local.json` and your `~/.claude/settings.json` and `~/.claude/settings.local.json`: a deny rule only in managed settings or a `--settings` file no longer blocks the command.
 
 ## Image requirements
 
