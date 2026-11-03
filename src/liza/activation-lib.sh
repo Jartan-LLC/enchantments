@@ -150,21 +150,20 @@ contract_linked() { # top
   [ "$(readlink "$1/CLAUDE.local.md")" = "$liza_contract" ]
 }
 
-# Linked worktrees of a repo share its git hooks and exclude file, so only one
-# of them is activated at a time. Prints another activated worktree of the
-# clone at $1, and fails with 1 when there's none, or with 2 when git can't
-# list the worktrees: -z needs git 2.36.
-other_activation() { # top
-  local line wt
-  git -C "$1" worktree list --porcelain -z >/dev/null 2>&1 || return 2
-  while IFS= read -r -d '' line; do
-    [[ "$line" == "worktree "* ]] || continue
-    wt=${line#worktree }
-    [ "$wt" -ef "$1" ] && continue
-    activated "$wt" || continue
-    printf '%s\n' "$wt"
-    return 0
-  done < <(git -C "$1" worktree list --porcelain -z)
+# Liza's init writes to the checkout whose .git is the repo's git dir: from a
+# linked worktree, that's the main checkout. Succeeds when the clone at $1 is
+# that checkout; otherwise prints why it isn't activated, and fails.
+main_checkout() { # top
+  local common
+  [ "$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null)" -ef "$1/.git" ] \
+    && return 0
+  common=$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)
+  [[ "$common" == /* ]] || common=$1/$common
+  if [[ "$common" == */.git ]]; then
+    echo "Liza activates only a repo's main checkout, ${common%/.git}"
+  else
+    echo "Liza activates only a checkout whose git dir is its own .git"
+  fi
   return 1
 }
 

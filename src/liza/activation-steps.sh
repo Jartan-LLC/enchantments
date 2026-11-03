@@ -49,6 +49,17 @@ find_clone() {
   return 1
 }
 
+# Succeeds when the clone at $top is one Liza activates; otherwise prints a
+# note saying why it's skipped, and fails. A note, not a recorded failure: a
+# container opened on a linked worktree is skipped as one outside a repository
+# is.
+activatable() {
+  local why
+  why=$(main_checkout "$top") && return 0
+  echo "liza: $why, so $top isn't activated" >&2
+  return 1
+}
+
 # Removes context7's registration for the clone at $top, only when it's the one
 # activation makes: a context7 you registered yourself stays. Without
 # claude-code, none was made here. liza-deactivate --tools runs this alone.

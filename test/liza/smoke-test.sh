@@ -2,9 +2,9 @@
 # Runs in the liza Feature's toolchain scenario, from its fixture repo:
 # activates a throwaway clone of HEAD and checks that activation stays
 # local-scope and idempotent, that a failed init leaves the committed settings
-# alone, and that liza-deactivate undoes activation, including across linked
-# worktrees. --tools removes only the context7 registration activation made,
-# and leaves disabledMcpServers alone.
+# alone, that a linked worktree isn't activated, and that liza-deactivate
+# undoes activation. --tools removes only the context7 registration activation
+# made, and leaves disabledMcpServers alone.
 
 set -uo pipefail
 # A shell that loaded the toolchain has its gates; stubbed runs get only those
@@ -230,9 +230,7 @@ chmod +x "$stub_home/term-bin/cp"
 term_rc=$?
 check "a backup interrupted before init exits 130" test "$term_rc" -eq 130
 check "and leaves no copies" test ! -e "$term/.git/liza/originals"
-check "and releases both locks" \
-  test ! -e "$term/.claude/.liza-shim.lock" \
-  -a ! -e "$term/.git/liza-activation.lock"
+check "and releases the lock" test ! -e "$term/.claude/.liza-shim.lock"
 
 # So does a failed copy, which stops init.
 cpfail=$(stub_clone cpfail)
@@ -245,9 +243,7 @@ chmod +x "$stub_home/fail-bin/cp"
 cpfail_rc=$?
 check "a backup whose copy fails exits 1" test "$cpfail_rc" -eq 1
 check "and leaves no copies" test ! -e "$cpfail/.git/liza/originals"
-check "and releases both locks" \
-  test ! -e "$cpfail/.claude/.liza-shim.lock" \
-  -a ! -e "$cpfail/.git/liza-activation.lock"
+check "and releases the lock" test ! -e "$cpfail/.claude/.liza-shim.lock"
 
 # A backup killed mid-copy leaves no partial copy to stop the next run.
 killed=$(stub_clone killed)
@@ -262,7 +258,7 @@ chmod +x "$stub_home/kill-bin/cp"
 check "a backup killed mid-copy leaves only the unfinished copy" \
   test -e "$killed/.git/liza/originals/.bash-policy.yaml.liza-tmp" \
   -a ! -e "$killed/.git/liza/originals/.bash-policy.yaml"
-rmdir "$killed/.claude/.liza-shim.lock" "$killed/.git/liza-activation.lock"
+rmdir "$killed/.claude/.liza-shim.lock"
 stub_liza <<'EOF'
 settings "$hook"
 EOF
@@ -306,20 +302,14 @@ check "and names them all" \
 check "but not the one matching its file" \
   test -n "${refusal##*"$left_originals/.claude/notes.md"*}"
 check "and copies nothing" test ! -e "$left_originals/.agent-notes.md"
-check "and releases both locks" \
-  test ! -e "$leftover/.claude/.liza-shim.lock" \
-  -a ! -e "$leftover/.git/liza-activation.lock"
+check "and releases the lock" test ! -e "$leftover/.claude/.liza-shim.lock"
 # Once the copies are moved out, the empty folders and the unfinished copy
-# left in originals/ don't keep another worktree from activating.
+# left in originals/ don't stop init.
 (cd "$left_originals" && rm -- .bash-policy.yaml .claude/notes.md \
   .claude/hooks/user.sh .claude/hooks/link.sh)
-sibling=$stub_home/leftover-sibling
-git -C "$leftover" worktree add -q "$sibling" \
-  && echo '{}' >"$sibling/.claude/settings.local.json"
-stub_init "$sibling" 2>/dev/null
-sibling_rc=$?
-check "another worktree activates once the copies are moved out" \
-  test "$sibling_rc" -eq 0
+stub_init "$leftover" 2>/dev/null
+moved_rc=$?
+check "init runs once the copies are moved out" test "$moved_rc" -eq 0
 
 # Leftover copies matching their files don't stop init, which backs the files
 # up over them.
@@ -1125,9 +1115,9 @@ check "and drops one matching its file" \
   test ! -e "$interrupted_clone/.claude/keep/same.md.pre-liza" \
   -a ! -e "$interrupted_clone/.git/liza/originals"
 
-# Linked worktrees share the git hooks and the exclude file, so Liza is active
-# in one worktree of a repo at a time. Each activation then owns all it
-# wrote, and the deactivation of each removes it, odd names included.
+# Liza's init writes a linked worktree's activation into the main checkout, so
+# only a main checkout activates; its deactivation removes the hook and exclude
+# lines its worktrees share, and the files it created, odd names included.
 stub_liza <<'EOF'
 echo hook >"$(git rev-parse --git-path hooks)/liza-test-hook"
 echo created >.claudeignore
@@ -1135,40 +1125,60 @@ echo created >'odd [1]*.txt'
 settings "$hook"
 EOF
 main=$(stub_clone wt-main)
+main_real=$(cd "$main" && pwd -P)
 git -C "$main" worktree add -q "$main-linked" 2>/dev/null
 echo '{}' >"$main-linked/.claude/settings.local.json"
-repo_lock="$main/.git/liza-activation.lock"
-mkdir "$repo_lock"
-stub_init "$main-linked" 2>"$stub_home/lock.err"
-lock_rc=$?
-check "init refuses while another worktree's init holds the repo lock" \
-  test "$lock_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
-check "and names the lock" grep -qF "$repo_lock" "$stub_home/lock.err"
-check "and leaves that lock to its holder" test -d "$repo_lock"
-rmdir "$repo_lock"
-stub_init "$main" 2>/dev/null
-stub_init "$main-linked" 2>"$stub_home/wt.err"
-refused_rc=$?
-check "init refuses a second worktree of an activated repo" \
-  test "$refused_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
-check "and leaves neither lock behind" \
-  test ! -e "$repo_lock" -a ! -e "$main-linked/.claude/.liza-shim.lock"
-# Activation at create records the refusal's own message.
-(cd "$main-linked" && HOME="$stub_home" bash -c \
-  '. "$1/activation-steps.sh" && top=$PWD && activate_clone' _ "$liza_dir") \
-  2>/dev/null
-recorded="$stub_home/.cache/enchantments/liza.failures"
-check "activation records the refusal" \
-  grep -qF "Liza isn't activated in $main-linked: Liza is active in $main," \
-  "$recorded"
-check "and not as a failed init" \
-  bash -c "! grep -q 'liza init failed' '$recorded'"
-check "and names the active one" grep -qF "$main," "$stub_home/wt.err"
-check "an odd name gets one escaped exclude line" \
-  grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
-check "git status is clean in both worktrees" \
+# shellcheck disable=SC2329 # run through check
+both_clean() {
   test -z "$(git -C "$main" status --porcelain)$(git -C "$main-linked" \
     status --porcelain)"
+}
+stub_init "$main-linked" 2>"$stub_home/wt.err"
+linked_rc=$?
+check "init refuses a linked worktree" \
+  test "$linked_rc" -eq 75 -a ! -L "$main-linked/CLAUDE.local.md"
+check "and names the main checkout" \
+  grep -qF "main checkout, $main_real." "$stub_home/wt.err"
+check "and changes neither checkout" \
+  test ! -e "$main/.git/hooks/liza-test-hook" \
+  -a ! -e "$main-linked/.claude/.liza-shim.lock"
+check "whose git status stays clean" both_clean
+# Container create skips it with a note; liza-activate records the refusal's
+# own message.
+recorded="$stub_home/.cache/enchantments/liza.failures"
+in_linked() { # activation-steps-command
+  (cd "$main-linked" && HOME="$stub_home" bash -c \
+    '. "$1/activation-steps.sh" && top=$PWD && '"$1" _ "$liza_dir")
+}
+in_linked activatable 2>"$stub_home/skip.err"
+skip_rc=$?
+check "container create skips a linked worktree" test "$skip_rc" -ne 0
+check "with a note naming the main checkout" \
+  grep -qF "main checkout, $main_real, so $main-linked isn't activated" \
+  "$stub_home/skip.err"
+check "and records nothing" \
+  bash -c "! grep -qsF '$main-linked' '$recorded'"
+in_linked activate_clone 2>/dev/null
+refused="Liza isn't activated in $main-linked: Liza activates only a repo's"
+check "activation records the refusal" \
+  grep -qF "$refused main checkout, $main_real." "$recorded"
+check "and not as a failed init" \
+  bash -c "! grep -q 'liza init failed' '$recorded'"
+# So is a checkout whose git dir is elsewhere, as after --separate-git-dir.
+sep="$stub_home/sep"
+git clone -q --separate-git-dir="$stub_home/sep-git" "$repo" "$sep" \
+  && echo '{}' >"$sep/.claude/settings.local.json"
+stub_init "$sep" 2>"$stub_home/sep.err"
+sep_rc=$?
+check "init refuses a checkout whose git dir isn't its own .git" \
+  test "$sep_rc" -eq 75 -a ! -L "$sep/CLAUDE.local.md" \
+  -a ! -e "$sep/.claude/.liza-shim.lock"
+check "and says so" grep -qF "git dir is its own .git." "$stub_home/sep.err"
+stub_init "$main" 2>/dev/null
+check "the main checkout activates" test -L "$main/CLAUDE.local.md"
+check "an odd name gets one escaped exclude line" \
+  grep -qxF '/odd \[1]\*.txt' "$main/.git/info/exclude"
+check "git status is clean in both checkouts" both_clean
 stub_deactivate "$main" 2>/dev/null
 check "deactivating removes the shared hook" \
   test ! -e "$main/.git/hooks/liza-test-hook"
@@ -1176,29 +1186,38 @@ check "and the exclude lines" \
   bash -c "! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
 check "and the files, odd names included" \
   test ! -e "$main/.claudeignore" -a ! -e "$main/odd [1]*.txt"
-stub_init "$main-linked" 2>/dev/null
-check "the other worktree then activates" test -L "$main-linked/CLAUDE.local.md"
-check "and its .claudeignore is excluded" \
-  test -z "$(git -C "$main-linked" status --porcelain)"
-stub_deactivate "$main-linked" 2>/dev/null
-check "and its deactivation leaves no hook or exclude line" \
-  bash -c "test ! -e '$main/.git/hooks/liza-test-hook' \
-    && ! grep -q -e claudeignore -e odd '$main/.git/info/exclude'"
-check "nor its own files" \
-  test ! -e "$main-linked/.claudeignore" -a ! -e "$main-linked/odd [1]*.txt"
-check "nor its contract link, and its status is clean" \
-  test ! -L "$main-linked/CLAUDE.local.md" \
-  -a -z "$(git -C "$main-linked" status --porcelain)"
-# An activated worktree whose path holds a newline still counts.
-odd_wt="$main-nl"$'\n'"wt"
-git -C "$main" worktree add -q --detach "$odd_wt" 2>/dev/null
-echo '{}' >"$odd_wt/.claude/settings.local.json"
-stub_init "$odd_wt" 2>/dev/null
-stub_init "$main-linked" 2>/dev/null
-odd_rc=$?
-check "an activated worktree with a newline in its path blocks another" \
-  test "$odd_rc" -eq 75
-stub_deactivate "$odd_wt" 2>/dev/null
+
+# Liza's init acts on the clone it runs in, whatever -C names, so the shim
+# refuses a -C outside that clone, before or after the subcommand.
+other=$(stub_clone c-other)
+init_in_main() { # liza-arguments...
+  (cd "$main" && HOME="$stub_home" bash "$shim" "$@" </dev/null >/dev/null \
+    2>&1)
+}
+init_in_main -C "$other" init --claude --yes
+before_rc=$?
+init_in_main init --claude --yes --project-root="$other"
+after_rc=$?
+init_in_main init -C"$other" --claude --yes
+joined_rc=$?
+init_in_main init --claude --yes --project-root "$other"
+spaced_rc=$?
+check "init refuses -C naming another clone" \
+  test "$before_rc" -eq 75 -a "$after_rc" -eq 75 -a "$joined_rc" -eq 75 \
+  -a "$spaced_rc" -eq 75
+check "and activates neither clone" \
+  test ! -L "$main/CLAUDE.local.md" -a ! -L "$other/CLAUDE.local.md" \
+  -a "$(cat "$other/.claude/settings.local.json")" = '{}'
+check "and leaves the committed settings.json untouched" \
+  git -C "$main" diff --quiet -- .claude/settings.json
+init_in_main -C "$main/.claude" init --claude --yes
+inside_rc=$?
+check "init with -C inside the clone activates it" \
+  test "$inside_rc" -eq 0 -a -L "$main/CLAUDE.local.md"
+stub_deactivate "$main" 2>/dev/null
+init_in_main --update-channel -C init --claude --yes
+check "a -C that's --update-channel's value isn't read as -C" test $? -eq 0
+stub_deactivate "$main" 2>/dev/null
 
 # Activation keeps the exclude file's last line whole, and records a file it
 # creates under a line that already hides it; a generated link goes too.
@@ -1230,19 +1249,6 @@ clone_lock_rc=$?
 check "init refuses while the clone's own lock is held" \
   test "$clone_lock_rc" -eq 75 -a -d "$refusals_clone/.claude/.liza-shim.lock"
 rmdir "$refusals_clone/.claude/.liza-shim.lock"
-old_git="$stub_home/old-git"
-mkdir -p "$old_git"
-cat >"$old_git/git" <<EOF
-#!/bin/sh
-case " \$* " in *" worktree list "*" -z "*) exit 129 ;; esac
-exec $(command -v git) "\$@"
-EOF
-chmod +x "$old_git/git"
-(PATH="$old_git:$PATH" stub_init "$refusals_clone") 2>"$stub_home/old-git.err"
-old_git_rc=$?
-check "init refuses git that can't list worktrees" \
-  test "$old_git_rc" -eq 75 -a ! -L "$refusals_clone/CLAUDE.local.md"
-check "and says git 2.36 is needed" grep -q "git 2.36" "$stub_home/old-git.err"
 echo 'exit 75' | stub_liza
 stub_init "$refusals_clone" 2>/dev/null
 init_75_rc=$?
@@ -1309,17 +1315,6 @@ check "init --help goes straight to Liza" \
   test "$(cat "$refusals_clone/.liza-help-call")" = "init --help" \
   -a ! -L "$refusals_clone/CLAUDE.local.md"
 rm -f "$refusals_clone/.liza-help-call"
-gone_wt="$refusals_clone-gone"
-git -C "$refusals_clone" worktree add -q --detach "$gone_wt" 2>/dev/null
-rm -rf "$gone_wt"
-stub_liza <<'EOF'
-settings "$hook"
-EOF
-stub_init "$refusals_clone" 2>"$stub_home/gone.err"
-check "a worktree whose directory is gone doesn't stop init" \
-  test -L "$refusals_clone/CLAUDE.local.md"
-check "nor makes git print errors" \
-  bash -c "! grep -q fatal: '$stub_home/gone.err'"
 
 # In a repo that doesn't ignore them, local settings activation created and
 # the user then edited stay after deactivation, and are named.

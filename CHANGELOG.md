@@ -9,6 +9,9 @@ Sections are months, newest first.
 
 ## 2026-11
 
+- `liza`: run `liza-activate` in a repo's main checkout; a linked worktree
+  isn't activated, and `liza-deactivate` no longer needs to run before
+  `git worktree remove`.
 - `liza`: activation keeps its record and copies in the clone's git dir, in
   the folder `git rev-parse --git-path liza` prints (`.git/liza/` outside a
   linked worktree). When activation names copies of your files that an

@@ -20,5 +20,5 @@ configure_toolchain
 set_up_liza
 unlink_global_skills
 # shellcheck disable=SC2119 # no extra liza init arguments at create
-$in_repo && activate_clone
+$in_repo && activatable && activate_clone
 exit 0
