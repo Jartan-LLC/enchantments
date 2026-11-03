@@ -85,8 +85,8 @@ recorded_paths=() # the files activation created
 kept=()           # what is left for the user to check
 accounted=()      # originals the record lists
 if ! jq -e . "$record" >/dev/null 2>&1; then
-  # No readable record: only the contract link and any saved originals can be
-  # undone.
+  # No readable record: only the contract link, a held CLAUDE.local.md and any
+  # saved originals can be undone.
   echo "deactivate: no readable activation record, so Liza's settings" \
     "entries and files were left; check $local_settings and" \
     "$exclude_file." >&2
@@ -153,7 +153,8 @@ else
 fi
 
 # A killed init can leave the user's CLAUDE.local.md held. It goes back before
-# the originals are checked, so its copy there matches it.
+# the originals are checked, so any backup of it in originals/ matches it and
+# goes, rather than landing beside it as CLAUDE.local.md.pre-liza.
 if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
   put_back_contract "${contract_places[0]}" "$held_contract" \
     || failed+=("putting $held_contract back")

@@ -1436,8 +1436,8 @@ check "init leaves your .claude/CLAUDE.md when CLAUDE.local.md is free" \
   -a "$(readlink "$own_claude_md/CLAUDE.local.md")" = \
   "$stub_home/.liza/CORE.md"
 
-# Neither pinned Liza version writes a file of its own at CLAUDE.local.md; if
-# one did, your file would stay held, and so would the exclude line.
+# Neither Liza v0.9.1 nor v0.10.0 writes a file of its own at CLAUDE.local.md;
+# if one did, your file would stay held, and so would the exclude line.
 stub_liza <<'EOF'
 settings "$hook"
 echo liza >CLAUDE.local.md
