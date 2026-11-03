@@ -1198,8 +1198,13 @@ init_in_main -C "$other" init --claude --yes
 before_rc=$?
 init_in_main init --claude --yes --project-root="$other"
 after_rc=$?
+init_in_main init -C"$other" --claude --yes
+joined_rc=$?
+init_in_main init --claude --yes --project-root "$other"
+spaced_rc=$?
 check "init refuses -C naming another clone" \
-  test "$before_rc" -eq 75 -a "$after_rc" -eq 75
+  test "$before_rc" -eq 75 -a "$after_rc" -eq 75 -a "$joined_rc" -eq 75 \
+  -a "$spaced_rc" -eq 75
 check "and activates neither clone" \
   test ! -L "$main/CLAUDE.local.md" -a ! -L "$other/CLAUDE.local.md" \
   -a "$(cat "$other/.claude/settings.local.json")" = '{}'
@@ -1209,6 +1214,9 @@ init_in_main -C "$main/.claude" init --claude --yes
 inside_rc=$?
 check "init with -C inside the clone activates it" \
   test "$inside_rc" -eq 0 -a -L "$main/CLAUDE.local.md"
+stub_deactivate "$main" 2>/dev/null
+init_in_main --update-channel -C init --claude --yes
+check "a -C that's --update-channel's value isn't read as -C" test $? -eq 0
 stub_deactivate "$main" 2>/dev/null
 
 # Activation keeps the exclude file's last line whole, and records a file it

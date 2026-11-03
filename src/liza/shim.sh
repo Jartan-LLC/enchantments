@@ -9,35 +9,28 @@ set -uo pipefail
 
 real_liza="$HOME/.liza/libexec/liza"
 
-# Global flags can precede the subcommand; -C/--project-root and
-# --update-channel take a value.
+# Global flags can precede the subcommand, and -C can follow it too;
+# -C/--project-root and --update-channel take a value.
 subcommand=""
+project_root=""
+help=false
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
   case "${args[i]}" in
-    -C | --project-root | --update-channel) ((i++)) ;;
-    -*) ;;
-    *)
-      subcommand="${args[i]}"
-      break
-      ;;
-  esac
-done
-[ "$subcommand" = init ] || exec "$real_liza" "$@"
-# --help writes nothing, so it goes straight to Liza. -C can follow the
-# subcommand too.
-project_root=""
-for ((i = 0; i < ${#args[@]}; i++)); do
-  case "${args[i]}" in
-    -h | --help) exec "$real_liza" "$@" ;;
+    -h | --help) help=true ;;
     -C | --project-root)
       project_root="${args[i + 1]:-}"
       ((i++))
       ;;
     --project-root=*) project_root="${args[i]#*=}" ;;
     -C?*) project_root="${args[i]#-C}" project_root="${project_root#=}" ;;
+    --update-channel) ((i++)) ;;
+    -*) ;;
+    *) [ -n "$subcommand" ] || subcommand="${args[i]}" ;;
   esac
 done
+# --help writes nothing, so it goes straight to Liza.
+if [ "$subcommand" != init ] || $help; then exec "$real_liza" "$@"; fi
 
 # Liza's init takes its root from the working directory and ignores -C.
 top=$(git rev-parse --show-toplevel) || exit 1
@@ -74,8 +67,8 @@ why=$(main_checkout "$top") || refuse "$why."
 # even if a release makes init honor -C.
 if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
   --show-toplevel 2>/dev/null)" -ef "$top" ]; then
-  refuse "-C names $project_root, outside $top, where init runs; run" \
-    "liza init from the clone you mean instead."
+  refuse "-C names $project_root, which isn't in $top, where init runs;" \
+    "run liza init from the clone you mean instead."
 fi
 
 # --- Lock the clone for this init ---
