@@ -165,7 +165,8 @@ pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 # that's taken, so the user's file is held in the git dir for the run.
 contract="$top/${contract_places[0]}"
 fallback_contract="$top/${contract_places[1]}"
-held_contract="$record_dir/CLAUDE.local.md.held"
+contract_exclude=/${contract_places[0]}
+held_contract="$record_dir/${contract_places[0]}.held"
 # Succeeds when something is at the path and it isn't activation's link.
 users_own() { # path
   { [ -e "$1" ] || [ -L "$1" ]; } && ! contract_link "$1"
@@ -190,8 +191,8 @@ fi
 # activation that linked the contract there: either line would hide the user's
 # file. One the user added stays.
 user_excludes_contract=false
-if grep -qxF /CLAUDE.local.md <<<"$exclude_before" \
-  && ! grep -qxF /CLAUDE.local.md \
+if grep -qxF "$contract_exclude" <<<"$exclude_before" \
+  && ! grep -qxF "$contract_exclude" \
     < <(record_query added_exclude_lines "$record" 2>/dev/null); then
   user_excludes_contract=true
 fi
@@ -342,22 +343,26 @@ restore_settings() {
 # hooks; otherwise the backup, the one copy of the untracked local settings,
 # goes back.
 init_ok=true rc=1 released=false contract_held=false
-# Puts the user's CLAUDE.local.md back over any link init placed there, and
-# drops an exclude line that would hide it.
+# Puts the user's CLAUDE.local.md back over any link init placed there.
+# Fails when nothing is held: an interrupt can come before the hold.
 put_back_contract() {
+  [ -e "$held_contract" ] || [ -L "$held_contract" ] || return 1
   contract_link "$contract" && rm -f -- "$contract"
   if [ -e "$contract" ] || [ -L "$contract" ] \
     || ! mv -- "$held_contract" "$contract"; then
     echo "liza shim: could not put your $contract back; it is in" \
       "$held_contract." >&2
   fi
+}
+# Drops the exclude line that would hide the user's CLAUDE.local.md.
+drop_contract_exclude() {
   $user_excludes_contract && return 0
-  grep -qxF /CLAUDE.local.md "$exclude_file" 2>/dev/null || return 0
+  grep -qxF "$contract_exclude" "$exclude_file" 2>/dev/null || return 0
   # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-  grep -vxF /CLAUDE.local.md "$exclude_file" >"$exclude_file.tmp"
+  grep -vxF "$contract_exclude" "$exclude_file" >"$exclude_file.tmp"
   if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
     rm -f -- "$exclude_file.tmp"
-    echo "liza shim: could not drop /CLAUDE.local.md from $exclude_file," \
+    echo "liza shim: could not drop $contract_exclude from $exclude_file," \
       "where it hides your $contract." >&2
   fi
 }
@@ -366,7 +371,7 @@ release() {
   $released && return
   released=true
   restore_settings
-  $contract_held && put_back_contract
+  $contract_held && put_back_contract && drop_contract_exclude
   if [ "$rc" -ne 0 ] || ! jq -e '.hooks.SessionStart | length > 0' \
     "$local_settings" >/dev/null 2>&1; then
     init_ok=false
@@ -406,12 +411,13 @@ for name in "${merged_files[@]}"; do
 done
 
 if $will_hold_contract; then
+  # Set first, so an interrupt that lands as the mv returns still puts it back.
+  contract_held=true
   if ! { mkdir -p "$record_dir" && mv -- "$contract" "$held_contract"; }; then
     echo "liza shim: could not hold $contract before init; nothing was" \
       "changed." >&2
     exit 1
   fi
-  contract_held=true
 fi
 
 # --- Run Liza's init ---

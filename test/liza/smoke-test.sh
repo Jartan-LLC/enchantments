@@ -1284,6 +1284,20 @@ check "a failed init puts your CLAUDE.local.md back" \
   -a ! -e "$own_md/.git/liza/CLAUDE.local.md.held"
 check "and drops the exclude line it added" \
   bash -c "! grep -qxF /CLAUDE.local.md '$own_md/.git/info/exclude'"
+# So does an interrupted one: the shim's trap runs once the stub exits.
+# shellcheck disable=SC2016 # expanded by the stub
+printf '%s\n%s\nkill -INT "$PPID"\n' "$places_md" \
+  '[ -L CLAUDE.local.md ] && touch .git/int-placed' | stub_liza
+stub_init "$own_md" 2>/dev/null
+int_md_rc=$?
+check "the stub placed its link before the interrupt" \
+  test -e "$own_md/.git/int-placed"
+check "an interrupted init exits 130 and puts your CLAUDE.local.md back" \
+  test "$int_md_rc" -eq 130 -a ! -L "$own_md/CLAUDE.local.md" \
+  -a "$(cat "$own_md/CLAUDE.local.md")" = mine \
+  -a ! -e "$own_md/.git/liza/CLAUDE.local.md.held"
+check "and drops the exclude line it added" \
+  bash -c "! grep -qxF /CLAUDE.local.md '$own_md/.git/info/exclude'"
 # A copy an interrupted init held refuses the next one.
 mkdir -p "$own_md/.git/liza"
 echo held >"$own_md/.git/liza/CLAUDE.local.md.held"

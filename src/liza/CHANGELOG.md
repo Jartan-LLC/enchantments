@@ -20,7 +20,8 @@
   unloaded, and leaves your file as it is. A worktree inside the clone, such
   as a multi-agent task's, doesn't load it from there. When
   `.claude/CLAUDE.md` is taken too, by your own file or one the project
-  commits, activation refuses and names both.
+  commits, activation refuses and names both, where it used to activate
+  without the contract.
 
 ## 1.2.0
 
