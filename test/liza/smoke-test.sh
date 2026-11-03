@@ -1241,13 +1241,16 @@ check "and a created link to a directory" test ! -L "$edge_clone/made-link"
 # With CLAUDE.local.md the user's, the contract goes to .claude/CLAUDE.md. The
 # stub places and excludes CLAUDE.local.md when it's free, as Liza's init does
 # when no other place is.
-stub_liza <<'EOF'
+places_md=$(
+  cat <<'EOF'
 settings "$hook"
 if [ ! -e CLAUDE.local.md ] && [ ! -L CLAUDE.local.md ]; then
   ln -s "$HOME/.liza/CORE.md" CLAUDE.local.md
   echo /CLAUDE.local.md >>"$(git rev-parse --git-path info/exclude)"
 fi
 EOF
+)
+stub_liza <<<"$places_md"
 own_md=$(stub_clone own-md)
 echo mine >"$own_md/CLAUDE.local.md"
 own_status=$(git -C "$own_md" status --porcelain --ignored)
@@ -1273,12 +1276,14 @@ check "deactivate removes the .claude/CLAUDE.md link" \
 check "and keeps your CLAUDE.local.md" \
   test "$(cat "$own_md/CLAUDE.local.md")" = mine
 # A failed init puts the file back over the link it placed.
-printf '%s\nexit 1\n' "$(cat "$stub")" | stub_liza
+printf '%s\nexit 1\n' "$places_md" | stub_liza
 stub_init "$own_md" 2>/dev/null
 check "a failed init puts your CLAUDE.local.md back" \
   test ! -L "$own_md/CLAUDE.local.md" \
   -a "$(cat "$own_md/CLAUDE.local.md")" = mine \
   -a ! -e "$own_md/.git/liza/CLAUDE.local.md.held"
+check "and drops the exclude line it added" \
+  bash -c "! grep -qxF /CLAUDE.local.md '$own_md/.git/info/exclude'"
 # A copy an interrupted init held refuses the next one.
 mkdir -p "$own_md/.git/liza"
 echo held >"$own_md/.git/liza/CLAUDE.local.md.held"
@@ -1298,6 +1303,67 @@ check "init refuses when both contract places are your own files" \
 check "and names both" \
   grep -qF "$own_md/CLAUDE.local.md and $own_md/.claude/CLAUDE.md" \
   "$stub_home/both-md.err"
+# A committed .claude/CLAUDE.md leaves only CLAUDE.local.md to move.
+git -C "$own_md" add -f .claude/CLAUDE.md
+git -C "$own_md" -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
+  commit -qm contract
+stub_init "$own_md" 2>"$stub_home/both-md.err"
+check "and when .claude/CLAUDE.md is committed, says to move CLAUDE.local.md" \
+  grep -qF "move $own_md/CLAUDE.local.md aside" "$stub_home/both-md.err"
+
+# Activation's link at CLAUDE.local.md, replaced by a file of the user's,
+# sends the contract to .claude/CLAUDE.md, and the exclude line the first
+# activation added goes.
+stub_liza <<<"$places_md"
+moves_md=$(stub_clone moves-md)
+stub_init "$moves_md" 2>/dev/null
+check "init with CLAUDE.local.md free links the contract there" \
+  test "$(readlink "$moves_md/CLAUDE.local.md")" = "$stub_home/.liza/CORE.md"
+rm "$moves_md/CLAUDE.local.md"
+echo mine >"$moves_md/CLAUDE.local.md"
+stub_init "$moves_md" 2>/dev/null
+check "replacing that link with your own file moves the contract" \
+  test "$(cat "$moves_md/CLAUDE.local.md")" = mine \
+  -a "$(readlink "$moves_md/.claude/CLAUDE.md")" = \
+  "$stub_home/.liza/CORE.md"
+check "and drops the exclude line the first activation added" \
+  bash -c "! grep -qxF /CLAUDE.local.md '$moves_md/.git/info/exclude'"
+# Once CLAUDE.local.md is free again, the contract goes back there.
+rm "$moves_md/CLAUDE.local.md"
+stub_init "$moves_md" 2>/dev/null
+check "with CLAUDE.local.md free again, the contract is linked there" \
+  test "$(readlink "$moves_md/CLAUDE.local.md")" = \
+  "$stub_home/.liza/CORE.md" \
+  -a ! -e "$moves_md/.claude/CLAUDE.md" -a ! -L "$moves_md/.claude/CLAUDE.md"
+stub_deactivate "$moves_md" 2>/dev/null
+check "and deactivate removes the link and both exclude lines" \
+  bash -c "! { [ -e '$moves_md/CLAUDE.local.md' ] \
+    || [ -L '$moves_md/CLAUDE.local.md' ] \
+    || grep -qxF -e /CLAUDE.local.md -e /.claude/CLAUDE.md \
+      '$moves_md/.git/info/exclude'; }"
+
+# A symlink of the user's at CLAUDE.local.md is theirs too, and so is an
+# exclude line for it from before activation.
+link_md=$(stub_clone link-md)
+echo mine >"$stub_home/mine.md"
+ln -s "$stub_home/mine.md" "$link_md/CLAUDE.local.md"
+echo /CLAUDE.local.md >>"$link_md/.git/info/exclude"
+stub_init "$link_md" 2>/dev/null
+check "init keeps your symlink at CLAUDE.local.md" \
+  test "$(readlink "$link_md/CLAUDE.local.md")" = "$stub_home/mine.md" \
+  -a "$(readlink "$link_md/.claude/CLAUDE.md")" = \
+  "$stub_home/.liza/CORE.md"
+check "and your exclude line for it" \
+  grep -qxF /CLAUDE.local.md "$link_md/.git/info/exclude"
+
+# A .claude/CLAUDE.md of the user's, with CLAUDE.local.md free, is left alone.
+own_claude_md=$(stub_clone own-claude-md)
+echo mine >"$own_claude_md/.claude/CLAUDE.md"
+stub_init "$own_claude_md" 2>/dev/null
+check "init leaves your .claude/CLAUDE.md when CLAUDE.local.md is free" \
+  test "$(cat "$own_claude_md/.claude/CLAUDE.md")" = mine \
+  -a "$(readlink "$own_claude_md/CLAUDE.local.md")" = \
+  "$stub_home/.liza/CORE.md"
 
 # The shim's own refusals and failures, each told apart by its exit code.
 refusals_clone=$(stub_clone refusals-clone)

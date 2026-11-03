@@ -161,24 +161,39 @@ pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 
 # --- Find the contract's place ---
 # A CLAUDE.local.md of the user's sends the contract to .claude/CLAUDE.md.
-# Liza's init would place it at CLAUDE.local.md, or fail when that's taken, so
-# the user's file is held in the git dir for the run.
-contract="$top/CLAUDE.local.md"
-fallback_contract="$claude_dir/CLAUDE.md"
+# Liza's init may place it at CLAUDE.local.md, and under v0.10.0 fails when
+# that's taken, so the user's file is held in the git dir for the run.
+contract="$top/${contract_places[0]}"
+fallback_contract="$top/${contract_places[1]}"
 held_contract="$record_dir/CLAUDE.local.md.held"
-users() { # path
+# Succeeds when something is at the path and it isn't activation's link.
+users_own() { # path
   { [ -e "$1" ] || [ -L "$1" ]; } && ! contract_link "$1"
 }
 if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
   refuse "$held_contract exists from an interrupted init; move it back to" \
     "$contract first."
 fi
-hold_contract=false
-if users "$contract"; then
-  users "$fallback_contract" && refuse "$contract and $fallback_contract" \
-    "are both your own files, so Liza's contract has nowhere to load from;" \
-    "move one of them aside."
-  hold_contract=true
+will_hold_contract=false
+if users_own "$contract"; then
+  if users_own "$fallback_contract"; then
+    # Moving a committed file aside would change the project's tree.
+    aside="one of them"
+    git -C "$top" ls-files --error-unmatch -- "$fallback_contract" \
+      >/dev/null 2>&1 && aside=$contract
+    refuse "$contract and $fallback_contract are both taken, so Liza's" \
+      "contract has nowhere to load from; move $aside aside."
+  fi
+  will_hold_contract=true
+fi
+# Liza's init excludes the CLAUDE.local.md it places, and so did an earlier
+# activation that linked the contract there: either line would hide the user's
+# file. One the user added stays.
+user_excludes_contract=false
+if grep -qxF /CLAUDE.local.md <<<"$exclude_before" \
+  && ! grep -qxF /CLAUDE.local.md \
+    < <(record_query added_exclude_lines "$record" 2>/dev/null); then
+  user_excludes_contract=true
 fi
 
 # --- Back up the user's files init may clobber ---
@@ -327,13 +342,23 @@ restore_settings() {
 # hooks; otherwise the backup, the one copy of the untracked local settings,
 # goes back.
 init_ok=true rc=1 released=false contract_held=false
-# Puts the user's CLAUDE.local.md back over any link init placed there.
+# Puts the user's CLAUDE.local.md back over any link init placed there, and
+# drops an exclude line that would hide it.
 put_back_contract() {
   contract_link "$contract" && rm -f -- "$contract"
   if [ -e "$contract" ] || [ -L "$contract" ] \
     || ! mv -- "$held_contract" "$contract"; then
     echo "liza shim: could not put your $contract back; it is in" \
       "$held_contract." >&2
+  fi
+  $user_excludes_contract && return 0
+  grep -qxF /CLAUDE.local.md "$exclude_file" 2>/dev/null || return 0
+  # grep exits 1 when no line is left, and 2 when it couldn't read the file.
+  grep -vxF /CLAUDE.local.md "$exclude_file" >"$exclude_file.tmp"
+  if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
+    rm -f -- "$exclude_file.tmp"
+    echo "liza shim: could not drop /CLAUDE.local.md from $exclude_file," \
+      "where it hides your $contract." >&2
   fi
 }
 # Runs once: a signal before the EXIT trap is swapped below would run it again.
@@ -380,7 +405,7 @@ for name in "${merged_files[@]}"; do
   held_fp[$name]=$(fingerprint "$path")
 done
 
-if $hold_contract; then
+if $will_hold_contract; then
   if ! { mkdir -p "$record_dir" && mv -- "$contract" "$held_contract"; }; then
     echo "liza shim: could not hold $contract before init; nothing was" \
       "changed." >&2
@@ -527,15 +552,8 @@ fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
 # -p` sessions, and a worktree session skips an ancestor CLAUDE.local.md's
 # imports.
-if $hold_contract; then
+if $will_hold_contract; then
   ln -sfn "$liza_contract" "$fallback_contract"
-  # Liza's init excludes the CLAUDE.local.md it places, which would hide the
-  # user's.
-  if ! grep -qxF /CLAUDE.local.md <<<"$exclude_before" \
-    && grep -qxF /CLAUDE.local.md "$exclude_file" 2>/dev/null; then
-    grep -vxF /CLAUDE.local.md "$exclude_file" >"$exclude_file.tmp"
-    mv -- "$exclude_file.tmp" "$exclude_file"
-  fi
 else
   ln -sfn "$liza_contract" "$contract"
   contract_link "$fallback_contract" && rm -- "$fallback_contract"

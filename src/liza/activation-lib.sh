@@ -4,7 +4,7 @@
 [ -n "${activation_lib_loaded:-}" ] && return 0
 activation_lib_loaded=1
 
-# The contract, which activation links from the clone's CLAUDE.local.md.
+# The contract, which activation links from one of contract_places below.
 liza_contract="$HOME/.liza/CORE.md"
 # liza-toolchain's presence marker.
 # shellcheck disable=SC2034 # read by the scripts that source this
