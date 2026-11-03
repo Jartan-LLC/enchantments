@@ -50,7 +50,9 @@ find_clone() {
 }
 
 # Succeeds when the clone at $top is one Liza activates; otherwise prints a
-# note saying why it's skipped, and fails.
+# note saying why it's skipped, and fails. A note, not a recorded failure: a
+# container opened on a linked worktree is skipped as one outside a repository
+# is.
 activatable() {
   local why
   why=$(main_checkout "$top") && return 0
