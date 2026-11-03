@@ -543,7 +543,8 @@ as_liza_wrote() { # entry
 # shadow the user's own; init merged into the clone's settings.local.json,
 # where the mode is the user's, so put it back. Liza prints that it removed
 # it, naming settings.json: say where it went.
-# An init that skips the merge leaves the mode where it was.
+# Only when init's result lacks it: an init that skips the merge leaves the
+# mode where it was.
 default_mode=$(jq -c '.permissions.defaultMode // empty' <<<"$pre_settings" \
   2>/dev/null)
 if [ -n "$default_mode" ] && ! jq -e '.permissions | has("defaultMode")' \
