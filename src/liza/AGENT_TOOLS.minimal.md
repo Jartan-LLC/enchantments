@@ -21,7 +21,7 @@ Phased repository search:
 
 Use bounded `rg` for exact text search and path discovery; use `git grep` for tracked/index/HEAD/history searches. Use direct, line-numbered reads (`nl -ba ... | sed -n ...`) for source-of-truth verification and edit discussion.
 
-Before editing shared/exported symbols or unfamiliar control paths, establish impact with `rg` + direct reads. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`, and behavior tests.
+Before editing shared/exported symbols or unfamiliar control paths, establish impact with `rg` + direct reads. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. Before renaming a symbol or rewording an error, log or output message, also search test sources for the exact old identifier or text: tests that assert on it depend on it too. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`, and behavior tests.
 
 ### Execution and Validation
 
@@ -145,6 +145,17 @@ The rules below apply only to Claude sessions and should not be generalized to o
 Parallel Read calls fail as a group if any one errors. Before fanning out,
 use **Glob** to check existence **FIRST**, THEN read only files that exist.
 Do NOT mix the check and the reads in the same batch.
+
+#### Background Jobs - Claude only
+
+A background command dies when the headless session ends. In agent sessions a Stop hook refuses the turn end while one runs, until Claude overrides it after 8 consecutive blocks. One moved there by the 600 s foreground timeout is also stopped 30 min later: start any command that may outlast 10 min, `submit-for-review` above all, with `run_in_background: true` and `timeout: 22200000`, the ceiling agent sessions allow.
+
+Wait in bounded foreground steps: a Bash call with `timeout: 600000` running
+`timeout 570 sh -c 'until tail -n1 "<output-file>" | grep -q "^\[exited with code"; do sleep 10; done'`,
+where `<output-file>` is the path given by the tool result that started the job. Never guess it.
+
+- Exit 0: the job ended. Its last line is `[exited with code N]`; nonzero N means the command failed, so read the output file.
+- Exit 124: completion was not observed. If the output file exists and is readable, repeat the call; otherwise report that the job cannot be observed instead of looping.
 
 ---
 

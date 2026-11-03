@@ -5,11 +5,11 @@
 # its leading v.
 
 # pin asset liza repo=liza-mas/liza
-LIZA_TAG='v0.9.1'
+LIZA_TAG='v0.10.0'
 LIZA_ASSET_X86_64='liza-{version}-linux-amd64.tar.gz'
-LIZA_SHA256_X86_64='a1b335d0dff81009d6b542beb7e986bbddc1a1cb120be8c20901ff964306f84a'
+LIZA_SHA256_X86_64='0b44c5a73f1b4331ce16755c72ac9328c84b21bed0f94a7a207ca746999bf5c5'
 LIZA_ASSET_AARCH64='liza-{version}-linux-arm64.tar.gz'
-LIZA_SHA256_AARCH64='79075889a3ebeaea309816f6bca3f0e183d35e9cea6e3d20ae2feb973c0030b3'
+LIZA_SHA256_AARCH64='eda82bb3acdc1944d3ab18622457546b4d900ce7ac134e418404c3e14b7927ca'
 
 # pin asset ripgrep repo=BurntSushi/ripgrep
 RG_TAG='15.2.0'

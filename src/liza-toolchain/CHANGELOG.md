@@ -1,3 +1,10 @@
+## Unreleased
+
+- `AGENT_TOOLS.md` follows Liza v0.10.0's: search test sources before
+  renaming a symbol or rewording a message, Semble searches with
+  `--content all`, how far each index lags in multi-agent runs, and, for
+  Claude, how to run and wait for a long background command.
+
 ## 1.4.0
 
 - npm lock:
