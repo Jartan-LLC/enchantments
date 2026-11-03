@@ -539,6 +539,28 @@ as_liza_wrote() { # entry
 }
 
 # --- Finish activation locally ---
+# Liza's merge drops permissions.defaultMode so a project-scope mode can't
+# shadow the user's own; init merged into the clone's settings.local.json,
+# where the mode is the user's, so put it back. Liza prints that it removed
+# it, naming settings.json: say where it went.
+# Only when init's result lacks it: an init that skips the merge leaves the
+# mode where it was.
+default_mode=$(jq -c '.permissions.defaultMode // empty' <<<"$pre_settings" \
+  2>/dev/null)
+if [ -n "$default_mode" ] && ! jq -e '.permissions | has("defaultMode")' \
+  "$local_settings" >/dev/null 2>&1; then
+  if jq --argjson mode "$default_mode" '.permissions.defaultMode = $mode' \
+    "$local_settings" >"$local_settings.tmp" \
+    && mv "$local_settings.tmp" "$local_settings"; then
+    echo "liza shim: put permissions.defaultMode ($default_mode) back in" \
+      "$local_settings, the file init merged as settings.json." >&2
+  else
+    rm -f "$local_settings.tmp"
+    echo "liza shim: could not put permissions.defaultMode" \
+      "($default_mode) back in $local_settings; set it again there." >&2
+  fi
+fi
+
 # rtk's own `rtk init -g` writes this hook to
 # ~/.claude/settings.json, rewriting commands in every project; here it applies
 # to activated clones only.

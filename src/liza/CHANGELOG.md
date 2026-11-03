@@ -12,6 +12,16 @@
   you ran it with `-C` naming another clone, run `git status` in the clone
   you ran it in and undo what Liza changed there.
 - Activation no longer needs git 2.36.
+- Activation dropped `permissions.defaultMode` from
+  `.claude/settings.local.json`, which left the mode from the project's
+  `.claude/settings.json` or your `~/.claude/settings.json`, or else Claude
+  Code's default, in effect. `liza init` removes it from the settings file it
+  merges into, and activation hands it that file. Activation now puts it
+  back, and says so after Liza's notice that it removed the mode. A clone
+  an earlier version activated has already lost its mode, and activating it
+  again doesn't bring it back: set it again in `.claude/settings.local.json`,
+  where later activations and `liza-deactivate` keep it, or run
+  `liza-deactivate`, which puts it back, then `liza-activate`.
 
 ### Minor
 
