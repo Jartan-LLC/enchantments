@@ -947,6 +947,16 @@ stub_init "$mode_clone" 2>/dev/null
 check "and so does re-activation" \
   jq -e '.permissions.defaultMode == "acceptEdits"' \
   "$mode_clone/.claude/settings.local.json"
+# An init that skips the merge leaves the mode alone, and says nothing.
+echo true | stub_liza
+stub_init "$mode_clone" 2>"$stub_home/no-merge.err"
+check "an init that skips the merge keeps the mode" \
+  jq -e '.permissions.defaultMode == "acceptEdits"' \
+  "$mode_clone/.claude/settings.local.json"
+check "without saying it put it back" \
+  test -z "$(grep -F defaultMode "$stub_home/no-merge.err")"
+# shellcheck disable=SC2016 # expanded by the stub
+echo 'settings "$hook | del(.permissions.defaultMode)"' | stub_liza
 stub_deactivate "$mode_clone" 2>/dev/null
 check "and so does deactivation" \
   test "$(jq -c . "$mode_clone/.claude/settings.local.json")" \
