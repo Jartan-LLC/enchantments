@@ -13,12 +13,13 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 | Liza writes | Where it lands |
 |---|---|
 | hooks and permissions (and the toolchain's rtk and bash-policy hooks) | `.claude/settings.local.json` |
-| the contract | `CLAUDE.local.md` → `~/.liza/CORE.md` |
+| the contract | `CLAUDE.local.md` → `~/.liza/CORE.md`, or `.claude/CLAUDE.md` → `~/.liza/CORE.md` when `CLAUDE.local.md` is yours |
 | skills | links in `.claude/skills/` |
 | hook scripts, `.claudeignore` and other new files | excluded in `.git/info/exclude` |
 
 - `liza init` replaces `.bash-policy.yaml` and `.claudeignore` without asking. Activation merges your edits to them with what Liza changed since the last activation. Yours stays as it is, with Liza's version beside it as `<name>.liza`, when the two conflict, when the file is yours from before Liza, or when you edited it in a clone an earlier version of this Feature activated. Activation's output names `<name>.liza` (the container creation log, when a lifecycle hook ran it), not the next start's report, and a later conflict replaces it, so take what you need from it before the next activation. If `liza init` fails or is interrupted, your version goes back. A symlink or directory at either path is left to `liza init`.
 - `liza-activate` activates the clone you're in, and passes its arguments to `liza init`.
+- Activation refuses when `CLAUDE.local.md` and `.claude/CLAUDE.md` are both your own files. Yours stay as they are, and `liza-deactivate` removes only the contract link.
 - Liza is activated only in a repo's main checkout: from a linked worktree, `liza init` writes to the main checkout instead. `liza-activate` refuses in a checkout whose git dir isn't its own `.git`, such as a linked worktree or a submodule. `liza init` acts on the clone you're in, so `liza -C <dir> init` refuses when `<dir>` is outside that clone.
 - `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
 - If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.

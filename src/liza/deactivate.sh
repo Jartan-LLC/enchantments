@@ -171,7 +171,9 @@ if [ -f "$local_settings" ] \
   && [ "$(jq -c . "$local_settings" 2>/dev/null)" = "{}" ]; then
   rm -f "$local_settings"
 fi
-contract_linked "$top" && remove_created CLAUDE.local.md
+for name in "${contract_places[@]}"; do
+  contract_link "$name" && remove_created "$name"
+done
 rmdir .claude/hooks .claude/skills 2>/dev/null
 
 # After a failure the exclude lines stay too, so what's left stays hidden until

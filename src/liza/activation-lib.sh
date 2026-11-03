@@ -145,9 +145,22 @@ activated() { # top
   [ -n "$(finished_copies "$dir/originals" -print -quit 2>/dev/null)" ]
 }
 
-# Succeeds when the clone at $1's CLAUDE.local.md is activation's link.
+# Where activation links the contract, relative to the clone's top:
+# CLAUDE.local.md, or .claude/CLAUDE.md when CLAUDE.local.md is the user's.
+contract_places=(CLAUDE.local.md .claude/CLAUDE.md)
+
+# Succeeds when the path is activation's contract link.
+contract_link() { # path
+  [ "$(readlink "$1")" = "$liza_contract" ]
+}
+
+# Succeeds when the clone at $1 has activation's contract link.
 contract_linked() { # top
-  [ "$(readlink "$1/CLAUDE.local.md")" = "$liza_contract" ]
+  local name
+  for name in "${contract_places[@]}"; do
+    contract_link "$1/$name" && return 0
+  done
+  return 1
 }
 
 # Liza's init writes to the checkout whose .git is the repo's git dir: from a

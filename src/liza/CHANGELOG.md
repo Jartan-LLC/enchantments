@@ -13,6 +13,13 @@
   you ran it in and undo what Liza changed there.
 - Activation no longer needs git 2.36.
 
+### Minor
+
+- When `CLAUDE.local.md` is your own file, activation links the contract at
+  `.claude/CLAUDE.md` instead, where it used to warn and leave the contract
+  unloaded, and leaves your file as it is. When `.claude/CLAUDE.md` is your
+  own file too, activation refuses and names both.
+
 ## 1.2.0
 
 - Activation backs up ignored files only where it writes: the top level,

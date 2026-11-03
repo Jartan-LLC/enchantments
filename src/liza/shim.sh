@@ -159,6 +159,28 @@ git_before=$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)
 exclude_before=$(cat "$exclude_file" 2>/dev/null)
 pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 
+# --- Find the contract's place ---
+# A CLAUDE.local.md of the user's sends the contract to .claude/CLAUDE.md.
+# Liza's init would place it at CLAUDE.local.md, or fail when that's taken, so
+# the user's file is held in the git dir for the run.
+contract="$top/CLAUDE.local.md"
+fallback_contract="$claude_dir/CLAUDE.md"
+held_contract="$record_dir/CLAUDE.local.md.held"
+users() { # path
+  { [ -e "$1" ] || [ -L "$1" ]; } && ! contract_link "$1"
+}
+if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
+  refuse "$held_contract exists from an interrupted init; move it back to" \
+    "$contract first."
+fi
+hold_contract=false
+if users "$contract"; then
+  users "$fallback_contract" && refuse "$contract and $fallback_contract" \
+    "are both your own files, so Liza's contract has nowhere to load from;" \
+    "move one of them aside."
+  hold_contract=true
+fi
+
 # --- Back up the user's files init may clobber ---
 # Liza's init, and the skill links this shim makes after it, overwrite or
 # remove an untracked file of the user's at a path they write to. Each such
@@ -304,12 +326,22 @@ restore_settings() {
 # the result is kept only if init succeeded and it parses and carries Liza's
 # hooks; otherwise the backup, the one copy of the untracked local settings,
 # goes back.
-init_ok=true rc=1 released=false
+init_ok=true rc=1 released=false contract_held=false
+# Puts the user's CLAUDE.local.md back over any link init placed there.
+put_back_contract() {
+  contract_link "$contract" && rm -f -- "$contract"
+  if [ -e "$contract" ] || [ -L "$contract" ] \
+    || ! mv -- "$held_contract" "$contract"; then
+    echo "liza shim: could not put your $contract back; it is in" \
+      "$held_contract." >&2
+  fi
+}
 # Runs once: a signal before the EXIT trap is swapped below would run it again.
 release() {
   $released && return
   released=true
   restore_settings
+  $contract_held && put_back_contract
   if [ "$rc" -ne 0 ] || ! jq -e '.hooks.SessionStart | length > 0' \
     "$local_settings" >/dev/null 2>&1; then
     init_ok=false
@@ -347,6 +379,15 @@ for name in "${merged_files[@]}"; do
   fi
   held_fp[$name]=$(fingerprint "$path")
 done
+
+if $hold_contract; then
+  if ! { mkdir -p "$record_dir" && mv -- "$contract" "$held_contract"; }; then
+    echo "liza shim: could not hold $contract before init; nothing was" \
+      "changed." >&2
+    exit 1
+  fi
+  contract_held=true
+fi
 
 # --- Run Liza's init ---
 "$real_liza" "$@"
@@ -486,12 +527,18 @@ fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
 # -p` sessions, and a worktree session skips an ancestor CLAUDE.local.md's
 # imports.
-contract="$top/CLAUDE.local.md"
-if [ -L "$contract" ] || [ ! -e "$contract" ]; then
-  ln -sfn "$liza_contract" "$contract"
+if $hold_contract; then
+  ln -sfn "$liza_contract" "$fallback_contract"
+  # Liza's init excludes the CLAUDE.local.md it places, which would hide the
+  # user's.
+  if ! grep -qxF /CLAUDE.local.md <<<"$exclude_before" \
+    && grep -qxF /CLAUDE.local.md "$exclude_file" 2>/dev/null; then
+    grep -vxF /CLAUDE.local.md "$exclude_file" >"$exclude_file.tmp"
+    mv -- "$exclude_file.tmp" "$exclude_file"
+  fi
 else
-  echo "Warning: $contract is your own file, so Liza's contract was not" \
-    "linked there." >&2
+  ln -sfn "$liza_contract" "$contract"
+  contract_link "$fallback_contract" && rm -- "$fallback_contract"
 fi
 
 for skill_md in "$HOME"/.liza/skills/*/SKILL.md; do
