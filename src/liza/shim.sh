@@ -165,8 +165,7 @@ pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
 # that's taken, so the user's file is held in the git dir for the run.
 contract="$top/${contract_places[0]}"
 fallback_contract="$top/${contract_places[1]}"
-contract_exclude=/${contract_places[0]}
-held_contract="$record_dir/${contract_places[0]}.held"
+held_contract="$record_dir/$held_contract_name"
 # Succeeds when something is at the path and it isn't activation's link.
 users_own() { # path
   { [ -e "$1" ] || [ -L "$1" ]; } && ! contract_link "$1"
@@ -186,15 +185,6 @@ if users_own "$contract"; then
       "contract has nowhere to load from; move $aside aside."
   fi
   will_hold_contract=true
-fi
-# Liza's init excludes the CLAUDE.local.md it places, and so did an earlier
-# activation that linked the contract there: either line would hide the user's
-# file. One the user added stays.
-user_excludes_contract=false
-if grep -qxF "$contract_exclude" <<<"$exclude_before" \
-  && ! grep -qxF "$contract_exclude" \
-    < <(record_query added_exclude_lines "$record" 2>/dev/null); then
-  user_excludes_contract=true
 fi
 
 # --- Back up the user's files init may clobber ---
@@ -344,26 +334,43 @@ restore_settings() {
 # goes back.
 init_ok=true rc=1 released=false contract_held=false
 # Puts the user's CLAUDE.local.md back over any link init placed there.
-# Fails when nothing is held: an interrupt can come before the hold.
-put_back_contract() {
+# Fails when nothing is held, as when an interrupt came before the hold, and
+# when it can't be put back.
+put_back_held() {
   [ -e "$held_contract" ] || [ -L "$held_contract" ] || return 1
-  contract_link "$contract" && rm -f -- "$contract"
-  if [ -e "$contract" ] || [ -L "$contract" ] \
-    || ! mv -- "$held_contract" "$contract"; then
-    echo "liza shim: could not put your $contract back; it is in" \
-      "$held_contract." >&2
-  fi
+  put_back_contract "$contract" "$held_contract" && return 0
+  echo "liza shim: could not put your $contract back; it is in" \
+    "$held_contract." >&2
+  return 1
 }
-# Drops the exclude line that would hide the user's CLAUDE.local.md.
-drop_contract_exclude() {
-  $user_excludes_contract && return 0
-  grep -qxF "$contract_exclude" "$exclude_file" 2>/dev/null || return 0
-  # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-  grep -vxF "$contract_exclude" "$exclude_file" >"$exclude_file.tmp"
-  if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
-    rm -f -- "$exclude_file.tmp"
-    echo "liza shim: could not drop $contract_exclude from $exclude_file," \
-      "where it hides your $contract." >&2
+# Forgets activation's link at the contract place named, which this activation
+# doesn't link. The link's exclude line, which Liza's init also adds for the
+# CLAUDE.local.md it places, would hide a file of the user's there, so it goes,
+# unless it was there before init and no activation recorded it: the user's.
+# The record drops the line, so one the user adds later counts as theirs, and
+# the link, so deactivate doesn't take a later file there for activation's.
+forget_contract_place() { # name
+  local line=/$1 recorded
+  recorded=$(record_query added_exclude_lines "$record" 2>/dev/null)
+  if { ! grep -qxF "$line" <<<"$exclude_before" \
+    || grep -qxF "$line" <<<"$recorded"; } \
+    && grep -qxF "$line" "$exclude_file" 2>/dev/null; then
+    # grep exits 1 when no line is left, and 2 when it couldn't read the file.
+    grep -vxF "$line" "$exclude_file" >"$exclude_file.tmp"
+    if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
+      rm -f -- "$exclude_file.tmp"
+      echo "liza shim: could not drop $line from $exclude_file, where it" \
+        "hides $top/$1 from git." >&2
+      return 1
+    fi
+  fi
+  [ -f "$record" ] || return 0
+  # shellcheck disable=SC2016 # a jq program
+  if ! { record_jq 'forget_link($p; $l)' --arg p "$top/$1" --arg l "$line" \
+    "$record" >"$record.tmp" && mv -- "$record.tmp" "$record"; }; then
+    rm -f -- "$record.tmp"
+    echo "liza shim: could not drop $top/$1 from $record." >&2
+    return 1
   fi
 }
 # Runs once: a signal before the EXIT trap is swapped below would run it again.
@@ -371,7 +378,8 @@ release() {
   $released && return
   released=true
   restore_settings
-  $contract_held && put_back_contract && drop_contract_exclude
+  $contract_held && put_back_held \
+    && forget_contract_place "${contract_places[0]}"
   if [ "$rc" -ne 0 ] || ! jq -e '.hooks.SessionStart | length > 0' \
     "$local_settings" >/dev/null 2>&1; then
     init_ok=false
@@ -563,6 +571,7 @@ if $will_hold_contract; then
 else
   ln -sfn "$liza_contract" "$contract"
   contract_link "$fallback_contract" && rm -- "$fallback_contract"
+  forget_contract_place "${contract_places[1]}"
 fi
 
 for skill_md in "$HOME"/.liza/skills/*/SKILL.md; do

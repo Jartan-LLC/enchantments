@@ -63,6 +63,7 @@ local_settings=$top/.claude/settings.local.json
 record_dir=$(record_dir_of "$top")
 record="$record_dir/activation.json"
 exclude_file=$(git_path "$top" info/exclude)
+held_contract=$record_dir/$held_contract_name
 
 # Nothing to undo. Originals or held copies alone are an activation interrupted
 # before its record or link was made, and are undone; so is a contract link
@@ -147,6 +148,13 @@ else
     fi
     { [ -f "$path" ] || [ -L "$path" ]; } && remove_created "$path"
   done
+fi
+
+# A killed init can leave the user's CLAUDE.local.md held. It goes back before
+# the originals are checked, so its copy there matches it.
+if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
+  put_back_contract "${contract_places[0]}" "$held_contract" \
+    || failed+=("putting $held_contract back")
 fi
 
 # An original the record doesn't list (the record's write failed after it was

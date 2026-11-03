@@ -163,6 +163,19 @@ contract_linked() { # top
   return 1
 }
 
+# The name, in the record dir, under which the shim holds the user's
+# CLAUDE.local.md while init runs.
+# shellcheck disable=SC2034 # read by the scripts that source this
+held_contract_name=${contract_places[0]}.held
+
+# Moves the user's CLAUDE.local.md, held at $2, back to $1, over any contract
+# link there. Fails when something else is at $1.
+put_back_contract() { # path held
+  contract_link "$1" && rm -f -- "$1"
+  if [ -e "$1" ] || [ -L "$1" ]; then return 1; fi
+  mv -- "$2" "$1"
+}
+
 # Liza's init writes to the checkout whose .git is the repo's git dir: from a
 # linked worktree, that's the main checkout. Succeeds when the clone at $1 is
 # that checkout; otherwise prints why it isn't activated, and fails.

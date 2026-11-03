@@ -1240,13 +1240,16 @@ check "and a created link to a directory" test ! -L "$edge_clone/made-link"
 
 # With CLAUDE.local.md the user's, the contract goes to .claude/CLAUDE.md. The
 # stub places and excludes CLAUDE.local.md when it's free, as Liza's init does
-# when no other place is.
+# when no other place is, and fails when a file of the user's is there, as
+# v0.10.0's does.
 places_md=$(
   cat <<'EOF'
 settings "$hook"
 if [ ! -e CLAUDE.local.md ] && [ ! -L CLAUDE.local.md ]; then
   ln -s "$HOME/.liza/CORE.md" CLAUDE.local.md
   echo /CLAUDE.local.md >>"$(git rev-parse --git-path info/exclude)"
+elif [ "$(readlink CLAUDE.local.md)" != "$HOME/.liza/CORE.md" ]; then
+  exit 1
 fi
 EOF
 )
@@ -1349,12 +1352,51 @@ check "with CLAUDE.local.md free again, the contract is linked there" \
   test "$(readlink "$moves_md/CLAUDE.local.md")" = \
   "$stub_home/.liza/CORE.md" \
   -a ! -e "$moves_md/.claude/CLAUDE.md" -a ! -L "$moves_md/.claude/CLAUDE.md"
+check "and drops the exclude line for .claude/CLAUDE.md" \
+  bash -c "! grep -qxF /.claude/CLAUDE.md '$moves_md/.git/info/exclude'"
 stub_deactivate "$moves_md" 2>/dev/null
 check "and deactivate removes the link and both exclude lines" \
   bash -c "! { [ -e '$moves_md/CLAUDE.local.md' ] \
     || [ -L '$moves_md/CLAUDE.local.md' ] \
     || grep -qxF -e /CLAUDE.local.md -e /.claude/CLAUDE.md \
       '$moves_md/.git/info/exclude'; }"
+
+# Once your file replaces activation's link at CLAUDE.local.md, an exclude
+# line you then add for it is yours, and deactivate doesn't count the file as
+# one activation left.
+took_md=$(stub_clone took-md)
+stub_init "$took_md" 2>/dev/null
+rm "$took_md/CLAUDE.local.md"
+echo mine >"$took_md/CLAUDE.local.md"
+stub_init "$took_md" 2>/dev/null
+echo /CLAUDE.local.md >>"$took_md/.git/info/exclude"
+stub_init "$took_md" 2>/dev/null
+check "an exclude line you add later for your CLAUDE.local.md stays" \
+  grep -qxF /CLAUDE.local.md "$took_md/.git/info/exclude"
+stub_deactivate "$took_md" 2>"$stub_home/took-md.err"
+check "and deactivate keeps it" \
+  grep -qxF /CLAUDE.local.md "$took_md/.git/info/exclude"
+check "and doesn't name your CLAUDE.local.md as left for you to check" \
+  test "$(cat "$took_md/CLAUDE.local.md")" = mine \
+  -a -z "$(grep -F "$took_md/CLAUDE.local.md" "$stub_home/took-md.err")"
+
+# A killed init leaves your CLAUDE.local.md held, and deactivate puts it back
+# over init's link, with no copy beside it.
+# shellcheck disable=SC2016 # expanded by the stub
+printf '%s\nkill -KILL "$PPID"\n' "$places_md" | stub_liza
+killed_md=$(stub_clone killed-md)
+echo mine >"$killed_md/CLAUDE.local.md"
+stub_init "$killed_md" 2>/dev/null
+check "a killed init leaves your CLAUDE.local.md held" \
+  test "$(cat "$killed_md/.git/liza/CLAUDE.local.md.held")" = mine
+rmdir "$killed_md/.claude/.liza-shim.lock"
+stub_deactivate "$killed_md" 2>/dev/null
+check "and deactivate puts it back" \
+  test ! -L "$killed_md/CLAUDE.local.md" \
+  -a "$(cat "$killed_md/CLAUDE.local.md")" = mine \
+  -a ! -e "$killed_md/.git/liza/CLAUDE.local.md.held" \
+  -a ! -e "$killed_md/CLAUDE.local.md.pre-liza"
+stub_liza <<<"$places_md"
 
 # A symlink of the user's at CLAUDE.local.md is theirs too, and so is an
 # exclude line for it from before activation.
@@ -1378,6 +1420,23 @@ check "init leaves your .claude/CLAUDE.md when CLAUDE.local.md is free" \
   test "$(cat "$own_claude_md/.claude/CLAUDE.md")" = mine \
   -a "$(readlink "$own_claude_md/CLAUDE.local.md")" = \
   "$stub_home/.liza/CORE.md"
+
+# Neither pinned Liza version writes a file of its own at CLAUDE.local.md; if
+# one did, your file would stay held, and so would the exclude line.
+stub_liza <<'EOF'
+settings "$hook"
+echo liza >CLAUDE.local.md
+echo /CLAUDE.local.md >>"$(git rev-parse --git-path info/exclude)"
+EOF
+wrote_md=$(stub_clone wrote-md)
+echo mine >"$wrote_md/CLAUDE.local.md"
+stub_init "$wrote_md" 2>"$stub_home/wrote-md.err"
+check "an init that writes CLAUDE.local.md leaves yours held, and names it" \
+  test "$(cat "$wrote_md/.git/liza/CLAUDE.local.md.held")" = mine \
+  -a -n "$(grep -F "$wrote_md/.git/liza/CLAUDE.local.md.held" \
+    "$stub_home/wrote-md.err")"
+check "and keeps the exclude line" \
+  grep -qxF /CLAUDE.local.md "$wrote_md/.git/info/exclude"
 
 # The shim's own refusals and failures, each told apart by its exit code.
 refusals_clone=$(stub_clone refusals-clone)

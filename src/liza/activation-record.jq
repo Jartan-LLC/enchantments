@@ -80,6 +80,11 @@ def record_activation($pre; $post; $created; $recorded_before; $recorded_after;
   | .exclude_lines = (.exclude_lines + ($exclude_added | split("\n") | map(select(. != ""))) | unique)
   | .preexisting = ((.preexisting // []) + ($preexisting | split("\n") | map(select(. != ""))) | unique);
 
+# Drops a contract link activation no longer has from the record (the input): the file at
+# $path and the exclude line $line.
+def forget_link($path; $line):
+  .files |= map(select(.path != $path)) | .exclude_lines -= [$line];
+
 def empty_record:
   {settings: [], files: [], overwritten: [], exclude_lines: [], preexisting: []};
 
