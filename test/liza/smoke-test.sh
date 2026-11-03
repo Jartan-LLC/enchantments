@@ -908,14 +908,12 @@ done
 # the entry and sets the key again. Deactivation restores the original, neither
 # the swapped-out entry nor the first value.
 merge_clone=$(stub_clone merge-clone)
-echo '{"permissions":{"allow":["mine"],"defaultMode":"acceptEdits"},
-  "model":"m0"}' \
+echo '{"permissions":{"allow":["mine"]},"model":"m0","statusLine":"s0"}' \
   >"$merge_clone/.claude/settings.local.json"
 cp "$merge_clone/.claude/settings.local.json" "$merge_clone/.git/original.json"
 stub_liza <<'EOF'
 settings "$hook"
-settings '.permissions.allow += ["liza-1"] | .model = "m1"
-  | del(.permissions.defaultMode)'
+settings '.permissions.allow += ["liza-1"] | .model = "m1" | del(.statusLine)'
 EOF
 stub_init "$merge_clone" 2>/dev/null
 stub_liza <<'EOF'
@@ -929,6 +927,28 @@ stub_deactivate "$merge_clone"
 check "deactivate after changing re-activations restores the original" \
   test "$(jq -S . "$merge_clone/.claude/settings.local.json")" \
   = "$(jq -S . "$merge_clone/.git/original.json")"
+
+# Liza's merge drops permissions.defaultMode; the clone's own stays, and so
+# does it after deactivation.
+mode_clone=$(stub_clone mode-clone)
+echo '{"permissions":{"defaultMode":"acceptEdits"}}' \
+  >"$mode_clone/.claude/settings.local.json"
+stub_liza <<'EOF'
+settings "$hook | del(.permissions.defaultMode)"
+EOF
+stub_init "$mode_clone" 2>/dev/null
+check "activation keeps the clone's permissions.defaultMode" \
+  jq -e '.permissions.defaultMode == "acceptEdits"' \
+  "$mode_clone/.claude/settings.local.json"
+stub_deactivate "$mode_clone" 2>/dev/null
+check "and so does deactivation" \
+  test "$(jq -c . "$mode_clone/.claude/settings.local.json")" \
+  = '{"permissions":{"defaultMode":"acceptEdits"}}'
+no_mode_clone=$(stub_clone no-mode-clone)
+stub_init "$no_mode_clone" 2>/dev/null
+check "activation adds no defaultMode the clone didn't have" \
+  jq -e '.permissions // {} | has("defaultMode") | not' \
+  "$no_mode_clone/.claude/settings.local.json"
 
 # An init that removes a user's file or replaces their symlink, with a stub
 # liza: deactivate restores both.
