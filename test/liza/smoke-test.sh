@@ -928,16 +928,23 @@ check "deactivate after changing re-activations restores the original" \
   test "$(jq -S . "$merge_clone/.claude/settings.local.json")" \
   = "$(jq -S . "$merge_clone/.git/original.json")"
 
-# Liza's merge drops permissions.defaultMode; the clone's own stays, and so
-# does it after deactivation.
+# Liza's merge drops permissions.defaultMode; the clone's own stays, through
+# re-activation and after deactivation.
 mode_clone=$(stub_clone mode-clone)
 echo '{"permissions":{"defaultMode":"acceptEdits"}}' \
   >"$mode_clone/.claude/settings.local.json"
 stub_liza <<'EOF'
 settings "$hook | del(.permissions.defaultMode)"
 EOF
-stub_init "$mode_clone" 2>/dev/null
+stub_init "$mode_clone" 2>"$stub_home/mode.err"
 check "activation keeps the clone's permissions.defaultMode" \
+  jq -e '.permissions.defaultMode == "acceptEdits"' \
+  "$mode_clone/.claude/settings.local.json"
+check "and says so" \
+  grep -qF 'put permissions.defaultMode ("acceptEdits") back' \
+  "$stub_home/mode.err"
+stub_init "$mode_clone" 2>/dev/null
+check "and so does re-activation" \
   jq -e '.permissions.defaultMode == "acceptEdits"' \
   "$mode_clone/.claude/settings.local.json"
 stub_deactivate "$mode_clone" 2>/dev/null
@@ -945,10 +952,12 @@ check "and so does deactivation" \
   test "$(jq -c . "$mode_clone/.claude/settings.local.json")" \
   = '{"permissions":{"defaultMode":"acceptEdits"}}'
 no_mode_clone=$(stub_clone no-mode-clone)
-stub_init "$no_mode_clone" 2>/dev/null
+stub_init "$no_mode_clone" 2>"$stub_home/no-mode.err"
 check "activation adds no defaultMode the clone didn't have" \
   jq -e '.permissions // {} | has("defaultMode") | not' \
   "$no_mode_clone/.claude/settings.local.json"
+check "and says nothing about one" \
+  test -z "$(grep -F defaultMode "$stub_home/no-mode.err")"
 
 # An init that removes a user's file or replaces their symlink, with a stub
 # liza: deactivate restores both.
