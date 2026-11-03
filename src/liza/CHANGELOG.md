@@ -22,10 +22,10 @@
   again doesn't bring it back: set it again in `.claude/settings.local.json`,
   where later activations and `liza-deactivate` keep it, or run
   `liza-deactivate`, which puts it back, then `liza-activate`.
-- The `AGENT_TOOLS.md` activation stages without the toolchain follows Liza
-  v0.10.0's: search test sources before renaming a symbol or rewording a
-  message, and, for Claude, how to run and wait for a long background
-  command.
+- The `AGENT_TOOLS.md` that activation stages without the toolchain
+  follows Liza v0.10.0's: search test sources before renaming a symbol or
+  rewording a message, and, for Claude, how to run and wait for a long
+  background command.
 
 ### Minor
 
