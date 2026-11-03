@@ -553,8 +553,8 @@ if [ -n "$mode" ]; then
       "$local_settings, the file init merged as settings.json." >&2
   else
     rm -f "$local_settings.tmp"
-    echo "liza shim: could not keep permissions.defaultMode in" \
-      "$local_settings" >&2
+    echo "liza shim: could not put permissions.defaultMode ($mode) back in" \
+      "$local_settings; set it again there." >&2
   fi
 fi
 
