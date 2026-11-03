@@ -15,9 +15,10 @@
 
 ### Minor
 
-- When `CLAUDE.local.md` is your own file, activation links the contract at
-  `.claude/CLAUDE.md` instead, where it used to warn and leave the contract
-  unloaded, and leaves your file as it is. A worktree inside the clone, such
+- When `CLAUDE.local.md` is your own file or symlink, activation links the
+  contract at `.claude/CLAUDE.md` instead and leaves yours as it is. It used
+  to warn and leave the contract unloaded for a file, and to replace a
+  symlink with the contract link. A worktree inside the clone, such
   as a multi-agent task's, doesn't load it from there. When
   `.claude/CLAUDE.md` is taken too, by your own file or one the project
   commits, activation refuses and names both, where it used to activate

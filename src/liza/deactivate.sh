@@ -67,8 +67,10 @@ held_contract=$record_dir/$held_contract_name
 
 # Nothing to undo. Originals or held copies alone are an activation interrupted
 # before its record or link was made, and are undone; so is a contract link
-# alone.
-activated "$top" || contract_linked "$top" || finish
+# alone, and so is a held CLAUDE.local.md alone: a committed one isn't backed
+# up, and init may be killed before it links the contract.
+activated "$top" || contract_linked "$top" || [ -e "$held_contract" ] \
+  || [ -L "$held_contract" ] || finish
 
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then

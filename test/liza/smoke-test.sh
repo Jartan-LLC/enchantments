@@ -1396,6 +1396,21 @@ check "and deactivate puts it back" \
   -a "$(cat "$killed_md/CLAUDE.local.md")" = mine \
   -a ! -e "$killed_md/.git/liza/CLAUDE.local.md.held" \
   -a ! -e "$killed_md/CLAUDE.local.md.pre-liza"
+# A committed CLAUDE.local.md isn't backed up, so the held file is all an init
+# killed before it links the contract leaves.
+# shellcheck disable=SC2016 # expanded by the stub
+printf 'kill -KILL "$PPID"\n' | stub_liza
+committed_md=$(stub_clone committed-md)
+echo mine >"$committed_md/CLAUDE.local.md"
+git -C "$committed_md" add -f CLAUDE.local.md
+git -C "$committed_md" -c user.name=t -c user.email=t@t \
+  -c commit.gpgsign=false commit -qm local
+stub_init "$committed_md" 2>/dev/null
+rmdir "$committed_md/.claude/.liza-shim.lock"
+stub_deactivate "$committed_md" 2>/dev/null
+check "and puts back a committed one when that is all a killed init left" \
+  test -z "$(git -C "$committed_md" status --porcelain -- CLAUDE.local.md)" \
+  -a ! -e "$committed_md/.git/liza/CLAUDE.local.md.held"
 stub_liza <<<"$places_md"
 
 # A symlink of the user's at CLAUDE.local.md is theirs too, and so is an
