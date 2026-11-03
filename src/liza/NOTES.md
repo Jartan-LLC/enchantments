@@ -24,7 +24,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 - Liza is activated only in a repo's main checkout: from a linked worktree, `liza init` writes to the main checkout instead. `liza-activate` refuses in a checkout whose git dir isn't its own `.git`, such as a linked worktree or a submodule. `liza init` acts on the clone you're in, so `liza -C <dir> init` refuses when `<dir>` is outside that clone.
 - `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
 - If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.
-- Before a multi-agent `liza init`, add `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`. Liza's init excludes `.liza/` itself.
+- Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`.
 
 ## Undoing activation
 
