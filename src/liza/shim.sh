@@ -24,12 +24,22 @@ for ((i = 0; i < ${#args[@]}; i++)); do
   esac
 done
 [ "$subcommand" = init ] || exec "$real_liza" "$@"
-# --help writes nothing, so it goes straight to Liza.
-for arg in "$@"; do
-  case "$arg" in -h | --help) exec "$real_liza" "$@" ;; esac
+# --help writes nothing, so it goes straight to Liza. -C can follow the
+# subcommand too.
+project_root=""
+for ((i = 0; i < ${#args[@]}; i++)); do
+  case "${args[i]}" in
+    -h | --help) exec "$real_liza" "$@" ;;
+    -C | --project-root)
+      project_root="${args[i + 1]:-}"
+      ((i++))
+      ;;
+    --project-root=*) project_root="${args[i]#*=}" ;;
+    -C?*) project_root="${args[i]#-C}" project_root="${project_root#=}" ;;
+  esac
 done
 
-# Liza's init takes its root from the working directory, whatever -C says.
+# Liza's init takes its root from the working directory and ignores -C.
 top=$(git rev-parse --show-toplevel) || exit 1
 claude_dir="$top/.claude"
 shared_settings="$claude_dir/settings.json"
@@ -60,6 +70,13 @@ take_lock() { # dir holder
 }
 
 why=$(main_checkout "$top") || refuse "$why."
+# Refused rather than ignored, so the files protected stay those Liza writes
+# even if a release makes init honor -C.
+if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
+  --show-toplevel 2>/dev/null)" -ef "$top" ]; then
+  refuse "-C names $project_root, outside $top, where init runs; run" \
+    "liza init from the clone you mean instead."
+fi
 
 # --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the

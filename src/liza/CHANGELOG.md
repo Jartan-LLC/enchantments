@@ -4,9 +4,12 @@
   `liza init` wrote to the main checkout, its committed
   `.claude/settings.json` included, and activation then failed; container
   creation now skips a linked worktree with a note, and `liza-activate`
-  refuses there. `liza -C <dir> init` activates the clone you're in, where
-  Liza writes, instead of protecting `<dir>`'s files. Activation no longer
-  needs git 2.36.
+  refuses there. `liza -C <dir> init` protected `<dir>`'s files while Liza
+  wrote to the clone you were in; it now refuses when `<dir>` is outside that
+  clone. If activation ran in a linked worktree, or with `-C` naming another
+  clone, run `git status` in the main checkout, or in the clone you ran it
+  in, and undo what Liza changed there, such as `.claude/settings.json`.
+  Activation no longer needs git 2.36.
 
 ## 1.2.0
 

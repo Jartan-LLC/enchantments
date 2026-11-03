@@ -1164,6 +1164,16 @@ check "activation records the refusal" \
   grep -qF "$refused main checkout, $main_real." "$recorded"
 check "and not as a failed init" \
   bash -c "! grep -q 'liza init failed' '$recorded'"
+# So is a checkout whose git dir is elsewhere, as after --separate-git-dir.
+sep="$stub_home/sep"
+git clone -q --separate-git-dir="$stub_home/sep-git" "$repo" "$sep" \
+  && echo '{}' >"$sep/.claude/settings.local.json"
+stub_init "$sep" 2>"$stub_home/sep.err"
+sep_rc=$?
+check "init refuses a checkout whose git dir isn't its own .git" \
+  test "$sep_rc" -eq 75 -a ! -L "$sep/CLAUDE.local.md" \
+  -a ! -e "$sep/.claude/.liza-shim.lock"
+check "and says so" grep -qF "git dir is its own .git." "$stub_home/sep.err"
 stub_init "$main" 2>/dev/null
 check "the main checkout activates" test -L "$main/CLAUDE.local.md"
 check "an odd name gets one escaped exclude line" \
@@ -1177,19 +1187,28 @@ check "and the exclude lines" \
 check "and the files, odd names included" \
   test ! -e "$main/.claudeignore" -a ! -e "$main/odd [1]*.txt"
 
-# Liza's init acts on the clone it runs in, whatever -C names, and so does the
-# shim.
+# Liza's init acts on the clone it runs in, whatever -C names, so the shim
+# refuses a -C outside that clone, before or after the subcommand.
 other=$(stub_clone c-other)
-(cd "$main" && HOME="$stub_home" bash "$shim" -C "$other" init --claude \
-  --yes </dev/null >/dev/null 2>&1)
-other_rc=$?
-check "init with -C activates the clone it runs in" \
-  test "$other_rc" -eq 0 -a -L "$main/CLAUDE.local.md"
-check "and its committed settings.json stays untouched" \
-  git -C "$main" diff --quiet -- .claude/settings.json
-check "and leaves the -C clone alone" \
-  test ! -L "$other/CLAUDE.local.md" \
+init_in_main() { # liza-arguments...
+  (cd "$main" && HOME="$stub_home" bash "$shim" "$@" </dev/null >/dev/null \
+    2>&1)
+}
+init_in_main -C "$other" init --claude --yes
+before_rc=$?
+init_in_main init --claude --yes --project-root="$other"
+after_rc=$?
+check "init refuses -C naming another clone" \
+  test "$before_rc" -eq 75 -a "$after_rc" -eq 75
+check "and activates neither clone" \
+  test ! -L "$main/CLAUDE.local.md" -a ! -L "$other/CLAUDE.local.md" \
   -a "$(cat "$other/.claude/settings.local.json")" = '{}'
+check "and leaves the committed settings.json untouched" \
+  git -C "$main" diff --quiet -- .claude/settings.json
+init_in_main -C "$main/.claude" init --claude --yes
+inside_rc=$?
+check "init with -C inside the clone activates it" \
+  test "$inside_rc" -eq 0 -a -L "$main/CLAUDE.local.md"
 stub_deactivate "$main" 2>/dev/null
 
 # Activation keeps the exclude file's last line whole, and records a file it
