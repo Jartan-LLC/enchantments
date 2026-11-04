@@ -76,8 +76,12 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
 fi
 mapfile -t areas < <(init_areas "$@")
 if link=$(symlinked_write_dir "$top" "${areas[@]}"); then
+  remedy="make it a directory first"
+  if [[ "$link" != "$top/.claude" && "$link" != "$top"/.claude/* ]]; then
+    remedy+=", or name only providers that don't write there, such as --claude"
+  fi
   refuse "$link is a symlink, so Liza would write through it to files" \
-    "activation can't back up or undo; make it a directory first."
+    "activation can't back up or undo; $remedy."
 fi
 
 # The functions below share three kinds of global with the main flow: the

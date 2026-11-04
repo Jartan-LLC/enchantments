@@ -1590,7 +1590,15 @@ init
 init --yes
 -v init --auto-resume
 init -C .
+init --claude=false
+init --codex=0
+init --provider=
 EOF
+(cd "$flagged" && HOME="$stub_home" INIT_PATHS='' \
+  LIZA_SHIM_REFUSAL=$stub_home/flagged.refusal bash "$shim" init \
+  </dev/null >/dev/null 2>&1)
+check "and the refusal offers naming providers instead" \
+  grep -qF "such as --claude" "$stub_home/flagged.refusal"
 (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" init "a goal" \
   </dev/null >/dev/null 2>&1)
 check "init with a goal and no provider flag ignores it" test $? -eq 0

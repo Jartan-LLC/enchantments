@@ -134,10 +134,10 @@ exclude_line_path() { # line
 }
 
 # The folders where liza init writes, which with the clone's top level make
-# up the area the shim lists before init. init_write_ignored in shim.sh names
-# the paths init writes in each, and write_dirs below the folders: a folder
-# added here needs its paths there, or its ignored files get no backup, and
-# its provider flags in init_areas, or a symlink at it is never refused.
+# up the area the shim lists before init. A folder added here needs its paths
+# in init_write_ignored (shim.sh), or its ignored files get no backup; and it
+# and its subfolders in write_dirs, and its provider flags in init_areas, or
+# a symlink at it is never refused.
 listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
 # Each of listed_dirs and the folders in it that liza init, or the shim's
 # skill links, write in.
@@ -185,14 +185,20 @@ init_areas() { # shim-args...
   while [ $# -gt 0 ]; do
     case $1 in
       --provider)
-        id=${2:-} chosen=true
+        id=${2:-}
+        [ -z "$id" ] || chosen=true
         shift
         ;;
-      --provider=*) id=${1#*=} chosen=true ;;
+      --provider=*)
+        id=${1#*=}
+        [ -z "$id" ] || chosen=true
+        ;;
       -C | --project-root | --update-channel)
         id=''
         shift
         ;;
+      # A flag set false, such as --claude=false, chooses no provider.
+      --*=0 | --*=[fF] | --*=false | --*=False | --*=FALSE) id='' ;;
       --*) id=${1#--} id=${id%%=*} ;;
       -*) id='' ;;
       # The value of an init flag, such as --branch's, counts as a goal too:
