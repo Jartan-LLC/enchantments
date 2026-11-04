@@ -30,9 +30,6 @@
   clone's `.git/info/exclude` that isn't valid UTF-8, and in any locale it
   emptied that file if it held a NUL byte; it now keeps every line of yours.
   If you had such a line, check that the file still holds what you put there.
-- No change in behavior: activation and `liza-deactivate` share one
-  definition of the area activation lists before `liza init`, the top level
-  and `.claude/`.
 - `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
   before activation. It now removes one it empties only when activation
   created it. One that an earlier version's activation created in a repo that
@@ -52,6 +49,17 @@
   leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
   `CLAUDE.md`, where the next activation took the link for yours and kept
   it.
+- `liza init` writes to other providers' folders: `.codex/` with `--codex`
+  or `--cursor`, `.cursor/` with `--cursor`, `.opencode/` with
+  `--opencode`, and `.copilot/` and `.github/` with `--copilot`. Activation
+  backed up no file of yours there: a hook script of yours that init
+  replaced was lost, and `liza-deactivate` left Liza's changes in a file
+  init merged into, such as `.codex/config.toml`, and left the files init
+  created where git ignores them. The area activation lists before
+  `liza init` now takes in these folders as well as the top level and
+  `.claude/`: activation backs up your files there as it does in
+  `.claude/`, and `liza-deactivate` puts them back and removes the files
+  init created.
 
 ### Minor
 

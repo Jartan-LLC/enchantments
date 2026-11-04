@@ -122,9 +122,11 @@ exclude_line_path() { # line
   printf '%s\n' "$path"
 }
 
-# The folders that, with the clone's top level, make up the area the shim
-# lists before init, where it watches for the files init writes.
-listed_dirs=(.claude)
+# The folders where liza init writes, which with the clone's top level make
+# up the area the shim lists before init. init_write_ignored in shim.sh names
+# the paths init writes in each: a folder added here needs its paths there,
+# or its ignored files get no backup.
+listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
 
 # Succeeds when path $1, relative to the clone's top, is in the area the shim
 # lists: at the top level or under one of listed_dirs.
