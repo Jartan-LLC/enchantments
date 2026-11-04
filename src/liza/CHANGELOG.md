@@ -26,6 +26,32 @@
   follows Liza v0.10.0's: search test sources before renaming a symbol or
   rewording a message, and, for Claude, how to run and wait for a long
   background command.
+- In a UTF-8 locale, `liza-deactivate` could drop a line of yours from the
+  clone's `.git/info/exclude` that isn't valid UTF-8, and in any locale it
+  emptied that file if it held a NUL byte; it now keeps every line of yours.
+  If you had such a line, check that the file still holds what you put there.
+- No change in behavior: activation and `liza-deactivate` share one
+  definition of the area activation lists before `liza init`, the top level
+  and `.claude/`.
+- `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
+  before activation. It now removes one it empties only when activation
+  created it. One that an earlier version's activation created in a repo that
+  ignores it is left holding `{}`: delete it if you like.
+- An activation interrupted while it swapped in your local settings for
+  `liza init` could leave `.claude/settings.json` moved aside to
+  `settings.json.liza-shim-held`, with or without your `settings.local.json`
+  in its place, and the next activation refused until you moved them back.
+  It now puts them back.
+- With `~/.claude/CLAUDE.md` a file of your own, `liza init` links the
+  repo-root `CLAUDE.md` to the contract when the clone has none, and
+  activation also linked `CLAUDE.local.md` (or `.claude/CLAUDE.md`), so
+  Claude loaded the contract twice. Activation now removes init's
+  `CLAUDE.md` link, and activating again removes one an earlier version
+  kept.
+- A `liza init` that fails, such as on settings it can't merge, no longer
+  leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
+  `CLAUDE.md`, where the next activation took the link for yours and kept
+  it.
 
 ### Minor
 
@@ -43,6 +69,14 @@
   `liza-activate`; a clone whose symlink an earlier activation replaced
   keeps it there. Claude doesn't load `.claude/CLAUDE.md` in a worktree
   inside the clone, such as a multi-agent task's.
+- With `.claude/skills` a symlink, activation wrote Liza's skill links in
+  the folder it points to, replacing a link of yours there of the same name
+  with no copy, and `liza-deactivate` left them; `liza init` wrote its hook
+  scripts through a symlinked `.claude/hooks` the same way. Activation now
+  refuses when `.claude`, `.claude/hooks` or `.claude/skills` is a symlink,
+  until you make it a directory. If one of them was a symlink when you
+  activated, remove Liza's skill links and hook scripts from the folder it
+  points to.
 
 ## 1.2.0
 

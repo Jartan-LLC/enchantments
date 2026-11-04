@@ -207,7 +207,7 @@ semble_tool() {
     "$lib/uv/uv" venv -q --clear --managed-python --python 3.12 \
     "$lib/semble" \
     && UV_CACHE_DIR=$tmp "$lib/uv/uv" pip install -q \
-      --python "$lib/semble/bin/python" --require-hashes \
+      --python "$lib/semble/bin/python" --no-build --require-hashes \
       -r "$here/$SEMBLE_REQUIREMENTS" \
     && ln -sfn "$lib/semble/bin/semble" "$bin/semble" \
     && mkdir -p "$lib/semble-model"

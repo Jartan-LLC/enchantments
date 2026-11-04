@@ -40,6 +40,7 @@ local_settings="$claude_dir/settings.local.json"
 held_settings="$claude_dir/settings.json.liza-shim-held"
 backup_settings="$claude_dir/settings.local.json.liza-shim-backup"
 global_contract="$HOME/.claude/CLAUDE.md"
+root_contract="$top/CLAUDE.md"
 
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
@@ -70,6 +71,15 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
   refuse "-C names $project_root, which isn't in $top, where init runs;" \
     "run liza init from the clone you mean instead."
 fi
+# Activation finds the files to back up and record by path, and git doesn't
+# list files through a symlink: what init and the skill links write through
+# one, even into the clone, escapes the backup and the record.
+for dir in "$claude_dir" "$claude_dir/hooks" "$claude_dir/skills"; do
+  if [ -L "$dir" ]; then
+    refuse "$dir is a symlink, so Liza would write through it to files" \
+      "activation can't back up or undo; make it a directory first."
+  fi
+done
 
 # --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the
@@ -112,16 +122,20 @@ case $? in
 esac
 
 # --- Snapshot the state before init ---
-had_global_contract=false
+had_global_contract=false had_root_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# Untracked paths at the top level and in .claude/, the area activation
-# watches, minus the two settings files activation manages itself.
+if [ -e "$root_contract" ] || [ -L "$root_contract" ]; then
+  had_root_contract=true
+fi
+# Untracked paths in the area the shim lists, the top level (':(glob)*') and
+# listed_dirs, minus the two settings files activation manages itself.
+# The pathspec must agree with in_listed_area.
 # grep runs under LC_ALL=C here to match bytes: in a UTF-8 locale it would
 # drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
-  git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
+  git -C "$top" ls-files -z --others "$@" -- "${listed_dirs[@]}" ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
@@ -161,7 +175,8 @@ recorded_files=()
 recorded_before=$(fingerprint "${recorded_files[@]}")
 git_before=$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)
 exclude_before=$(cat "$exclude_file" 2>/dev/null)
-pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
+# null when there's none, so the record shows activation created the file.
+pre_settings=$(cat "$local_settings" 2>/dev/null || echo null)
 
 # --- Find the contract's place ---
 # A CLAUDE.local.md of the user's sends the contract to .claude/CLAUDE.md.
@@ -306,7 +321,7 @@ restore_from() { # path copy-dir
 # candidate it changed goes back from originals/, and each held file from
 # clone-versions/. What it replaces could be init's write or the user's own
 # edit made during init, which can't be told apart, so that is set aside in
-# replaced/.
+# replaced/. Init's contract links go too, where nothing was before init.
 restore_after_failure() {
   local path name replaced=false kept=() keep_held=false
   for path in "${!fp_before[@]}"; do
@@ -322,14 +337,27 @@ restore_after_failure() {
     "what it replaced is in $record_dir/replaced." >&2
   prune_originals "${kept[@]}"
   $keep_held || drop_held
+  # Init links the contract before its settings merge, which can fail. Left
+  # in place, the link would count as the user's from the next activation on.
+  if ! $had_global_contract && contract_link "$global_contract"; then
+    rm -f -- "$global_contract"
+  fi
+  if ! $had_root_contract && contract_link "$root_contract"; then
+    rm -f -- "$root_contract"
+  fi
 }
 
 # --- Swap the local settings in for init to merge into ---
 # Liza always merges into .claude/settings.json. Putting the local file in its
 # place for the run lets Liza's own merge write the local file, and the
 # committed one is never opened.
+# Once swapped, settings.json is the local file's: the one moved in, or the one
+# init creates. Before that, it may be the committed one.
+swapped=false
 restore_settings() {
-  [ -f "$shared_settings" ] && mv -f "$shared_settings" "$local_settings"
+  if $swapped && [ -f "$shared_settings" ]; then
+    mv -f "$shared_settings" "$local_settings"
+  fi
   [ -f "$held_settings" ] && mv -f "$held_settings" "$shared_settings"
 }
 # Liza writes settings non-atomically and only warns when the merge fails, so
@@ -347,8 +375,8 @@ put_back_held() {
     "$held_contract." >&2
   return 1
 }
-# Forgets activation's link at the contract place named, which this activation
-# doesn't link. The link's exclude line, which Liza's init also adds for the
+# Forgets activation's link at $top/<name>, which this activation doesn't
+# keep. The link's exclude line, which Liza's init also adds for the
 # CLAUDE.local.md it places, would hide a file of the user's there, so it goes,
 # unless it was there before init and no activation recorded it: the user's.
 # The record drops the line, so one the user adds later counts as theirs, and
@@ -360,7 +388,9 @@ forget_contract_place() { # name
     || grep -qxF "$line" <<<"$recorded"; } \
     && grep -qxF "$line" "$exclude_file" 2>/dev/null; then
     # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-    grep -vxF "$line" "$exclude_file" >"$exclude_file.tmp"
+    # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+    # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+    LC_ALL=C grep -avxF "$line" "$exclude_file" >"$exclude_file.tmp"
     if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
       rm -f -- "$exclude_file.tmp"
       echo "liza shim: could not drop $line from $exclude_file, where it" \
@@ -377,7 +407,8 @@ forget_contract_place() { # name
     return 1
   fi
 }
-# Runs once: a signal before the EXIT trap is swapped below would run it again.
+# Runs once: a signal before the EXIT trap is replaced after init would run it
+# again.
 release() {
   $released && return
   released=true
@@ -395,8 +426,14 @@ release() {
   fi
   rm -f "$backup_settings"
 }
+# An interrupt during the swap only undoes it. release would take it for a
+# failed init and replace the local file with its backup, which an interrupted
+# copy leaves partial or missing.
+trap 'restore_settings; rm -f "$backup_settings"; prune_originals; unlock' EXIT
 [ -f "$local_settings" ] && cp -p "$local_settings" "$backup_settings"
 [ -f "$shared_settings" ] && mv "$shared_settings" "$held_settings"
+# Set first, so an interrupt that lands as the mv returns still undoes it.
+swapped=true
 [ -f "$local_settings" ] && mv "$local_settings" "$shared_settings"
 trap 'release; restore_after_failure; unlock' EXIT
 
@@ -585,9 +622,15 @@ fi
 # `--claude` points ~/.claude/CLAUDE.md at the contract when that path is free,
 # which loads the contract in every project sharing ~/.claude. Keep it in this
 # clone instead.
-if ! $had_global_contract \
-  && [ "$(readlink "$global_contract")" = "$liza_contract" ]; then
+if ! $had_global_contract && contract_link "$global_contract"; then
   rm -- "$global_contract"
+fi
+# When ~/.claude/CLAUDE.md is taken, init links the repo-root CLAUDE.md
+# instead, which would load the contract a second time beside the link below.
+# One an earlier activation recorded goes too, with the exclude line it added.
+if ! $had_root_contract || in_list "$root_contract" "${recorded_files[@]}"; then
+  contract_link "$root_contract" && rm -- "$root_contract" \
+    && forget_contract_place CLAUDE.md
 fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
 # -p` sessions, and a worktree session skips an ancestor CLAUDE.local.md's
@@ -660,7 +703,7 @@ while IFS= read -r line; do
   # Only in the area the shim lists: deactivate.sh names a file elsewhere as
   # one the shim couldn't see.
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
-    && [[ "$rel" != */* || "$rel" == .claude/* ]] \
+    && in_listed_area "$rel" \
     && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
