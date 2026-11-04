@@ -26,6 +26,12 @@
   follows Liza v0.10.0's: search test sources before renaming a symbol or
   rewording a message, and, for Claude, how to run and wait for a long
   background command.
+- With `~/.claude/CLAUDE.md` a file of your own, `liza init` links the
+  repo-root `CLAUDE.md` to the contract when the clone has none, and
+  activation also linked `CLAUDE.local.md` (or `.claude/CLAUDE.md`), so
+  Claude loaded the contract twice. Activation now removes init's
+  `CLAUDE.md` link, and activating again removes one an earlier version
+  kept.
 
 ### Minor
 

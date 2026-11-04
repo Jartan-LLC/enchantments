@@ -886,6 +886,64 @@ check "and unlinks the contract" test ! -L CLAUDE.local.md
 check "activation succeeds after a no-record deactivate" \
   liza init --claude --yes
 
+# With ~/.claude/CLAUDE.md a file of the user's, Liza's init links the
+# repo-root CLAUDE.md instead, which activation removes: the contract is linked
+# at CLAUDE.local.md alone. The clone drops the project's own CLAUDE.md, which
+# would leave init no place there.
+own_home=$stub_home/own-home
+mkdir -p "$own_home/.claude"
+ln -s "$HOME/.liza" "$own_home/.liza"
+echo mine >"$own_home/.claude/CLAUDE.md"
+no_root=$stub_home/no-root
+git clone -q "$repo" "$no_root"
+git -C "$no_root" rm -q --ignore-unmatch CLAUDE.md
+git -C "$no_root" -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
+  commit -q --allow-empty -m no-root
+no_root_exclude=$no_root/.git/info/exclude
+no_root_record=$no_root/.git/liza/activation.json
+cp "$no_root_exclude" "$stub_home/no-root-exclude"
+# shellcheck disable=SC2329 # run through check
+own_home_init() {
+  (cd "$no_root" && HOME="$own_home" liza init --claude --yes </dev/null \
+    >/dev/null 2>&1)
+}
+check "activation with your own ~/.claude/CLAUDE.md succeeds" own_home_init
+check "and links the contract at CLAUDE.local.md alone" \
+  test "$(readlink "$no_root/CLAUDE.local.md")" = "$own_home/.liza/CORE.md" \
+  -a ! -e "$no_root/CLAUDE.md" -a ! -L "$no_root/CLAUDE.md"
+check "and adds no exclude line for CLAUDE.md" \
+  bash -c "! grep -qxF /CLAUDE.md '$no_root_exclude'"
+check "and leaves your ~/.claude/CLAUDE.md alone" \
+  test "$(cat "$own_home/.claude/CLAUDE.md")" = mine
+# An earlier version kept init's link at CLAUDE.md, excluded and recorded like
+# the one at CLAUDE.local.md; activating again removes it.
+ln -s "$own_home/.liza/CORE.md" "$no_root/CLAUDE.md"
+echo /CLAUDE.md >>"$no_root_exclude"
+jq --arg p "$no_root/CLAUDE.md" --arg l "$no_root/CLAUDE.local.md" \
+  '.files += [.files[] | select(.path == $l) | .path = $p]
+  | .exclude_lines += ["/CLAUDE.md"]' "$no_root_record" \
+  >"$no_root_record.tmp" && mv "$no_root_record.tmp" "$no_root_record"
+# shellcheck disable=SC2016 # a jq program
+check "the earlier version's link is recorded" \
+  jq -e --arg p "$no_root/CLAUDE.md" 'any(.files[]; .path == $p)' \
+  "$no_root_record"
+check "activating that clone again succeeds" own_home_init
+check "and removes the CLAUDE.md link an earlier version kept" \
+  test "$(readlink "$no_root/CLAUDE.local.md")" = "$own_home/.liza/CORE.md" \
+  -a ! -e "$no_root/CLAUDE.md" -a ! -L "$no_root/CLAUDE.md"
+check "and its exclude line" \
+  bash -c "! grep -qxF /CLAUDE.md '$no_root_exclude'"
+# shellcheck disable=SC2016 # a jq program
+check "and drops both from the record" \
+  jq -e --arg p "$no_root/CLAUDE.md" \
+  'all(.files[]; .path != $p) and all(.exclude_lines[]; . != "/CLAUDE.md")' \
+  "$no_root_record"
+(cd "$no_root" && HOME="$own_home" bash "$liza_dir/deactivate.sh" 2>/dev/null)
+check "then deactivate leaves the exclude file as before activation" \
+  cmp -s "$no_root_exclude" "$stub_home/no-root-exclude"
+check "and no contract link" \
+  test ! -L "$no_root/CLAUDE.local.md" -a ! -L "$no_root/CLAUDE.md"
+
 # rtk's hook lands in an activated clone once, and not again on re-activation.
 # The stubs stand in for liza (a no-op init keeps the real hooks above) and for
 # rtk.

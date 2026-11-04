@@ -40,6 +40,7 @@ local_settings="$claude_dir/settings.local.json"
 held_settings="$claude_dir/settings.json.liza-shim-held"
 backup_settings="$claude_dir/settings.local.json.liza-shim-backup"
 global_contract="$HOME/.claude/CLAUDE.md"
+root_contract="$top/CLAUDE.md"
 
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
@@ -108,9 +109,12 @@ case $? in
 esac
 
 # --- Snapshot the state before init ---
-had_global_contract=false
+had_global_contract=false had_root_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
+fi
+if [ -e "$root_contract" ] || [ -L "$root_contract" ]; then
+  had_root_contract=true
 fi
 # Untracked paths at the top level and in .claude/, the area activation
 # watches, minus the two settings files activation manages itself.
@@ -584,6 +588,13 @@ fi
 if ! $had_global_contract \
   && [ "$(readlink "$global_contract")" = "$liza_contract" ]; then
   rm -- "$global_contract"
+fi
+# When that path is taken, init links the repo-root CLAUDE.md instead, which
+# would load the contract a second time beside the link below. One an earlier
+# activation recorded goes too, with the exclude line it added.
+if contract_link "$root_contract" && { ! $had_root_contract \
+  || in_list "$root_contract" "${recorded_files[@]}"; }; then
+  rm -- "$root_contract" && forget_contract_place CLAUDE.md
 fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
 # -p` sessions, and a worktree session skips an ancestor CLAUDE.local.md's
