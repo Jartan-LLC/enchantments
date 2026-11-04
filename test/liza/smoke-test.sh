@@ -266,6 +266,44 @@ stub_init "$killed" 2>/dev/null
 killed_rc=$?
 check "init runs again after a backup killed mid-copy" test "$killed_rc" -eq 0
 
+# A settings swap interrupted before init leaves both settings files as they
+# were, whichever step the interrupt lands at. The backup's copy is killed
+# before it writes, as Ctrl-C can kill it; a move completes.
+mkdir -p "$stub_home/swap-bin"
+cat >"$stub_home/swap-bin/cp" <<EOF
+#!/bin/sh
+case "\$*" in \$SWAP_STEP) kill -TERM "\$PPID"; exit 1 ;; esac
+exec $(command -v cp) "\$@"
+EOF
+cat >"$stub_home/swap-bin/mv" <<EOF
+#!/bin/sh
+case "\$*" in \$SWAP_STEP) kill -TERM "\$PPID" ;; esac
+exec $(command -v mv) "\$@"
+EOF
+chmod +x "$stub_home/swap-bin/cp" "$stub_home/swap-bin/mv"
+for step in "the backup:*.liza-shim-backup" \
+  "the move aside:*/settings.json *.liza-shim-held" \
+  "the move in:*/settings.local.json */settings.json"; do
+  name=${step%%:*}
+  swap=$(stub_clone "swap-${name// /-}")
+  echo '{"mine":true}' >"$swap/.claude/settings.local.json"
+  cp "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  (cd "$swap" && HOME="$stub_home" PATH="$stub_home/swap-bin:$PATH" \
+    SWAP_STEP=${step#*:} bash "$shim" init --claude --yes </dev/null \
+    >/dev/null 2>&1)
+  swap_rc=$?
+  check "a settings swap interrupted at $name exits 130" \
+    test "$swap_rc" -eq 130
+  check "and leaves the local settings as they were" \
+    cmp -s "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  check "and the committed settings.json" \
+    git -C "$swap" diff --quiet -- .claude/settings.json
+  check "and leaves no held settings, backup or lock" \
+    test ! -e "$swap/.claude/settings.json.liza-shim-held" \
+    -a ! -e "$swap/.claude/settings.local.json.liza-shim-backup" \
+    -a ! -e "$swap/.claude/.liza-shim.lock"
+done
+
 # Copies no record lists, left by an interrupted activation, make init refuse
 # when they differ from their files, naming them all, before it copies
 # anything. One matching its file doesn't.

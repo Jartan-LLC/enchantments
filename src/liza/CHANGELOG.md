@@ -26,6 +26,11 @@
   follows Liza v0.10.0's: search test sources before renaming a symbol or
   rewording a message, and, for Claude, how to run and wait for a long
   background command.
+- An activation interrupted while it swapped in your local settings for
+  `liza init` left `.claude/settings.json` moved aside to
+  `settings.json.liza-shim-held` and your `settings.local.json` in its
+  place, and the next activation refused until you moved them back. It now
+  puts both back.
 
 ### Minor
 
