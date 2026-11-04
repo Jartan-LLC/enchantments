@@ -124,9 +124,14 @@ exclude_line_path() { # line
 
 # The folders where liza init writes, which with the clone's top level make
 # up the area the shim lists before init. init_write_ignored in shim.sh names
-# the paths init writes in each: a folder added here needs its paths there,
-# or its ignored files get no backup.
+# the paths init writes in each, and write_dirs below the folders: a folder
+# added here needs its paths there, or its ignored files get no backup.
 listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
+# Each of listed_dirs and the folders in it that liza init, or the shim's
+# skill links, write in.
+write_dirs=(.claude .claude/hooks .claude/skills .codex .codex/hooks .cursor
+  .opencode .opencode/plugins .opencode/tools .copilot .copilot/hooks .github
+  .github/hooks)
 
 # Succeeds when path $1, relative to the clone's top, is in the area the shim
 # lists: at the top level or under one of listed_dirs.
@@ -139,19 +144,61 @@ in_listed_area() { # relative-path
   return 1
 }
 
-# Prints the first of .claude, .claude/hooks and .claude/skills in the clone at
-# $1 that is a symlink, dangling or not, and fails when none is. Activation and
+# Prints the first of write_dirs in listed folders $2... of the clone at $1
+# that is a symlink, dangling or not, and fails when none is. Activation and
 # deactivation find the files they back up, record and undo by path, and git
 # doesn't list files through a symlink: what they write through one, even into
 # the clone, escapes the backup and the record.
-symlinked_claude_dir() { # top
+symlinked_write_dir() { # top listed-dir...
   local dir
-  for dir in "$1/.claude" "$1/.claude/hooks" "$1/.claude/skills"; do
-    [ -L "$dir" ] || continue
-    echo "$dir"
+  for dir in "${write_dirs[@]}"; do
+    in_list "${dir%%/*}" "${@:2}" || continue
+    [ -L "$1/$dir" ] || continue
+    echo "$1/$dir"
     return 0
   done
   return 1
+}
+
+# Prints the listed_dirs that liza init, given arguments $@, writes in, as
+# Liza v0.10.0 does: .claude, where the shim links skills whatever the flags,
+# and each provider flag's folders. A refusal over a folder the run never
+# writes in, such as a symlinked .github with --claude alone, would block an
+# activation that is safe.
+init_areas() { # init-args...
+  local id
+  echo .claude
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --provider)
+        id=${2:-}
+        shift
+        ;;
+      --provider=*) id=${1#*=} ;;
+      --*) id=${1#--} id=${id%%=*} ;;
+      *) id='' ;;
+    esac
+    shift
+    case $id in
+      codex | codex-acp) echo .codex ;;
+      cursor) printf '%s\n' .codex .cursor ;;
+      cursor-acp) echo .cursor ;;
+      opencode | opencode-acp) echo .opencode ;;
+      copilot) printf '%s\n' .copilot .github ;;
+    esac
+  done
+}
+
+# Prints the top-level folder of each path the activation record of the clone
+# at $1 lists and of each copy in its originals/: where deactivation writes.
+recorded_areas() { # top
+  local dir path
+  dir=$(record_dir_of "$1") || return 1
+  {
+    record_query 'recorded_paths, overwritten_paths' "$dir/activation.json" \
+      | while IFS= read -r path; do echo "${path#"$1"/}"; done
+    finished_copies "$dir/originals" -printf '%P\n'
+  } 2>/dev/null | cut -d/ -f1
 }
 
 # Prints the directory holding the activation record of the clone at $1.

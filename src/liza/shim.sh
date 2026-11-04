@@ -71,7 +71,8 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
   refuse "-C names $project_root, which isn't in $top, where init runs;" \
     "run liza init from the clone you mean instead."
 fi
-if link=$(symlinked_claude_dir "$top"); then
+mapfile -t init_dirs < <(init_areas "$@")
+if link=$(symlinked_write_dir "$top" "${init_dirs[@]}"); then
   refuse "$link is a symlink, so Liza would write through it to files" \
     "activation can't back up or undo; make it a directory first."
 fi

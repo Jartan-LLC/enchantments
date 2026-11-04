@@ -76,9 +76,9 @@ stub_clone() { # name
     && echo '{}' >"$stub_home/$1/.claude/settings.local.json" \
     && echo "$stub_home/$1"
 }
-stub_init() { # clone
-  (cd "$1" && HOME="$stub_home" bash "$shim" init --claude --yes </dev/null \
-    >/dev/null)
+stub_init() { # clone more-init-args...
+  (cd "$1" && HOME="$stub_home" bash "$shim" init --claude --yes "${@:2}" \
+    </dev/null >/dev/null)
 }
 stub_deactivate() { # clone
   (cd "$1" && HOME="$stub_home" bash "$liza_dir/deactivate.sh")
@@ -1537,6 +1537,65 @@ mv "$idle/.claude" "$stub_home/idle-out"
 ln -s "$stub_home/idle-out" "$idle/.claude"
 check "deactivate in a clone that isn't activated ignores a symlinked .claude" \
   stub_deactivate "$idle"
+# So does a symlink at a folder a provider flag has init write in, for that
+# flag only.
+stub_liza <<'EOF'
+settings "$hook"
+printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
+  [ -z "$rel" ] || { mkdir -p "$(dirname "$rel")" && echo liza >"$rel"; }
+done
+EOF
+flagged=$(stub_clone linked-providers)
+flagged_out="$stub_home/flagged-out"
+mkdir "$flagged_out"
+echo "user file" >"$flagged_out/liza.json"
+while read -r dir rest; do
+  read -ra flags <<<"$rest"
+  mkdir -p "$flagged/$(dirname "$dir")"
+  ln -s "$flagged_out" "$flagged/$dir"
+  INIT_PATHS=$dir/liza.json LIZA_SHIM_REFUSAL=$stub_home/flagged.refusal \
+    stub_init "$flagged" "${flags[@]}" 2>/dev/null
+  flagged_rc=$?
+  check "init ${flags[*]} refuses a symlinked $dir" test "$flagged_rc" -eq 75
+  check "and names it" grep -qF "$flagged/$dir is a symlink" \
+    "$stub_home/flagged.refusal"
+  check "and leaves the user's file where it points" \
+    test "$(cat "$flagged_out/liza.json")" = "user file" \
+    -a "$(ls -A "$flagged_out")" = liza.json
+  rm -r -- "${flagged:?}/${dir%%/*}"
+done <<'EOF'
+.codex/hooks --codex
+.codex --cursor
+.cursor --provider cursor-acp
+.opencode/plugins --opencode
+.opencode/tools --provider=opencode-acp
+.copilot/hooks --copilot
+.github/hooks --provider copilot
+.github --copilot
+EOF
+ln -s "$flagged_out" "$flagged/.github"
+INIT_PATHS='' stub_init "$flagged" 2>/dev/null
+check "init --claude alone ignores a symlinked .github" \
+  test $? -eq 0 -a -L "$flagged/CLAUDE.local.md"
+stub_deactivate "$flagged" 2>/dev/null
+check "and so does deactivate when activation wrote nothing there" \
+  test $? -eq 0 -a ! -L "$flagged/CLAUDE.local.md"
+rm -- "$flagged/.github"
+# deactivate refuses a symlink at a folder holding a file the record lists.
+INIT_PATHS=.codex/hooks/liza.sh stub_init "$flagged" --codex 2>/dev/null
+mv "$flagged/.codex" "$stub_home/codex-out"
+ln -s "$stub_home/codex-out" "$flagged/.codex"
+stub_deactivate "$flagged" 2>"$stub_home/flagged.err"
+codex_rc=$?
+check "deactivate refuses a symlinked .codex that activation wrote in" \
+  test "$codex_rc" -eq 1 -a -e "$stub_home/codex-out/hooks/liza.sh"
+check "and names it" grep -qF "$flagged/.codex is a symlink" \
+  "$stub_home/flagged.err"
+rm -- "$flagged/.codex"
+mv "$stub_home/codex-out" "$flagged/.codex"
+stub_deactivate "$flagged" 2>/dev/null
+check "and undoes activation once it's a directory again" \
+  test ! -e "$flagged/.codex/hooks/liza.sh" -a ! -L "$flagged/CLAUDE.local.md"
 rm -r -- "$stub_home/.liza/skills"
 
 # Activation keeps the exclude file's last line whole, and records a file it
