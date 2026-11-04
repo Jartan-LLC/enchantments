@@ -1394,6 +1394,60 @@ init_in_main --update-channel -C init --claude --yes
 check "a -C that's --update-channel's value isn't read as -C" test $? -eq 0
 stub_deactivate "$main" 2>/dev/null
 
+# A symlink at .claude, .claude/skills or .claude/hooks refuses init before it
+# runs, wherever it points. Here .claude/skills points outside the clone, at a
+# folder holding the user's link named like a Liza skill.
+mkdir -p "$stub_home/.liza/skills/stub-skill"
+touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
+stub_liza <<'EOF'
+mkdir -p .claude/hooks && echo liza >.claude/hooks/liza.sh
+settings "$hook"
+EOF
+linked=$(stub_clone linked-dirs)
+shared="$stub_home/shared"
+mkdir "$shared"
+ln -s user-skill "$shared/stub-skill"
+ln -s "$shared" "$linked/.claude/skills"
+LIZA_SHIM_REFUSAL=$stub_home/linked.refusal stub_init "$linked" 2>/dev/null
+skills_rc=$?
+check "init refuses a symlinked .claude/skills" test "$skills_rc" -eq 75
+check "and names it" grep -qF "$linked/.claude/skills is a symlink" \
+  "$stub_home/linked.refusal"
+check "and leaves the user's link where it points" \
+  test "$(readlink "$shared/stub-skill")" = user-skill \
+  -a "$(ls -A "$shared")" = stub-skill
+check "and changes nothing in the clone" \
+  test ! -L "$linked/CLAUDE.local.md" -a ! -e "$linked/.claude/hooks" \
+  -a ! -e "$linked/.claude/.liza-shim.lock"
+rm -- "$linked/.claude/skills"
+ln -s "$stub_home/missing" "$linked/.claude/skills"
+LIZA_SHIM_REFUSAL=$stub_home/linked.refusal stub_init "$linked" 2>/dev/null
+dangling_rc=$?
+check "init refuses a dangling .claude/skills symlink" \
+  test "$dangling_rc" -eq 75 -a ! -e "$stub_home/missing"
+check "and names it" grep -qF "$linked/.claude/skills is a symlink" \
+  "$stub_home/linked.refusal"
+rm -- "$linked/.claude/skills"
+ln -s "$shared" "$linked/.claude/hooks"
+LIZA_SHIM_REFUSAL=$stub_home/linked.refusal stub_init "$linked" 2>/dev/null
+hooks_rc=$?
+check "init refuses a symlinked .claude/hooks" \
+  test "$hooks_rc" -eq 75 -a ! -e "$shared/liza.sh"
+check "and names it" grep -qF "$linked/.claude/hooks is a symlink" \
+  "$stub_home/linked.refusal"
+rm -- "$linked/.claude/hooks"
+# A link into the clone too: git doesn't list files through it.
+mv "$linked/.claude" "$linked/claude-dir"
+ln -s claude-dir "$linked/.claude"
+LIZA_SHIM_REFUSAL=$stub_home/linked.refusal stub_init "$linked" 2>/dev/null
+claude_rc=$?
+check "init refuses a .claude symlinked into the clone" \
+  test "$claude_rc" -eq 75 -a ! -e "$linked/claude-dir/hooks" \
+  -a ! -L "$linked/CLAUDE.local.md"
+check "and names it" grep -qF "$linked/.claude is a symlink" \
+  "$stub_home/linked.refusal"
+rm -r -- "$stub_home/.liza/skills"
+
 # Activation keeps the exclude file's last line whole, and records a file it
 # creates under a line that already hides it; a generated link goes too.
 edge_clone=$(stub_clone edge-clone)
