@@ -26,6 +26,10 @@
   follows Liza v0.10.0's: search test sources before renaming a symbol or
   rewording a message, and, for Claude, how to run and wait for a long
   background command.
+- `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
+  before activation. It now removes one it empties only when activation
+  created it. One that an earlier version's activation created in a repo that
+  ignores it is left holding `{}`: delete it if you like.
 
 ### Minor
 
