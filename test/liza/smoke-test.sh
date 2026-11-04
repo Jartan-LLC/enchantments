@@ -1295,8 +1295,12 @@ EOF
 stub_liza <<<"$places_md"
 own_md=$(stub_clone own-md)
 echo mine >"$own_md/CLAUDE.local.md"
+# An exclude line of the user's that isn't valid UTF-8 stays, in a UTF-8
+# locale, when the shim and deactivate rewrite the exclude file.
+odd_line=$'/odd\xffname'
+echo "$odd_line" >>"$own_md/.git/info/exclude"
 own_status=$(git -C "$own_md" status --porcelain --ignored)
-stub_init "$own_md" 2>/dev/null
+LC_ALL=C.UTF-8 stub_init "$own_md" 2>/dev/null
 own_rc=$?
 check "init with your own CLAUDE.local.md succeeds" test "$own_rc" -eq 0
 check "and keeps it as it was" \
@@ -1307,16 +1311,20 @@ check "and links the contract at .claude/CLAUDE.md" \
   "$stub_home/.liza/CORE.md"
 check "and drops the exclude line Liza added for CLAUDE.local.md" \
   bash -c "! grep -qxF /CLAUDE.local.md '$own_md/.git/info/exclude'"
+check "and keeps your exclude line that isn't valid UTF-8" \
+  env LC_ALL=C grep -qxF "$odd_line" "$own_md/.git/info/exclude"
 check "and git status shows only what it showed before" \
   test "$(git -C "$own_md" status --porcelain)" \
   = "$(grep -v '^!!' <<<"$own_status")"
 check "and leaves nothing held" \
   test ! -e "$own_md/.git/liza/CLAUDE.local.md.held"
-stub_deactivate "$own_md" 2>/dev/null
+LC_ALL=C.UTF-8 stub_deactivate "$own_md" 2>/dev/null
 check "deactivate removes the .claude/CLAUDE.md link" \
   test ! -e "$own_md/.claude/CLAUDE.md" -a ! -L "$own_md/.claude/CLAUDE.md"
 check "and keeps your CLAUDE.local.md" \
   test "$(cat "$own_md/CLAUDE.local.md")" = mine
+check "and keeps your exclude line that isn't valid UTF-8" \
+  env LC_ALL=C grep -qxF "$odd_line" "$own_md/.git/info/exclude"
 # A failed init puts the file back over the link it placed.
 printf '%s\nexit 1\n' "$places_md" | stub_liza
 stub_init "$own_md" 2>/dev/null
