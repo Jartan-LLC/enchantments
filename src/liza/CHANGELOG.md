@@ -58,9 +58,11 @@
   backed up no file of yours there: a hook script of yours that init
   replaced was lost, and `liza-deactivate` left Liza's changes in a file
   init merged into, such as `.codex/config.toml`, and left the files init
-  created where git ignores them. Activation now backs up your files in
-  these folders as it does in `.claude/`, and `liza-deactivate` puts them
-  back and removes the files init created.
+  created where git ignores them. The area activation lists before
+  `liza init` now takes in these folders as well as the top level and
+  `.claude/`: activation backs up your files there as it does in
+  `.claude/`, and `liza-deactivate` puts them back and removes the files
+  init created.
 
 ### Minor
 

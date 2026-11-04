@@ -126,20 +126,21 @@ init_area_untracked() { # ls-files-options...
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
-# The ignored ones activation may overwrite: those at the top level, in
-# .claude/ itself and under .claude/hooks/, where Liza documents that init
-# writes files for Claude, the paths init writes for the other providers, and
-# the entries in .claude/skills/, where the shim replaces a symlink with a link
-# to Liza's skill.
-# Every top-level one counts: Liza documents no closed list of the files init
-# writes there.
+# The ignored ones activation may overwrite, where init writes:
+# - every one at the top level: Liza documents no closed list of the files
+#   init writes there;
+# - those in .claude/, .codex/ and .cursor/ themselves;
+# - those under hooks/ in .claude/, .codex/, .copilot/ and .github/;
+# - the entries in .claude/skills/, where the shim replaces a symlink with a
+#   link to Liza's skill;
+# - those under .opencode/plugins/ and .opencode/tools/.
 # The rest, such as a workspace folder, would only slow the backup, which
 # fingerprints and copies each file.
 init_write_ignored() {
   init_area_untracked --ignored --exclude-standard \
-    | LC_ALL=C grep -z -x -E -e '[^/]*|\.(claude|codex|cursor)/[^/]*' \
-      -e '\.(claude|codex|copilot|github)/hooks/.*|\.claude/skills/[^/]*' \
-      -e '\.opencode/(plugins|tools)/.*'
+    | LC_ALL=C grep -z -x -E -e '[^/]*' -e '\.(claude|codex|cursor)/[^/]*' \
+      -e '\.(claude|codex|copilot|github)/hooks/.*' \
+      -e '\.claude/skills/[^/]*' -e '\.opencode/(plugins|tools)/.*'
 }
 # A file init creates counts as its own whether git shows it or an exclude line
 # hides it. Hidden ones are listed across the whole area, not only
