@@ -44,8 +44,9 @@
   with no copy, and `liza-deactivate` left them; `liza init` wrote its hook
   scripts through a symlinked `.claude/hooks` the same way. Activation now
   refuses when `.claude`, `.claude/hooks` or `.claude/skills` is a symlink,
-  until you make it a directory. If one of them was a symlink when you activated, remove Liza's skill
-  links and hook scripts from the folder it points to.
+  until you make it a directory. If one of them was a symlink when you
+  activated, remove Liza's skill links and hook scripts from the folder it
+  points to.
 
 ## 1.2.0
 
