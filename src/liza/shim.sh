@@ -593,8 +593,7 @@ fi
 # `--claude` points ~/.claude/CLAUDE.md at the contract when that path is free,
 # which loads the contract in every project sharing ~/.claude. Keep it in this
 # clone instead.
-if ! $had_global_contract \
-  && [ "$(readlink "$global_contract")" = "$liza_contract" ]; then
+if ! $had_global_contract && contract_link "$global_contract"; then
   rm -- "$global_contract"
 fi
 # When ~/.claude/CLAUDE.md is taken, init links the repo-root CLAUDE.md

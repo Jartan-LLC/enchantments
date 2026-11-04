@@ -161,6 +161,13 @@ stub_init "$links_clone" 2>/dev/null
 check "a failed init leaves no contract link at CLAUDE.md" \
   test ! -L "$links_clone/CLAUDE.md"
 check "or at ~/.claude/CLAUDE.md" test ! -L "$stub_home/.claude/CLAUDE.md"
+# Links that were there before init are the user's: a failed init keeps them.
+ln -s "$stub_home/.liza/CORE.md" "$links_clone/CLAUDE.md"
+ln -s "$stub_home/.liza/CORE.md" "$stub_home/.claude/CLAUDE.md"
+stub_init "$links_clone" 2>/dev/null
+check "a failed init keeps the contract links that were there before it" \
+  test "$(readlink "$links_clone/CLAUDE.md")" = "$stub_home/.liza/CORE.md" \
+  -a "$(readlink "$stub_home/.claude/CLAUDE.md")" = "$stub_home/.liza/CORE.md"
 rm -f "$stub_home/.claude/CLAUDE.md"
 
 # Ignored files where activation writes are backed up; ignored files elsewhere
@@ -957,6 +964,15 @@ check "then deactivate leaves the exclude file as before activation" \
   cmp -s "$no_root_exclude" "$stub_home/no-root-exclude"
 check "and no contract link" \
   test ! -L "$no_root/CLAUDE.local.md" -a ! -L "$no_root/CLAUDE.md"
+# A contract link at CLAUDE.md that no activation recorded is the user's.
+ln -s "$own_home/.liza/CORE.md" "$no_root/CLAUDE.md"
+check "activating with a CLAUDE.md link of yours succeeds" own_home_init
+check "and keeps that link" \
+  test "$(readlink "$no_root/CLAUDE.md")" = "$own_home/.liza/CORE.md"
+# shellcheck disable=SC2016 # a jq program
+check "and leaves it out of the record" \
+  jq -e --arg p "$no_root/CLAUDE.md" 'all(.files[]; .path != $p)' \
+  "$no_root_record"
 
 # rtk's hook lands in an activated clone once, and not again on re-activation.
 # The stubs stand in for liza (a no-op init keeps the real hooks above) and for
