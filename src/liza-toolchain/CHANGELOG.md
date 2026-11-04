@@ -14,6 +14,12 @@
 - `node`: v24.22.1 → v26.13.0
 - `semble`: hf-xet==1.7.0 → hf-xet==1.7.1
   - hf-xet: 1.7.0 → 1.7.1
+- `@sourcegraph/scip-python`: 0.6.6 → 0.6.8
+- `@sourcegraph/scip-typescript`: 0.4.0 → 0.5.2
+- npm lock:
+  - commander: 9.5.0/12.1.0/13.1.0 → 9.5.0/13.1.0/14.0.3
+  - google-protobuf: 3.21.4 → 3.21.4/4.0.3
+  - typescript: 5.9.3/7.0.2 → 6.0.3/7.0.2
 
 ## 1.4.0
 
