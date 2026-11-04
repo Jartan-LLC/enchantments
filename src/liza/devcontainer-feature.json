@@ -13,7 +13,7 @@
     }
   ],
   "containerEnv": {
-    "PATH": "${PATH}:/mnt/enchantments/liza/bin"
+    "PATH": "${PATH}:/mnt/enchantments/liza/bin:/mnt/enchantments/liza/lib/pre-commit/bin"
   },
   "onCreateCommand": "f=/usr/local/share/enchantments/liza/onCreate.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
   "updateContentCommand": "f=/usr/local/share/enchantments/liza/updateContent.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",

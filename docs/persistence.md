@@ -27,7 +27,7 @@ boundary](trust-boundary.md) covers what a root container can reach.
 
 ## The Liza volumes
 
-Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled when
+Each opened config gets its own `liza-<devcontainerId>` volume, about 1 GB, filled when
 its container is first created. If it holds files of another uid, such as your old one
 after a rebuild under a new uid, creating the container warns and gives the command to
 take it. It stays behind when the clone moves or is deleted. To prune the ones no

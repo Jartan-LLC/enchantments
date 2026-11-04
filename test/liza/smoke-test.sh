@@ -1770,6 +1770,32 @@ check "init --help goes straight to Liza" \
   -a ! -L "$refusals_clone/CLAUDE.local.md"
 rm -f "$refusals_clone/.liza-help-call"
 
+# Init finds the Feature's pre-commit when PATH has none, as in a login shell
+# whose /etc/profile reset PATH, and yours when PATH has one.
+path_clone=$(stub_clone path-clone)
+no_pre_commit=$(tr : '\n' <<<"$PATH" \
+  | while IFS= read -r dir; do [ -x "$dir/pre-commit" ] || echo "$dir"; done \
+  | paste -sd:)
+for dir in "$stub_home/.liza/lib/pre-commit/bin" "$stub_home/mine-bin"; do
+  mkdir -p "$dir"
+  printf '#!/bin/sh\n' >"$dir/pre-commit"
+  chmod +x "$dir/pre-commit"
+done
+stub_liza <<'EOF'
+command -v pre-commit >"$HOME/pre-commit.found"
+exit 1
+EOF
+PATH=$no_pre_commit stub_init "$path_clone" 2>/dev/null
+check "init finds the Feature's pre-commit when PATH has none" \
+  test "$(cat "$stub_home/pre-commit.found")" \
+  = "$stub_home/.liza/lib/pre-commit/bin/pre-commit"
+PATH=$stub_home/mine-bin:$no_pre_commit stub_init "$path_clone" 2>/dev/null
+check "and yours when PATH has one" \
+  test "$(cat "$stub_home/pre-commit.found")" \
+  = "$stub_home/mine-bin/pre-commit"
+rm -rf "$stub_home/.liza/lib" "$stub_home/mine-bin" \
+  "$stub_home/pre-commit.found"
+
 # In a repo that doesn't ignore them, local settings activation created and
 # the user then edited stay after deactivation, and are named.
 shown_clone=$(stub_clone shown-clone)

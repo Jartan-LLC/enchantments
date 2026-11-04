@@ -108,6 +108,10 @@ if [ -d "$liza_toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
   # shellcheck source=/dev/null
   source "$HOME/.liza/toolchain/env.sh"
 fi
+# Liza's multi-agent init refuses without pre-commit, and a login shell on an
+# image whose /etc/profile resets PATH has dropped the Feature's.
+command -v pre-commit >/dev/null \
+  || PATH=$PATH:$HOME/.liza/lib/pre-commit/bin
 # Refused up front, naming the hook, rather than left to fail inside init.
 own_hook=$(own_index_hook "$top")
 case $? in

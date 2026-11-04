@@ -56,6 +56,10 @@
 ### Minor
 
 - `liza`: v0.9.1 → v0.10.0
+- Installs a pinned, digest-checked `pre-commit` when none is on `PATH`,
+  since Liza v0.10.0's multi-agent `liza init` refuses without one. A
+  `pre-commit` of yours on `PATH`, even one installed later, is used
+  instead.
 - When `CLAUDE.local.md` is your own file or symlink, activation links the
   contract at `.claude/CLAUDE.md` instead and leaves yours as it is. A file
   used to leave the contract unloaded, with a warning; a symlink was
