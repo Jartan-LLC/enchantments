@@ -70,6 +70,15 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
   refuse "-C names $project_root, which isn't in $top, where init runs;" \
     "run liza init from the clone you mean instead."
 fi
+# Activation finds the files to back up and record by path, and git doesn't
+# look through a symlink: what init and the skill links write through one, even
+# into the clone, can escape both.
+for dir in "$claude_dir" "$claude_dir/hooks" "$claude_dir/skills"; do
+  if [ -L "$dir" ]; then
+    refuse "$dir is a symlink, so Liza would write through it to files" \
+      "activation can't back up or undo; make it a directory first."
+  fi
+done
 
 # --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the

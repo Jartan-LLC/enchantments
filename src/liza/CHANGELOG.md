@@ -1,5 +1,12 @@
 ## Unreleased
 
+- With `.claude/skills` a symlink, activation wrote Liza's skill links in
+  the folder it points to, replacing a link of yours there of the same name
+  with no copy, and `liza-deactivate` left them; `liza init` wrote its hook
+  scripts through a symlinked `.claude/hooks` the same way. Activation now
+  refuses when `.claude`, `.claude/hooks` or `.claude/skills` is a symlink.
+  If one was when activation ran, remove Liza's skill links and hook
+  scripts from the folder it points to.
 - Liza is activated only in a repo's main checkout. From a linked worktree,
   `liza init` wrote to the main checkout, its committed
   `.claude/settings.json` included, and activation then failed; container
