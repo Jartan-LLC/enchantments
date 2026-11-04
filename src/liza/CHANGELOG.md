@@ -30,9 +30,6 @@
   clone's `.git/info/exclude` that isn't valid UTF-8, and in any locale it
   emptied that file if it held a NUL byte; it now keeps every line of yours.
   If you had such a line, check that the file still holds what you put there.
-- No change in behavior: activation and `liza-deactivate` share one
-  definition of the area activation lists before `liza init`, the top level
-  and `.claude/`.
 - `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
   before activation. It now removes one it empties only when activation
   created it. One that an earlier version's activation created in a repo that
