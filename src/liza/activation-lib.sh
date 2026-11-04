@@ -139,6 +139,21 @@ in_listed_area() { # relative-path
   return 1
 }
 
+# Prints the first of .claude, .claude/hooks and .claude/skills in the clone at
+# $1 that is a symlink, dangling or not, and fails when none is. Activation and
+# deactivation find the files they back up, record and undo by path, and git
+# doesn't list files through a symlink: what they write through one, even into
+# the clone, escapes the backup and the record.
+symlinked_claude_dir() { # top
+  local dir
+  for dir in "$1/.claude" "$1/.claude/hooks" "$1/.claude/skills"; do
+    [ -L "$dir" ] || continue
+    echo "$dir"
+    return 0
+  done
+  return 1
+}
+
 # Prints the directory holding the activation record of the clone at $1.
 record_dir_of() { # top
   git_path "$1" liza

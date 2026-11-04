@@ -72,6 +72,17 @@ held_contract=$record_dir/$held_contract_name
 activated "$top" || contract_linked "$top" || [ -e "$held_contract" ] \
   || [ -L "$held_contract" ] || finish
 
+# The undo goes by path, so through a symlinked .claude, .claude/hooks or
+# .claude/skills it would change files the record doesn't describe, such as
+# another clone's. Refused before the lock, which would go through it too;
+# the record stays for a rerun.
+if link=$(symlinked_claude_dir "$top"); then
+  echo "deactivate: $link is a symlink, so undoing activation would change" \
+    "whatever it points to; make it a directory, then run liza-deactivate" \
+    "again." >&2
+  exit 1
+fi
+
 lock=.claude/.liza-shim.lock
 if ! mkdir -p .claude || ! mkdir "$lock" 2>/dev/null; then
   echo "deactivate: $lock is held by a running liza init; remove it with" \
