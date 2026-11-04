@@ -1599,6 +1599,21 @@ init --codex --codex
 init --provider bogus
 init goal
 EOF
+# A -C value spelled like a provider flag names no provider; a folder by that
+# name in the clone gets it past the refusal of a -C outside the clone.
+mkdir -- "$flagged/--claude"
+for opt in -C --project-root; do
+  rm -f -- "$stub_home/flagged.refusal"
+  (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' \
+    LIZA_SHIM_REFUSAL=$stub_home/flagged.refusal bash "$shim" init "$opt" \
+    --claude </dev/null >/dev/null 2>&1)
+  flagged_rc=$?
+  check "init $opt --claude refuses a symlinked .github" \
+    test "$flagged_rc" -eq 75
+  check "and names it" grep -qF "$flagged/.github is a symlink" \
+    "$stub_home/flagged.refusal"
+done
+rmdir -- "$flagged/--claude"
 (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' \
   LIZA_SHIM_REFUSAL=$stub_home/flagged.refusal bash "$shim" init \
   </dev/null >/dev/null 2>&1)
