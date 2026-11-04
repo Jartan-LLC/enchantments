@@ -174,43 +174,54 @@ symlinked_write_dir() { # top area...
 
 # Prints the listed_dirs that liza init, given the shim's arguments $@, init
 # among them, writes in, as Liza v0.10.0 does: .claude, where the shim links
-# skills whatever the flags, and each provider flag's folders. With no
-# provider flag and no goal, init asks which providers to set up, so it may
-# write in any of them. A refusal over a folder the run never writes in, such
-# as a symlinked .github with --claude alone, would block an activation that
-# is safe.
+# skills whatever the flags, and the folders of each provider named. A
+# provider counts as named only as a plain flag, such as --copilot, or a
+# known --provider id, once each. Any other spelling, such as
+# --copilot=false, or no provider at all may leave init to ask which
+# providers to set up, so it prints every one of listed_dirs. Checking only
+# the named ones lets the Feature's --claude activation pass a symlinked
+# .github, which it never writes in.
 init_areas() { # shim-args...
-  local id chosen=false words=0
+  local id named=() all=false
   echo .claude
   while [ $# -gt 0 ]; do
     case $1 in
-      --provider)
-        id=${2:-}
-        [ -z "$id" ] || chosen=true
-        shift
+      --provider) id=${2-} && shift ;;
+      --provider=*) id=${1#*=} ;;
+      --claude | --codex | --copilot | --cursor | --gemini | --mistral | \
+        --opencode | --pi)
+        id=${1#--}
         ;;
-      --provider=*)
-        id=${1#*=}
-        [ -z "$id" ] || chosen=true
-        ;;
-      -C | --project-root | --update-channel)
+      --claude=* | --codex=* | --copilot=* | --cursor=* | --gemini=* | \
+        --mistral=* | --opencode=* | --pi=*)
         id=''
-        shift
         ;;
-      # A flag set false, such as --claude=false, chooses no provider.
-      --*=0 | --*=[fF] | --*=false | --*=False | --*=FALSE) id='' ;;
-      --*) id=${1#--} id=${id%%=*} ;;
-      -*) id='' ;;
-      # The value of an init flag, such as --branch's, counts as a goal too:
-      # init then refuses for want of a goal or provider, writing nothing.
-      *) id='' words=$((words + 1)) ;;
+      # Their value names no provider, even when spelled like a flag.
+      -C | --project-root)
+        shift 2 || shift
+        continue
+        ;;
+      *)
+        shift
+        continue
+        ;;
     esac
     shift
     case $id in
-      claude | codex | cursor | opencode | gemini | mistral | pi | copilot)
-        chosen=true
+      claude | codex | codex-acp | copilot | cursor | cursor-acp | devin | \
+        devin-acp | gemini | kimi | mistral | opencode | opencode-acp | pi | \
+        qwen | qwen-acp)
+        in_list "$id" "${named[@]}" && all=true
+        named+=("$id")
         ;;
+      *) all=true ;;
     esac
+  done
+  if $all || [ ${#named[@]} -eq 0 ]; then
+    printf '%s\n' "${listed_dirs[@]}"
+    return
+  fi
+  for id in "${named[@]}"; do
     case $id in
       codex | codex-acp) echo .codex ;;
       cursor) printf '%s\n' .codex .cursor ;;
@@ -219,8 +230,6 @@ init_areas() { # shim-args...
       copilot) printf '%s\n' .copilot .github ;;
     esac
   done
-  # The first word is the subcommand, init.
-  if ! $chosen && [ "$words" -le 1 ]; then printf '%s\n' "${listed_dirs[@]}"; fi
 }
 
 # Prints the area, the top-level name, of each path the activation record of

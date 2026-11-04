@@ -1580,7 +1580,8 @@ check "init --claude alone ignores a symlinked .github" \
 stub_deactivate "$flagged" 2>/dev/null
 check "and so does deactivate when activation wrote nothing there" \
   test $? -eq 0 -a ! -L "$flagged/CLAUDE.local.md"
-# With no provider flag and no goal, init asks which providers to set up.
+# Without each provider named once, as a plain flag or a known --provider id,
+# init may ask which providers to set up.
 while read -ra args; do
   (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" "${args[@]}" \
     </dev/null >/dev/null 2>&1)
@@ -1593,17 +1594,25 @@ init -C .
 init --claude=false
 init --codex=0
 init --provider=
+init --claude=false --codex
+init --codex --codex
+init --provider bogus
+init goal
 EOF
 (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' \
   LIZA_SHIM_REFUSAL=$stub_home/flagged.refusal bash "$shim" init \
   </dev/null >/dev/null 2>&1)
 check "and the refusal offers naming providers instead" \
   grep -qF "such as --claude" "$stub_home/flagged.refusal"
-(cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" init "a goal" \
-  </dev/null >/dev/null 2>&1)
-check "init with a goal and no provider flag ignores it" test $? -eq 0
-stub_deactivate "$flagged" 2>/dev/null
 rm -- "$flagged/.github"
+ln -s "$flagged_out" "$flagged/.codex"
+INIT_PATHS='' stub_init "$flagged" --copilot 2>/dev/null
+check "init --claude --copilot ignores a symlinked .codex" \
+  test $? -eq 0 -a -L "$flagged/CLAUDE.local.md"
+stub_deactivate "$flagged" 2>/dev/null
+INIT_PATHS='' stub_init "$flagged" --copilot --copilot=false 2>/dev/null
+check "but init --claude --copilot --copilot=false refuses it" test $? -eq 75
+rm -- "$flagged/.codex"
 # deactivate refuses a symlink at a folder holding a file the record lists.
 INIT_PATHS=.codex/hooks/liza.sh stub_init "$flagged" --codex 2>/dev/null
 mv "$flagged/.codex" "$stub_home/codex-out"
