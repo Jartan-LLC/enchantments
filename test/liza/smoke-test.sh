@@ -283,19 +283,29 @@ EOF
 chmod +x "$stub_home/swap-bin/cp" "$stub_home/swap-bin/mv"
 for step in "the backup:*.liza-shim-backup" \
   "the move aside:*/settings.json *.liza-shim-held" \
-  "the move in:*/settings.local.json */settings.json"; do
+  "the move in:*/settings.local.json */settings.json" \
+  "the move aside with no local file:*/settings.json *.liza-shim-held"; do
   name=${step%%:*}
   swap=$(stub_clone "swap-${name// /-}")
-  echo '{"mine":true}' >"$swap/.claude/settings.local.json"
-  cp "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  if [[ $name == *"no local file" ]]; then
+    rm "$swap/.claude/settings.local.json"
+  else
+    echo '{"mine":true}' >"$swap/.claude/settings.local.json"
+    cp "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  fi
   (cd "$swap" && HOME="$stub_home" PATH="$stub_home/swap-bin:$PATH" \
     SWAP_STEP=${step#*:} bash "$shim" init --claude --yes </dev/null \
     >/dev/null 2>&1)
   swap_rc=$?
   check "a settings swap interrupted at $name exits 130" \
     test "$swap_rc" -eq 130
-  check "and leaves the local settings as they were" \
-    cmp -s "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  if [ -f "$swap/.git/settings-before" ]; then
+    check "and leaves the local settings as they were" \
+      cmp -s "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  else
+    check "and leaves no local settings" \
+      test ! -e "$swap/.claude/settings.local.json"
+  fi
   check "and the committed settings.json" \
     git -C "$swap" diff --quiet -- .claude/settings.json
   check "and leaves no held settings, backup or lock" \
