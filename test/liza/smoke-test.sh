@@ -1465,7 +1465,26 @@ rm -- "$moved/.claude"
 mv "$moved_out" "$moved/.claude"
 stub_deactivate "$moved" 2>/dev/null
 check "and undoes activation once it's a directory again" \
-  test ! -e "$moved/.claude/hooks/liza.sh" -a ! -L "$moved/CLAUDE.local.md"
+  test ! -e "$moved/.claude/hooks/liza.sh" -a ! -L "$moved/CLAUDE.local.md" \
+  -a ! -e "$moved/.git/liza/activation.json"
+stub_init "$moved" 2>/dev/null
+for sub in hooks skills; do
+  mv "$moved/.claude/$sub" "$stub_home/moved-$sub"
+  ln -s "$stub_home/moved-$sub" "$moved/.claude/$sub"
+  stub_deactivate "$moved" 2>"$stub_home/moved.err"
+  sub_rc=$?
+  check "deactivate refuses a symlinked .claude/$sub" test "$sub_rc" -eq 1
+  check "and names it" grep -qF "$moved/.claude/$sub is a symlink" \
+    "$stub_home/moved.err"
+  rm -- "$moved/.claude/$sub"
+  mv "$stub_home/moved-$sub" "$moved/.claude/$sub"
+done
+# With nothing to undo, a symlinked .claude doesn't matter.
+idle=$(stub_clone idle-claude)
+mv "$idle/.claude" "$stub_home/idle-out"
+ln -s "$stub_home/idle-out" "$idle/.claude"
+check "deactivate in a clone that isn't activated ignores a symlinked .claude" \
+  stub_deactivate "$idle"
 rm -r -- "$stub_home/.liza/skills"
 
 # Activation keeps the exclude file's last line whole, and records a file it

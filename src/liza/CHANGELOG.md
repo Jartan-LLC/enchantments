@@ -52,12 +52,6 @@
   leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
   `CLAUDE.md`, where the next activation took the link for yours and kept
   it.
-- With `.claude`, `.claude/hooks` or `.claude/skills` made a symlink after
-  activation, `liza-deactivate` undid activation through it, in whatever
-  folder it points to: pointed at another activated clone's `.claude`, it
-  removed that clone's Liza files and settings. It now refuses, names the
-  symlink and changes nothing; make it a directory, then run
-  `liza-deactivate` again.
 
 ### Minor
 
@@ -83,6 +77,12 @@
   until you make it a directory. If one of them was a symlink when you
   activated, remove Liza's skill links and hook scripts from the folder it
   points to.
+- With `.claude`, `.claude/hooks` or `.claude/skills` made a symlink after
+  activation, `liza-deactivate` undid activation through it, in whatever
+  folder it points to: pointed at another activated clone's `.claude`, it
+  removed that clone's Liza files and settings. It now refuses, names the
+  symlink and changes nothing; make it a directory, then run
+  `liza-deactivate` again.
 
 ## 1.2.0
 
