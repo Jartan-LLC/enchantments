@@ -32,6 +32,10 @@
   Claude loaded the contract twice. Activation now removes init's
   `CLAUDE.md` link, and activating again removes one an earlier version
   kept.
+- A `liza init` that fails, such as on settings it can't merge, no longer
+  leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
+  `CLAUDE.md`, where the next activation took the link for yours and kept
+  it.
 
 ### Minor
 

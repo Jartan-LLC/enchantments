@@ -149,6 +149,20 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
+# Liza's init links the contract at ~/.claude/CLAUDE.md, or at the repo-root
+# CLAUDE.md when that one is taken, before a settings merge that can fail. The
+# stub places both.
+links_clone=$(stub_clone failed-links)
+rm "$links_clone/CLAUDE.md"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '%s\n' 'ln -s "$HOME/.liza/CORE.md" CLAUDE.md' \
+  'ln -s "$HOME/.liza/CORE.md" "$HOME/.claude/CLAUDE.md"' 'exit 1' | stub_liza
+stub_init "$links_clone" 2>/dev/null
+check "a failed init leaves no contract link at CLAUDE.md" \
+  test ! -L "$links_clone/CLAUDE.md"
+check "or at ~/.claude/CLAUDE.md" test ! -L "$stub_home/.claude/CLAUDE.md"
+rm -f "$stub_home/.claude/CLAUDE.md"
+
 # Ignored files where activation writes are backed up; ignored files elsewhere
 # aren't.
 ignored=$(stub_clone ignored)
