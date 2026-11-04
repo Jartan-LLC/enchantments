@@ -378,7 +378,8 @@ forget_contract_place() { # name
     return 1
   fi
 }
-# Runs once: a signal before the EXIT trap is swapped below would run it again.
+# Runs once: a signal before the EXIT trap is replaced after init would run it
+# again.
 release() {
   $released && return
   released=true
