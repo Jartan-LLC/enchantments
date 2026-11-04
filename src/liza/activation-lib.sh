@@ -123,8 +123,10 @@ exclude_line_path() { # line
 }
 
 # The folders that, with the clone's top level, make up the area the shim
-# lists before init, where it watches for the files init writes.
-listed_dirs=(.claude)
+# lists before init, where it watches for the files init writes: .claude/,
+# .codex/ (--codex, --cursor), .cursor/ (--cursor), .opencode/ (--opencode),
+# and .copilot/ and .github/ (--copilot).
+listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
 
 # Succeeds when path $1, relative to the clone's top, is in the area the shim
 # lists: at the top level or under one of listed_dirs.

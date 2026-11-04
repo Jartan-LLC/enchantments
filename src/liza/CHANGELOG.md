@@ -33,6 +33,15 @@
 - No change in behavior: activation and `liza-deactivate` share one
   definition of the area activation lists before `liza init`, the top level
   and `.claude/`.
+- `liza init` writes to other providers' folders: `.codex/` with `--codex`
+  or `--cursor`, `.cursor/` with `--cursor`, `.opencode/` with
+  `--opencode`, and `.copilot/` and `.github/` with `--copilot`. Activation
+  backed up no file of yours there: a hook script of yours that init
+  replaced was lost, and `liza-deactivate` left Liza's changes in a file
+  init merged into, such as `.codex/config.toml`, and left the files init
+  created where git ignores them. Activation now backs up your files in
+  these folders as it does in `.claude/`, and `liza-deactivate` puts them
+  back and removes the files init created.
 
 ### Minor
 

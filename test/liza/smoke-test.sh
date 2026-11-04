@@ -165,8 +165,11 @@ ln -s user-skill "$ignored/.claude/skills/stub-skill"
 echo notes >"$ignored/.claude/skills/real/SKILL.md"
 echo /.claude/skills/ >>"$ignored/.git/info/exclude"
 init_paths=(.user-tool.yaml .claude/notes.md .claude/hooks/user.sh
-  .claude/hooks/sub/x.sh)
+  .claude/hooks/sub/x.sh .codex/hooks.json .codex/hooks/user.sh
+  .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/user.sh
+  .github/hooks/liza.json)
 for rel in "${init_paths[@]}"; do
+  mkdir -p "$ignored/$(dirname "$rel")"
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
 done
@@ -216,6 +219,34 @@ done
 check "and the ignored skill link" \
   test "$(readlink "$ignored/.claude/skills/stub-skill")" = user-skill
 rm -r -- "$stub_home/.liza/skills"
+
+# With --codex, --cursor, --opencode or --copilot, init writes to other
+# providers' folders: a user's untracked files there are backed up, and
+# deactivation puts them back.
+providers=$(stub_clone providers)
+provider_paths=(.codex/config.toml .codex/hooks/git-guard.sh
+  .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/git-guard.sh
+  .github/hooks/liza.json)
+for rel in "${provider_paths[@]}"; do
+  mkdir -p "$providers/$(dirname "$rel")"
+  echo "user file" >"$providers/$rel"
+done
+stub_liza <<'EOF'
+settings "$hook"
+printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
+  echo liza >"$rel"
+done
+EOF
+INIT_PATHS=$(printf '%s\n' "${provider_paths[@]}") \
+  stub_init "$providers" 2>/dev/null
+providers_rc=$?
+check "init over the user's provider files succeeds" \
+  test "$providers_rc" -eq 0
+stub_deactivate "$providers" 2>/dev/null
+for rel in "${provider_paths[@]}"; do
+  check "deactivation puts the user's $rel back" \
+    test "$(cat "$providers/$rel")" = "user file"
+done
 
 # A backup interrupted before init runs leaves no copies and no locks.
 term=$(stub_clone term)
