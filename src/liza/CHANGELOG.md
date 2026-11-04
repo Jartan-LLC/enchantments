@@ -78,9 +78,9 @@
   activated, remove Liza's skill links and hook scripts from the folder it
   points to.
 - With `.claude`, `.claude/hooks` or `.claude/skills` a symlink, including
-  one made after activation, `liza-deactivate` undid activation through it, in whatever
-  folder it points to: pointed at another activated clone's `.claude`, it
-  removed that clone's Liza files and settings. It now refuses, names the
+  one made after activation, `liza-deactivate` undid activation through it,
+  in whatever folder it points to: pointed at another activated clone's
+  `.claude`, it removed that clone's Liza files and settings. It now refuses, names the
   symlink and changes nothing; make it a directory, then run
   `liza-deactivate` again.
 
