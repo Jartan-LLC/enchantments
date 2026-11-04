@@ -149,9 +149,9 @@ else
     path="$top/$rel"
     in_list "$path" "${recorded_paths[@]}" && continue
     in_list "$path" "${preexisting[@]}" && continue
-    # The shim only saw the top level and .claude/ before init: elsewhere, the
-    # file may be the user's.
-    if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
+    # The shim saw only its listed area before init: elsewhere, the file may
+    # be the user's.
+    if ! in_listed_area "$rel"; then
       { [ -f "$path" ] || [ -L "$path" ]; } && kept+=("$path")
       continue
     fi
@@ -201,8 +201,10 @@ rmdir .claude/hooks .claude/skills 2>/dev/null
 if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
   && [ ${#drop_lines[@]} -gt 0 ]; then
   # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-  grep -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") "$exclude_file" \
-    >"$exclude_file.tmp"
+  # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+  # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+  LC_ALL=C grep -a -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") \
+    "$exclude_file" >"$exclude_file.tmp"
   if [ $? -le 1 ] && mv "$exclude_file.tmp" "$exclude_file"; then
     :
   else

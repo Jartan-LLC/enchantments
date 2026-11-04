@@ -122,6 +122,21 @@ exclude_line_path() { # line
   printf '%s\n' "$path"
 }
 
+# The folders that, with the clone's top level, make up the area the shim
+# lists before init, where it watches for the files init writes.
+listed_dirs=(.claude)
+
+# Succeeds when path $1, relative to the clone's top, is in the area the shim
+# lists: at the top level or under one of listed_dirs.
+in_listed_area() { # relative-path
+  local dir
+  [[ "$1" != */* ]] && return 0
+  for dir in "${listed_dirs[@]}"; do
+    [[ "$1" == "$dir"/* ]] && return 0
+  done
+  return 1
+}
+
 # Prints the directory holding the activation record of the clone at $1.
 record_dir_of() { # top
   git_path "$1" liza
