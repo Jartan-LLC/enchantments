@@ -26,6 +26,9 @@
   follows Liza v0.10.0's: search test sources before renaming a symbol or
   rewording a message, and, for Claude, how to run and wait for a long
   background command.
+- No change in behavior: activation and `liza-deactivate` share one
+  definition of the area activation lists before `liza init`, the top level
+  and `.claude/`.
 
 ### Minor
 

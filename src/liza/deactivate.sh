@@ -142,9 +142,9 @@ else
     path="$top/$rel"
     in_list "$path" "${recorded_paths[@]}" && continue
     in_list "$path" "${preexisting[@]}" && continue
-    # The shim only saw the top level and .claude/ before init: elsewhere, the
-    # file may be the user's.
-    if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
+    # The shim saw only its listed area before init: elsewhere, the file may
+    # be the user's.
+    if ! in_listed_area "$rel"; then
       { [ -f "$path" ] || [ -L "$path" ]; } && kept+=("$path")
       continue
     fi

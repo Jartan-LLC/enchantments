@@ -112,12 +112,13 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# Untracked paths at the top level and in .claude/, the area activation
-# watches, minus the two settings files activation manages itself.
+# Untracked paths in the area the shim lists, the top level (':(glob)*') and
+# listed_dirs, minus the two settings files activation manages itself.
+# The pathspec must agree with in_listed_area.
 # grep runs under LC_ALL=C here to match bytes: in a UTF-8 locale it would
 # drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
-  git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
+  git -C "$top" ls-files -z --others "$@" -- "${listed_dirs[@]}" ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
@@ -656,7 +657,7 @@ while IFS= read -r line; do
   # Only in the area the shim lists: deactivate.sh names a file elsewhere as
   # one the shim couldn't see.
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
-    && [[ "$rel" != */* || "$rel" == .claude/* ]] \
+    && in_listed_area "$rel" \
     && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"
