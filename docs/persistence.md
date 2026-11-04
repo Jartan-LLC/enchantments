@@ -7,7 +7,7 @@ A rebuild replaces the container. These volumes outlive it:
 | `claude-data` | Claude Code's login and `~/.claude`: settings, plugins, MCP entries, and each clone's local-scope plugins | every container with `claude-code` |
 | `container-env` | the variables `container-env` exports | every container with `container-env` |
 | `gh-config` | the GitHub CLI's login | every container with `gh-config` |
-| `liza-<devcontainerId>` | Liza and its toolchain | one opened config |
+| `liza-<devcontainerId>` | Liza, the `pre-commit` it installs, and its toolchain | one opened config |
 
 ## Sharing a volume
 
@@ -27,11 +27,11 @@ boundary](trust-boundary.md) covers what a root container can reach.
 
 ## The Liza volumes
 
-Each opened config gets its own `liza-<devcontainerId>` volume, about 0.5 GB, filled when
-its container is first created. If it holds files of another uid, such as your old one
-after a rebuild under a new uid, creating the container warns and gives the command to
-take it. It stays behind when the clone moves or is deleted. To prune the ones no
-container uses:
+Each opened config gets its own `liza-<devcontainerId>` volume, about 1 GB with
+`liza-toolchain` and 0.15 GB without, filled when its container is first created. If it
+holds files of another uid, such as your old one after a rebuild under a new uid,
+creating the container warns and gives the command to take it. It stays behind when the
+clone moves or is deleted. To prune the ones no container uses:
 
 ```bash
 docker volume ls -q --filter dangling=true --filter name='(^|_)liza-' | xargs -r docker volume rm

@@ -33,6 +33,45 @@ check "and keeps its command" \
   jq -e --arg p "$PWD" '.projects[$p].mcpServers.context7.command == "true"' \
   ~/.claude.json
 
+# The image has no pre-commit, so the Feature's is on PATH, and uv linked no
+# Python into ~/.local/bin while installing it.
+pre_commit=/mnt/enchantments/liza/lib/pre-commit
+check "pre-commit runs from PATH" pre-commit --version
+check "and is the Feature's" \
+  test "$(command -v pre-commit)" = "$pre_commit/bin/pre-commit"
+check "no Python in ~/.local/bin" \
+  test -z "$(find ~/.local/bin -name 'python*' -print -quit)"
+
+# A pre-commit of yours first on PATH is used: none is installed.
+mine=$(mktemp -d)
+printf '#!/bin/sh\necho mine\n' >"$mine/pre-commit"
+chmod +x "$mine/pre-commit"
+mv "$pre_commit" "$pre_commit.kept"
+HOME=$mine PATH=$mine:$PATH \
+  bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
+check "a pre-commit of yours means none is installed" test ! -e "$pre_commit"
+check "and nothing is reported" \
+  test ! -e "$mine/.cache/enchantments/liza.failures"
+mv "$pre_commit.kept" "$pre_commit"
+rm -rf "$mine"
+
+# On a rebuild PATH finds the Feature's own pre-commit: it is kept while its
+# pins match and reinstalled when they change.
+rebuild=$(mktemp -d)
+pins=$(cat "$pre_commit/pins")
+touch -d @0 "$pre_commit/pins"
+HOME=$rebuild bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
+check "a rebuild keeps a current pre-commit" \
+  test "$(stat -c %Y "$pre_commit/pins")" = 0
+echo stale >"$pre_commit/pins"
+HOME=$rebuild bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
+check "and reinstalls one whose pins changed" \
+  test "$(cat "$pre_commit/pins")" = "$pins"
+check "which runs" "$pre_commit/bin/pre-commit" --version
+check "and nothing is reported" \
+  test ! -e "$rebuild/.cache/enchantments/liza.failures"
+rm -rf "$rebuild"
+
 # A ~/.liza of your own is reported, never replaced.
 own_home=$(mktemp -d)
 mkdir -p "$own_home/.liza/mine"

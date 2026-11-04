@@ -1,7 +1,7 @@
 
 # Liza (liza)
 
-Liza, activated locally for each clone, with ripgrep; both pinned and digest-checked.
+Liza, activated locally for each clone, with ripgrep, and pre-commit where you have none; all pinned and digest-checked.
 
 ## Example Usage
 
@@ -15,7 +15,7 @@ Liza, activated locally for each clone, with ripgrep; both pinned and digest-che
 
 ## How it works
 
-- **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`; `rg` only if `~/.local/bin` has no `rg` already.
+- **When the container is created,** the pinned Liza binary and ripgrep are checked against their sha256 and installed in this project's `liza-<devcontainerId>` volume, mounted at `/mnt/enchantments/liza` and linked from `~/.liza`. `liza`, `liza-activate`, `liza-deactivate` and `rg` go on `PATH`; `rg` only if `~/.local/bin` has no `rg` already. Unless a `pre-commit` is already on `PATH`, a pinned `pre-commit` is installed in the volume too: a pinned uv builds its venv from the hash-locked `pre-commit-requirements.txt`, with a pinned Python that uv checks against its sha256. Its directory goes last on `PATH`, so a `pre-commit` you install later is used instead.
 - **Then, in the workspace,** Liza's global files are refreshed to match its binary, and Liza is activated for this clone. Outside a git repository, or in a checkout whose git dir isn't its own `.git`, such as a linked worktree or a submodule, only the clone's activation is skipped.
 - **Each time the container starts,** you're warned if `~/.liza` is missing or isn't the volume, or if `~/.local/bin/rg` is missing or doesn't run.
 
@@ -39,7 +39,7 @@ To declare it for every container you open, see `https://github.com/Jartan-LLC/e
 - Liza is activated only in a repo's main checkout: from a linked worktree, `liza init` writes to the main checkout instead. `liza-activate` refuses in a checkout whose git dir isn't its own `.git`, such as a linked worktree or a submodule. `liza init` acts on the clone you're in, so `liza -C <dir> init` refuses when `<dir>` is outside that clone.
 - `~/.liza/libexec/liza init` bypasses the shim, and writes to the committed `.claude/settings.json` and to `~/.claude/CLAUDE.md`.
 - If the project sets `waitFor` to a stage before `updateContentCommand`, wait for the creation log to show activation finished before starting Claude.
-- Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`. Put `pre-commit` on `PATH` too: Liza's multi-agent init refuses without it, and neither this Feature nor `liza-toolchain` installs it.
+- Before a multi-agent `liza init`, add `.liza/`, `.worktrees/`, `claude.env`, `pi.env` and any adversarial-pairing directory, such as `.adversarial/`, to the project's `.gitignore`. Liza's multi-agent init also refuses without `pre-commit` on `PATH`, which this Feature installs when you have none.
 
 ## Undoing activation
 
