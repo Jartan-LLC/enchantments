@@ -22,9 +22,14 @@
   again doesn't bring it back: set it again in `.claude/settings.local.json`,
   where later activations and `liza-deactivate` keep it, or run
   `liza-deactivate`, which puts it back, then `liza-activate`.
+- The `AGENT_TOOLS.md` that activation stages without the toolchain
+  follows Liza v0.10.0's: search test sources before renaming a symbol or
+  rewording a message, and, for Claude, how to run and wait for a long
+  background command.
 
 ### Minor
 
+- `liza`: v0.9.1 → v0.10.0
 - When `CLAUDE.local.md` is your own file or symlink, activation links the
   contract at `.claude/CLAUDE.md` instead and leaves yours as it is. A file
   used to leave the contract unloaded, with a warning; a symlink was

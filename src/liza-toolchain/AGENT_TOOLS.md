@@ -23,7 +23,7 @@ Directly named files/sections/symbols may bypass orientation; use indexes afterw
 
 **`rg` is not guaranteed to exist, and its absence looks like a search bug.** Where `rg` is unavailable as an executable, any invocation that spawns it fails with `No such file or directory` or `Failed to spawn process`. That message means the tool is missing, not that your pattern, quoting, pipe or glob was wrong — retrying the same search reworded cannot succeed. On the first such failure, switch for the rest of the session to plain `grep -rn`, use `find` where the row below says `rg --files`, and use `git grep` for tracked files. Check once with `env rg --version`, which spawns the binary exactly as a tool would; `command -v`/`which`/`type` all match shell functions and aliases, so they report a usable `rg` where none exists. Use direct, line-numbered reads (`nl -ba ... | sed -n ...`) for source-of-truth verification and edit discussion.
 
-When Stacklit and `scip-search` are available, use them as the pre-edit impact baseline for shared/exported symbols or unfamiliar control paths. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`/`ast-grep`, and behavior tests; stale indexes are not proof of post-edit scope.
+When Stacklit and `scip-search` are available, use them as the pre-edit impact baseline for shared/exported symbols or unfamiliar control paths. If that baseline suggests cross-module, lifecycle/state/review-flow, or high-risk impact, surface it through the normal Rule 7/approval checkpoint before editing. Before renaming a symbol or rewording an error, log or output message, also search test sources for the exact old identifier or text: tests that assert on it depend on it too, and indexes do not show string matches. For uncommitted edits, verify impact with `git diff`, direct source reads, working-tree `rg`/`ast-grep`, and behavior tests; stale indexes are not proof of post-edit scope.
 
 ### Execution and Validation
 
@@ -45,7 +45,7 @@ Any non destructive tool by default.
 
 All modes: use source-of-truth tools for verification.
 MAS worktree rule: Do not use workspace-level or IDE/LSP-backed tools in Liza multi-agent worktrees, even if the user has configured them for personal use. Use filesystem-truth tools tied to the current worktree instead: `stacklit` with explicit `-i` paths supplied by Liza, `scip-search` with explicit `--index` paths supplied by Liza, `functional-clusters` with explicit `--clusters` artifacts supplied by Liza, `rg`, `rg --files`, `find`, `ast-grep`, direct reads, native manifests, `git`, language-native commands, and `apply_patch`.
-MAS index freshness: repo-root index paths in an orchestrator prompt are owned by the same lifecycle git hooks as in Pairing mode and are also refreshed after each merge; task and reviewer worktree indexes are refreshed at lifecycle points such as worktree creation and review submission. No agent refreshes them, and none reflect edits made after their last refresh.
+MAS index freshness: explicit paths from the prompt or SessionStart context name the current checkout. Repo-root indexes for the orchestrator are owned by the same lifecycle git hooks as in Pairing mode and refreshed after each merge; task and reviewer worktree indexes are copies taken at lifecycle points such as claim and review submission, so they can lag one repo-root refresh and exclude the task's own edits. No agent refreshes them, and none reflect edits made after their last refresh.
 Pairing mode: user-personal workspace tools may exist, but they do not replace source-of-truth verification. When the SessionStart session context hook emits explicit repo-root Stacklit or SCIP index paths for an indexed Pairing repo, treat those paths as Liza-supplied for that session; they are owned by the lifecycle git hooks Liza installs at init, so they are refreshed after commits and do not reflect uncommitted changes. No agent refreshes them.
 
 ## Tool Routing
@@ -96,10 +96,10 @@ For any MCP-backed default row in the tables below, if the tool is unavailable i
 
 **Additional caveats:**
 
-- **Semble**: use only an explicit target root supplied by Liza or current session context that says Semble is available. Do not infer target roots, initialize Semble, or treat semantic results as proof.
-- **stacklit**: use only explicit `-i <path>` values supplied in the prompt or Pairing SessionStart session context. Do not infer index locations, regenerate Stacklit indexes, run `stacklit view`, or mutate `stacklit-insights.json` / `.stacklitrc.json` from an agent task. Stacklit is for orientation and impact analysis; verify behavior against source files before editing.
-- **scip-search**: use only explicit `--index <path>` values supplied in the prompt or Pairing SessionStart session context. Do not search for default SCIP indexes or rely on daemon/global/cache behavior.
-- **functional-clusters**: use only explicit `--clusters <path>` values supplied in the prompt or Pairing SessionStart session context. Do not infer artifact locations, generate exports, run `functional-clusters build`, or treat cluster membership as ground truth. Functional clusters are advisory and may be stale; verify behavior against source files before editing.
+- **Semble**: use only the supplied discovery root and `--content all` for search/find-related; other modes replace its prepared cache. For task work, resolve root-relative candidates under the assigned worktree and read there; use worktree text/symbol searches for added, deleted, or diverged files. Root results may lag integration and are not review evidence. Do not infer roots, initialize Semble, or treat results as proof.
+- **stacklit**: use only explicit `-i <path>` values supplied in the prompt or SessionStart context. Do not infer index locations, regenerate Stacklit indexes, run `stacklit view`, or mutate `stacklit-insights.json` / `.stacklitrc.json` from an agent task. Stacklit is for orientation and impact analysis; verify behavior against source files before editing.
+- **scip-search**: use only explicit `--index <path>` values supplied in the prompt or SessionStart context. Do not search for default SCIP indexes or rely on daemon/global/cache behavior.
+- **functional-clusters**: use only explicit `--clusters <path>` values supplied in the prompt or SessionStart context. Do not infer artifact locations, generate exports, run `functional-clusters build`, or treat cluster membership as ground truth. Functional clusters are advisory and may be stale; verify behavior against source files before editing.
 
 ### Supplied Index/Search Command Shapes
 
@@ -125,9 +125,9 @@ stacklit get-hints -i <index-path>
 stacklit get-hot-files -i <index-path>
 functional-clusters list --clusters <clusters-path>
 functional-clusters explain --clusters <clusters-path> '<exact-member-symbol>'
-semble search "where is review submission validated?" <target-root>
-semble search "default CLI config" <target-root> --content config
-semble find-related <file_path> <line> <target-root>
+semble search "where is review submission validated?" <target-root> --content all
+semble search "default CLI config" <target-root> --content all
+semble find-related <file_path> <line> <target-root> --content all
 ```
 
 `scip-search --name` matches symbol substrings; `--symbol` matches exact SCIP symbols from prior results. `--location-only` is only valid with exact `--symbol` queries for references and implementations. Use `impact` first for pre-edit blast-radius checks, `graph` when both incoming and outgoing local context matter, and `references`, `callers`, or `callees` when only one direction is needed. `graph`, `callers`, `callees`, and `impact` are static SCIP-derived hints, not complete runtime call graphs. For large functions or Python indexes, graph/impact output may include local symbols, builtins, and type references; prefer exact `--symbol`, `--one-line`, and direct source verification. Supported SCIP languages are Go, Python, and TypeScript; implementation rows are language/indexer-dependent and may be absent for Python indexes. Semble `--content` accepts `code`, `docs`, `config`, and `all`; `code` is the default.
@@ -206,6 +206,17 @@ Parallel Read calls fail as a group if any one errors. Before fanning out,
 use **Glob** to check existence **FIRST**, THEN read only files that exist.
 Do NOT mix the check and the reads in the same batch.
 
+#### Background Jobs - Claude only
+
+A background command dies when the headless session ends. In agent sessions a Stop hook refuses the turn end while one runs, until Claude overrides it after 8 consecutive blocks. One moved there by the 600 s foreground timeout is also stopped 30 min later: start any command that may outlast 10 min, `submit-for-review` above all, with `run_in_background: true` and `timeout: 22200000`, the ceiling agent sessions allow.
+
+Wait in bounded foreground steps: a Bash call with `timeout: 600000` running
+`timeout 570 sh -c 'until tail -n1 "<output-file>" | grep -q "^\[exited with code"; do sleep 10; done'`,
+where `<output-file>` is the path given by the tool result that started the job. Never guess it.
+
+- Exit 0: the job ended. Its last line is `[exited with code N]`; nonzero N means the command failed, so read the output file.
+- Exit 124: completion was not observed. If the output file exists and is readable, repeat the call; otherwise report that the job cannot be observed instead of looping.
+
 #### RTK (Rust Token Killer)
 
 RTK is a **trusted** Token-optimized CLI proxy for shell commands.
@@ -227,7 +238,7 @@ rtk git status
 rtk cargo test
 rtk npm run build
 rtk pytest -q
-rtk semble search "where is review submission validated?" <target-root>
+rtk semble search "where is review submission validated?" <target-root> --content all
 ```
 
 Where `rg` is missing, rtk reports `rtk: search failed: Failed to execute command: No such file or directory (os error 2)`. Then `rtk grep -rn "<pattern>" <paths>` and `rtk find` give the same compact output as `rg`. `rtk find` takes only simple predicates; for `-o`, `-not` or `-exec`, call `find` directly — rtk says so itself when it refuses.
