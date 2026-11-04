@@ -9,8 +9,6 @@ Sections are months, newest first.
 
 ## 2026-11
 
-- `liza`: Liza v0.10.0 refuses a multi-agent `liza init` without
-  `pre-commit` on `PATH`; the Feature installs one when you have none.
 - `liza`: run `liza-activate` in a repo's main checkout; a linked worktree
   isn't activated, and `liza-deactivate` no longer needs to run before
   `git worktree remove`.
