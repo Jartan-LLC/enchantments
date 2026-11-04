@@ -33,6 +33,25 @@
 - No change in behavior: activation and `liza-deactivate` share one
   definition of the area activation lists before `liza init`, the top level
   and `.claude/`.
+- `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
+  before activation. It now removes one it empties only when activation
+  created it. One that an earlier version's activation created in a repo that
+  ignores it is left holding `{}`: delete it if you like.
+- An activation interrupted while it swapped in your local settings for
+  `liza init` could leave `.claude/settings.json` moved aside to
+  `settings.json.liza-shim-held`, with or without your `settings.local.json`
+  in its place, and the next activation refused until you moved them back.
+  It now puts them back.
+- With `~/.claude/CLAUDE.md` a file of your own, `liza init` links the
+  repo-root `CLAUDE.md` to the contract when the clone has none, and
+  activation also linked `CLAUDE.local.md` (or `.claude/CLAUDE.md`), so
+  Claude loaded the contract twice. Activation now removes init's
+  `CLAUDE.md` link, and activating again removes one an earlier version
+  kept.
+- A `liza init` that fails, such as on settings it can't merge, no longer
+  leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
+  `CLAUDE.md`, where the next activation took the link for yours and kept
+  it.
 - `liza init` writes to other providers' folders: `.codex/` with `--codex`
   or `--cursor`, `.cursor/` with `--cursor`, `.opencode/` with
   `--opencode`, and `.copilot/` and `.github/` with `--copilot`. Activation

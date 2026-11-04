@@ -149,6 +149,27 @@ rm -rf -- "$liza_git_dir"
 rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
+# Liza's init links the contract at ~/.claude/CLAUDE.md, or at the repo-root
+# CLAUDE.md when ~/.claude/CLAUDE.md is taken, before a settings merge that can
+# fail. The stub places both.
+links_clone=$(stub_clone failed-links)
+rm "$links_clone/CLAUDE.md"
+# shellcheck disable=SC2016 # expanded by the stub
+printf '%s\n' 'ln -s "$HOME/.liza/CORE.md" CLAUDE.md' \
+  'ln -s "$HOME/.liza/CORE.md" "$HOME/.claude/CLAUDE.md"' 'exit 1' | stub_liza
+stub_init "$links_clone" 2>/dev/null
+check "a failed init leaves no contract link at CLAUDE.md" \
+  test ! -L "$links_clone/CLAUDE.md"
+check "or at ~/.claude/CLAUDE.md" test ! -L "$stub_home/.claude/CLAUDE.md"
+# Links that were there before init are the user's: a failed init keeps them.
+ln -s "$stub_home/.liza/CORE.md" "$links_clone/CLAUDE.md"
+ln -s "$stub_home/.liza/CORE.md" "$stub_home/.claude/CLAUDE.md"
+stub_init "$links_clone" 2>/dev/null
+check "a failed init keeps the contract links that were there before it" \
+  test "$(readlink "$links_clone/CLAUDE.md")" = "$stub_home/.liza/CORE.md" \
+  -a "$(readlink "$stub_home/.claude/CLAUDE.md")" = "$stub_home/.liza/CORE.md"
+rm -f "$stub_home/.claude/CLAUDE.md"
+
 # Ignored files where activation writes are backed up; ignored files elsewhere
 # aren't.
 ignored=$(stub_clone ignored)
@@ -296,6 +317,54 @@ EOF
 stub_init "$killed" 2>/dev/null
 killed_rc=$?
 check "init runs again after a backup killed mid-copy" test "$killed_rc" -eq 0
+
+# A settings swap interrupted before init leaves both settings files as they
+# were, whichever step the interrupt lands at. The backup's copy is killed
+# before it writes, as Ctrl-C can kill it; a move completes.
+mkdir -p "$stub_home/swap-bin"
+cat >"$stub_home/swap-bin/cp" <<EOF
+#!/bin/sh
+case "\$*" in \$SWAP_STEP) kill -TERM "\$PPID"; exit 1 ;; esac
+exec $(command -v cp) "\$@"
+EOF
+cat >"$stub_home/swap-bin/mv" <<EOF
+#!/bin/sh
+case "\$*" in \$SWAP_STEP) kill -TERM "\$PPID" ;; esac
+exec $(command -v mv) "\$@"
+EOF
+chmod +x "$stub_home/swap-bin/cp" "$stub_home/swap-bin/mv"
+for step in "the backup:*.liza-shim-backup" \
+  "the move aside:*/settings.json *.liza-shim-held" \
+  "the move in:*/settings.local.json */settings.json" \
+  "the move aside with no local file:*/settings.json *.liza-shim-held"; do
+  name=${step%%:*}
+  swap=$(stub_clone "swap-${name// /-}")
+  if [[ $name == *"no local file" ]]; then
+    rm "$swap/.claude/settings.local.json"
+  else
+    echo '{"mine":true}' >"$swap/.claude/settings.local.json"
+    cp "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  fi
+  (cd "$swap" && HOME="$stub_home" PATH="$stub_home/swap-bin:$PATH" \
+    SWAP_STEP=${step#*:} bash "$shim" init --claude --yes </dev/null \
+    >/dev/null 2>&1)
+  swap_rc=$?
+  check "a settings swap interrupted at $name exits 130" \
+    test "$swap_rc" -eq 130
+  if [ -f "$swap/.git/settings-before" ]; then
+    check "and leaves the local settings as they were" \
+      cmp -s "$swap/.claude/settings.local.json" "$swap/.git/settings-before"
+  else
+    check "and leaves no local settings" \
+      test ! -e "$swap/.claude/settings.local.json"
+  fi
+  check "and the committed settings.json" \
+    git -C "$swap" diff --quiet -- .claude/settings.json
+  check "and leaves no held settings, backup or lock" \
+    test ! -e "$swap/.claude/settings.json.liza-shim-held" \
+    -a ! -e "$swap/.claude/settings.local.json.liza-shim-backup" \
+    -a ! -e "$swap/.claude/.liza-shim.lock"
+done
 
 # Copies no record lists, left by an interrupted activation, make init refuse
 # when they differ from their files, naming them all, before it copies
@@ -916,6 +985,73 @@ check "deactivate with no record succeeds" bash "$liza_dir/deactivate.sh"
 check "and unlinks the contract" test ! -L CLAUDE.local.md
 check "activation succeeds after a no-record deactivate" \
   liza init --claude --yes
+
+# With ~/.claude/CLAUDE.md a file of the user's, Liza's init links the
+# repo-root CLAUDE.md instead, which activation removes: the contract is linked
+# at CLAUDE.local.md alone. The clone drops the project's own CLAUDE.md, which
+# would leave init no place there.
+own_home=$stub_home/own-home
+mkdir -p "$own_home/.claude"
+ln -s "$HOME/.liza" "$own_home/.liza"
+echo mine >"$own_home/.claude/CLAUDE.md"
+no_root=$stub_home/no-root
+git clone -q "$repo" "$no_root"
+git -C "$no_root" rm -q --ignore-unmatch CLAUDE.md
+git -C "$no_root" -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
+  commit -q --allow-empty -m no-root
+no_root_exclude=$no_root/.git/info/exclude
+no_root_record=$no_root/.git/liza/activation.json
+cp "$no_root_exclude" "$stub_home/no-root-exclude"
+# shellcheck disable=SC2329 # run through check
+own_home_init() {
+  (cd "$no_root" && HOME="$own_home" liza init --claude --yes </dev/null \
+    >/dev/null 2>&1)
+}
+check "activation with your own ~/.claude/CLAUDE.md succeeds" own_home_init
+check "and links the contract at CLAUDE.local.md alone" \
+  test "$(readlink "$no_root/CLAUDE.local.md")" = "$own_home/.liza/CORE.md" \
+  -a ! -e "$no_root/CLAUDE.md" -a ! -L "$no_root/CLAUDE.md"
+check "and adds no exclude line for CLAUDE.md" \
+  bash -c "! grep -qxF /CLAUDE.md '$no_root_exclude'"
+check "and leaves your ~/.claude/CLAUDE.md alone" \
+  test "$(cat "$own_home/.claude/CLAUDE.md")" = mine
+# An earlier version kept init's link at CLAUDE.md, excluded and recorded like
+# the one at CLAUDE.local.md; activating again removes it.
+ln -s "$own_home/.liza/CORE.md" "$no_root/CLAUDE.md"
+echo /CLAUDE.md >>"$no_root_exclude"
+jq --arg p "$no_root/CLAUDE.md" --arg l "$no_root/CLAUDE.local.md" \
+  '.files += [.files[] | select(.path == $l) | .path = $p]
+  | .exclude_lines += ["/CLAUDE.md"]' "$no_root_record" \
+  >"$no_root_record.tmp" && mv "$no_root_record.tmp" "$no_root_record"
+# shellcheck disable=SC2016 # a jq program
+check "the earlier version's link is recorded" \
+  jq -e --arg p "$no_root/CLAUDE.md" 'any(.files[]; .path == $p)' \
+  "$no_root_record"
+check "activating that clone again succeeds" own_home_init
+check "and removes the CLAUDE.md link an earlier version kept" \
+  test "$(readlink "$no_root/CLAUDE.local.md")" = "$own_home/.liza/CORE.md" \
+  -a ! -e "$no_root/CLAUDE.md" -a ! -L "$no_root/CLAUDE.md"
+check "and its exclude line" \
+  bash -c "! grep -qxF /CLAUDE.md '$no_root_exclude'"
+# shellcheck disable=SC2016 # a jq program
+check "and drops both from the record" \
+  jq -e --arg p "$no_root/CLAUDE.md" \
+  'all(.files[]; .path != $p) and all(.exclude_lines[]; . != "/CLAUDE.md")' \
+  "$no_root_record"
+(cd "$no_root" && HOME="$own_home" bash "$liza_dir/deactivate.sh" 2>/dev/null)
+check "then deactivate leaves the exclude file as before activation" \
+  cmp -s "$no_root_exclude" "$stub_home/no-root-exclude"
+check "and no contract link" \
+  test ! -L "$no_root/CLAUDE.local.md" -a ! -L "$no_root/CLAUDE.md"
+# A contract link at CLAUDE.md that no activation recorded is the user's.
+ln -s "$own_home/.liza/CORE.md" "$no_root/CLAUDE.md"
+check "activating with a CLAUDE.md link of yours succeeds" own_home_init
+check "and keeps that link" \
+  test "$(readlink "$no_root/CLAUDE.md")" = "$own_home/.liza/CORE.md"
+# shellcheck disable=SC2016 # a jq program
+check "and leaves it out of the record" \
+  jq -e --arg p "$no_root/CLAUDE.md" 'all(.files[]; .path != $p)' \
+  "$no_root_record"
 
 # rtk's hook lands in an activated clone once, and not again on re-activation.
 # The stubs stand in for liza (a no-op init keeps the real hooks above) and for
@@ -1630,6 +1766,39 @@ check "edited local settings in an unignoring repo are kept" \
   "$shown_clone/.claude/settings.local.json"
 check "and named, once" \
   test "$(grep -o 'settings.local.json' "$stub_home/shown.err" | wc -l)" -eq 1
+
+# Deactivation keeps local settings that held {} before activation, and removes
+# ones activation created, even after a re-activation in a repo that ignores
+# them.
+empty_clone=$(stub_clone empty-clone)
+stub_init "$empty_clone" 2>/dev/null
+stub_deactivate "$empty_clone" 2>/dev/null
+check "deactivate keeps local settings that held {} before activation" \
+  test "$(jq -c . "$empty_clone/.claude/settings.local.json")" = '{}'
+rm -f "$empty_clone/.claude/settings.local.json"
+stub_init "$empty_clone" 2>/dev/null
+stub_init "$empty_clone" 2>/dev/null
+jq -e '.hooks.SessionStart | length > 0' \
+  "$empty_clone/.claude/settings.local.json" >/dev/null 2>&1
+created_hooks=$?
+stub_deactivate "$empty_clone" 2>/dev/null
+check "and removes ones activation created, after a re-activation too" \
+  test "$created_hooks" -eq 0 \
+  -a ! -e "$empty_clone/.claude/settings.local.json"
+# A record from before the root created op still removes them, from the files
+# list, in a repo that shows them.
+rm -f "$shown_clone/.claude/settings.local.json"
+stub_init "$shown_clone" 2>/dev/null
+old_record="$shown_clone/.git/liza/activation.json"
+jq '.settings -= [{op: "created", path: []}]' "$old_record" \
+  >"$stub_home/old-record.json" \
+  && mv "$stub_home/old-record.json" "$old_record"
+jq -e 'any(.files[]; .path | endswith("/.claude/settings.local.json"))
+  and all(.settings[]; .path != [])' "$old_record" >/dev/null 2>&1
+listed=$?
+stub_deactivate "$shown_clone" 2>/dev/null
+check "and ones an older record lists" \
+  test "$listed" -eq 0 -a ! -e "$shown_clone/.claude/settings.local.json"
 
 # liza-activate without Liza installed says so.
 missing_dir="$stub_home/missing-liza"
