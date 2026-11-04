@@ -19,8 +19,8 @@ merged_files=(.bash-policy.yaml .claudeignore)
 
 # Prints "<path> <fingerprint>" for each existing file or symlink given, so
 # activation can record what it created and deactivation can tell whether it has
-# changed since. Readers split on the last space, so a symlink's target is
-# hashed too.
+# changed since. fp_path and fp_hash split a line on its last space, so a
+# symlink's target is hashed too.
 fingerprint() {
   local f
   for f in "$@"; do
@@ -32,12 +32,23 @@ fingerprint() {
   done
 }
 
+# Lines in this format are also built by shim.sh's as_liza_wrote and
+# find_overwritten ("<path> absent"), split by activation-record.jq's
+# _entries and printed by its file_entries and overwritten_entries: a format
+# change goes to each.
+fp_path() { # line
+  printf '%s\n' "${1% *}"
+}
+fp_hash() { # line
+  printf '%s\n' "${1##* }"
+}
+
 # Succeeds when files or symlinks $1 and $2 have the same fingerprint, paths
 # aside, and fails when either is missing.
 same_content() { # a b
   local a b
   a=$(fingerprint "$1") b=$(fingerprint "$2")
-  [ -n "$a" ] && [ "${a#"$1" }" = "${b#"$2" }" ]
+  [ -n "$a" ] && [ "$(fp_hash "$a")" = "$(fp_hash "$b")" ]
 }
 
 # Puts a copy of file or symlink $1 at $2, replacing what's there without

@@ -117,7 +117,7 @@ else
   # version was edited since; then the original goes beside it.
   mapfile -t overwritten < <(record_query overwritten_entries "$record")
   for entry in "${overwritten[@]}"; do
-    path=${entry% *}
+    path=$(fp_path "$entry")
     original="$record_dir/originals/${path#"$top"/}"
     [ -e "$original" ] || [ -L "$original" ] || continue
     accounted+=("$original")
@@ -140,7 +140,7 @@ else
     settings_created=true
   fi
   for entry in "${recorded[@]}"; do
-    path=${entry% *}
+    path=$(fp_path "$entry")
     # The settings revert above owns the local settings.
     [ "$path" = "$local_settings" ] && continue
     now=$(fingerprint "$path")
