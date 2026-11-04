@@ -1325,6 +1325,8 @@ check "and keeps your CLAUDE.local.md" \
   test "$(cat "$own_md/CLAUDE.local.md")" = mine
 check "and keeps your exclude line that isn't valid UTF-8" \
   env LC_ALL=C grep -qxF "$odd_line" "$own_md/.git/info/exclude"
+check "and drops the exclude line activation added for .claude/CLAUDE.md" \
+  bash -c "! grep -qxF /.claude/CLAUDE.md '$own_md/.git/info/exclude'"
 # A failed init puts the file back over the link it placed.
 printf '%s\nexit 1\n' "$places_md" | stub_liza
 stub_init "$own_md" 2>/dev/null

@@ -192,9 +192,9 @@ rmdir .claude/hooks .claude/skills 2>/dev/null
 if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
   && [ ${#drop_lines[@]} -gt 0 ]; then
   # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-  # LC_ALL=C keeps a line that isn't valid UTF-8, which grep drops in a UTF-8
-  # locale.
-  LC_ALL=C grep -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") \
+  # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+  # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+  LC_ALL=C grep -a -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") \
     "$exclude_file" >"$exclude_file.tmp"
   if [ $? -le 1 ] && mv "$exclude_file.tmp" "$exclude_file"; then
     :

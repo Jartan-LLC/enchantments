@@ -356,9 +356,9 @@ forget_contract_place() { # name
     || grep -qxF "$line" <<<"$recorded"; } \
     && grep -qxF "$line" "$exclude_file" 2>/dev/null; then
     # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-    # LC_ALL=C keeps a line that isn't valid UTF-8, which grep drops in a
-    # UTF-8 locale.
-    LC_ALL=C grep -vxF "$line" "$exclude_file" >"$exclude_file.tmp"
+    # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+    # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+    LC_ALL=C grep -avxF "$line" "$exclude_file" >"$exclude_file.tmp"
     if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
       rm -f -- "$exclude_file.tmp"
       echo "liza shim: could not drop $line from $exclude_file, where it" \
