@@ -90,6 +90,34 @@ check "which runs" "$pre_commit/bin/pre-commit" --version
 check "with nothing left aside" test ! -e "$pre_commit.old"
 rm -rf "$broken"
 
+# What a finished build left aside is stale: deleted even when nothing needs
+# installing, and never put back over the install.
+stale=$(mktemp -d)
+inode=$(stat -c %i "$pre_commit")
+mkdir -p "$pre_commit.old/venv"
+HOME=$stale bash /usr/local/share/enchantments/liza/onCreate.sh 2>/dev/null
+check "a stale copy left aside is deleted" test ! -e "$pre_commit.old"
+check "and the install kept" test "$(stat -c %i "$pre_commit")" = "$inode"
+check "and nothing is reported" \
+  test ! -e "$stale/.cache/enchantments/liza.failures"
+rm -rf "$stale"
+
+# A rebuild that fails before it fetches uv leaves the install untouched.
+no_uv=$(mktemp -d)
+cp -R /usr/local/share/enchantments/liza "$no_uv/hooks"
+sed -i "s/^\(PRE_COMMIT_UV_SHA256_[A-Z0-9_]*=\).*/\1'$(printf '%064d' 0)'/" \
+  "$no_uv/hooks/pins.sh"
+echo stale >"$pre_commit/pins"
+HOME=$no_uv bash "$no_uv/hooks/onCreate.sh" 2>/dev/null
+check "a rebuild whose uv fails is reported" \
+  grep -q "install of pre-commit failed" \
+  "$no_uv/.cache/enchantments/liza.failures"
+check "and leaves the install untouched" \
+  test "$(stat -c %i "$pre_commit")" = "$inode" \
+  -a "$(cat "$pre_commit/pins")" = stale
+echo "$pins" >"$pre_commit/pins"
+rm -rf "$no_uv"
+
 # A ~/.liza of your own is reported, never replaced.
 own_home=$(mktemp -d)
 mkdir -p "$own_home/.liza/mine"

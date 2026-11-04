@@ -76,6 +76,7 @@ fi
 # comes first on PATH, in a directory of its own, apart from liza-toolchain's
 # uv and Python. Its bin goes last on PATH, so one you install later wins.
 pre_commit=$mount/lib/pre-commit
+pre_commit_old=$pre_commit.old
 lock_sum=$(sha256sum <"$here/$PRE_COMMIT_REQUIREMENTS" | cut -d' ' -f1)
 pre_commit_pins="$PRE_COMMIT_UV_TAG $PRE_COMMIT_PYTHON_VERSION $lock_sum $arch"
 
@@ -85,12 +86,7 @@ pre_commit_pins="$PRE_COMMIT_UV_TAG $PRE_COMMIT_PYTHON_VERSION $lock_sum $arch"
 # own path, so the new one can't be built elsewhere and moved into place.
 install_pre_commit() {
   local tmp rc asset sha256=PRE_COMMIT_UV_SHA256_$arch
-  local tag=$PRE_COMMIT_UV_TAG old=$pre_commit.old
-  # A run cut short mid-build left the working install aside: put it back.
-  # A build that got as far as its pins finished, so what it left is stale.
-  [ ! -e "$old" ] || [ -e "$pre_commit/pins" ] \
-    || { rm -rf "$pre_commit" && mv "$old" "$pre_commit"; } || return 1
-  rm -rf "$old"
+  local tag=$PRE_COMMIT_UV_TAG old=$pre_commit_old
   asset=$(asset_name PRE_COMMIT_UV)
   tmp=$(mktemp -d) || return 1
   # No uv.toml or pyproject.toml of the workspace may steer this install.
@@ -103,7 +99,7 @@ install_pre_commit() {
       --managed-python --python "$PRE_COMMIT_PYTHON_VERSION" \
       "$pre_commit/venv" \
     && "$tmp/uv" pip install -q --python "$pre_commit/venv/bin/python" \
-      --require-hashes -r "$here/$PRE_COMMIT_REQUIREMENTS" \
+      --no-build --require-hashes -r "$here/$PRE_COMMIT_REQUIREMENTS" \
     && mkdir "$pre_commit/bin" \
     && ln -s ../venv/bin/pre-commit "$pre_commit/bin/pre-commit" \
     && echo "$pre_commit_pins" >"$pre_commit/pins"
@@ -123,10 +119,24 @@ pre_commit_current() {
     && "$pre_commit/bin/pre-commit" --version >/dev/null 2>&1
 }
 
+# A run cut short mid-build left the working install aside: put it back. A
+# build that got as far as its pins finished, so what it left aside is stale.
+settle_old_pre_commit() {
+  [ -e "$pre_commit_old" ] || return 0
+  if [ -e "$pre_commit/pins" ]; then
+    rm -rf "$pre_commit_old"
+  else
+    rm -rf "$pre_commit" && mv "$pre_commit_old" "$pre_commit"
+  fi
+}
+
 # On a rebuild, PATH finds the Feature's own link: that one is still
 # reinstalled when its pins change.
 yours=$(command -v pre-commit)
-if { [ -z "$yours" ] || [ "$yours" -ef "$pre_commit/bin/pre-commit" ]; } \
+if ! settle_old_pre_commit; then
+  record_failure "$id" "couldn't put back or remove $pre_commit_old, which" \
+    "an interrupted install of pre-commit left; $retry"
+elif { [ -z "$yours" ] || [ "$yours" -ef "$pre_commit/bin/pre-commit" ]; } \
   && ! pre_commit_current; then
   install_pre_commit \
     || record_failure "$id" "install of pre-commit failed (download, digest" \
