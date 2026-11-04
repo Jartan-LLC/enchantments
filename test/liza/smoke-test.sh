@@ -185,9 +185,18 @@ touch "$stub_home/.liza/skills/stub-skill/SKILL.md"
 ln -s user-skill "$ignored/.claude/skills/stub-skill"
 echo notes >"$ignored/.claude/skills/real/SKILL.md"
 echo /.claude/skills/ >>"$ignored/.git/info/exclude"
+# Nor are those in other providers' folders outside the paths init writes.
+mkdir -p "$ignored/.opencode/node_modules/x" "$ignored/.github/workflows"
+echo notes >"$ignored/.opencode/node_modules/x/index.js"
+echo notes >"$ignored/.github/workflows/x.yml"
+printf '%s\n' /.opencode/node_modules/ /.github/workflows/ \
+  >>"$ignored/.git/info/exclude"
 init_paths=(.user-tool.yaml .claude/notes.md .claude/hooks/user.sh
-  .claude/hooks/sub/x.sh)
+  .claude/hooks/sub/x.sh .codex/hooks.json .codex/hooks/user.sh
+  .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/user.sh
+  .github/hooks/liza.json)
 for rel in "${init_paths[@]}"; do
+  mkdir -p "$ignored/$(dirname "$rel")"
   echo "user file" >"$ignored/$rel"
   echo "/$rel" >>"$ignored/.git/info/exclude"
 done
@@ -201,6 +210,9 @@ stub_liza <<'EOF'
 settings "$hook"
 [ -e .git/liza/originals/.claude/workspace ] && touch .git/workspace-copied
 [ -e .git/liza/originals/.claude/skills/real ] && touch .git/real-copied
+for rest in .opencode/node_modules .github/workflows; do
+  [ -e ".git/liza/originals/$rest" ] && touch .git/provider-rest-copied
+done
 [ -e ".git/liza/originals/$ODD" ] && touch .git/odd-copied
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
@@ -224,6 +236,8 @@ check "ignored files outside init's paths aren't" \
   test ! -e "$ignored/.git/workspace-copied"
 check "nor are files inside a real skill folder" \
   test ! -e "$ignored/.git/real-copied"
+check "nor are other providers' files outside init's paths" \
+  test ! -e "$ignored/.git/provider-rest-copied"
 check "nor is a file whose name isn't valid UTF-8" \
   test ! -e "$ignored/.git/odd-copied"
 ignored_init
@@ -237,6 +251,44 @@ done
 check "and the ignored skill link" \
   test "$(readlink "$ignored/.claude/skills/stub-skill")" = user-skill
 rm -r -- "$stub_home/.liza/skills"
+
+# With --codex, --cursor, --opencode or --copilot, init writes to other
+# providers' folders: a user's untracked files there are backed up, and
+# deactivation puts them back and removes a file init created where git
+# ignores it.
+providers=$(stub_clone providers)
+provider_paths=(.codex/config.toml .codex/hooks/git-guard.sh
+  .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/git-guard.sh
+  .github/hooks/liza.json)
+for rel in "${provider_paths[@]}"; do
+  mkdir -p "$providers/$(dirname "$rel")"
+  echo "user file" >"$providers/$rel"
+done
+created=.opencode/plugins/liza.ts
+mkdir -p "$providers/$(dirname "$created")"
+echo /.opencode/plugins/ >>"$providers/.git/info/exclude"
+stub_liza <<'EOF'
+settings "$hook"
+printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
+  echo liza >"$rel"
+done
+EOF
+INIT_PATHS=$(printf '%s\n' "${provider_paths[@]}" "$created") \
+  stub_init "$providers" 2>/dev/null
+providers_rc=$?
+check "init over the user's provider files succeeds" \
+  test "$providers_rc" -eq 0
+for rel in "${provider_paths[@]}"; do
+  check "the user's $rel is backed up" \
+    test "$(cat "$providers/.git/liza/originals/$rel")" = "user file"
+done
+stub_deactivate "$providers" 2>/dev/null
+for rel in "${provider_paths[@]}"; do
+  check "deactivation puts the user's $rel back" \
+    test "$(cat "$providers/$rel")" = "user file"
+done
+check "and removes the ignored $created init created" \
+  test ! -e "$providers/$created"
 
 # A backup interrupted before init runs leaves no copies and no locks.
 term=$(stub_clone term)
