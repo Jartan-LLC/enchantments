@@ -326,8 +326,13 @@ restore_after_failure() {
 # Liza always merges into .claude/settings.json. Putting the local file in its
 # place for the run lets Liza's own merge write the local file, and the
 # committed one is never opened.
+# Once swapped, settings.json is the local file's: the one moved in, or the one
+# init creates. Before that, it may be the committed one.
+swapped=false
 restore_settings() {
-  [ -f "$shared_settings" ] && mv -f "$shared_settings" "$local_settings"
+  if $swapped && [ -f "$shared_settings" ]; then
+    mv -f "$shared_settings" "$local_settings"
+  fi
   [ -f "$held_settings" ] && mv -f "$held_settings" "$shared_settings"
 }
 # Liza writes settings non-atomically and only warns when the merge fails, so
@@ -377,7 +382,8 @@ forget_contract_place() { # name
     return 1
   fi
 }
-# Runs once: a signal before the EXIT trap is swapped below would run it again.
+# Runs once: a signal before the EXIT trap is replaced after init would run it
+# again.
 release() {
   $released && return
   released=true
@@ -395,8 +401,14 @@ release() {
   fi
   rm -f "$backup_settings"
 }
+# An interrupt during the swap only undoes it. release would take it for a
+# failed init and replace the local file with its backup, which an interrupted
+# copy leaves partial or missing.
+trap 'restore_settings; rm -f "$backup_settings"; prune_originals; unlock' EXIT
 [ -f "$local_settings" ] && cp -p "$local_settings" "$backup_settings"
 [ -f "$shared_settings" ] && mv "$shared_settings" "$held_settings"
+# Set first, so an interrupt that lands as the mv returns still undoes it.
+swapped=true
 [ -f "$local_settings" ] && mv "$local_settings" "$shared_settings"
 trap 'release; restore_after_failure; unlock' EXIT
 

@@ -37,6 +37,11 @@
   before activation. It now removes one it empties only when activation
   created it. One that an earlier version's activation created in a repo that
   ignores it is left holding `{}`: delete it if you like.
+- An activation interrupted while it swapped in your local settings for
+  `liza init` could leave `.claude/settings.json` moved aside to
+  `settings.json.liza-shim-held`, with or without your `settings.local.json`
+  in its place, and the next activation refused until you moved them back.
+  It now puts them back.
 
 ### Minor
 
