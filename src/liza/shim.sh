@@ -158,7 +158,8 @@ recorded_files=()
 recorded_before=$(fingerprint "${recorded_files[@]}")
 git_before=$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)
 exclude_before=$(cat "$exclude_file" 2>/dev/null)
-pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
+# null when there's none, so the record shows activation created the file.
+pre_settings=$(cat "$local_settings" 2>/dev/null || echo null)
 
 # --- Find the contract's place ---
 # A CLAUDE.local.md of the user's sends the contract to .claude/CLAUDE.md.

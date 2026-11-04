@@ -33,6 +33,10 @@
 - No change in behavior: activation and `liza-deactivate` share one
   definition of the area activation lists before `liza init`, the top level
   and `.claude/`.
+- `liza-deactivate` removed a `.claude/settings.local.json` that held `{}`
+  before activation. It now removes one it empties only when activation
+  created it. One that an earlier version's activation created in a repo that
+  ignores it is left holding `{}`: delete it if you like.
 
 ### Minor
 

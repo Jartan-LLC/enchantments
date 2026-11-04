@@ -1600,6 +1600,39 @@ check "edited local settings in an unignoring repo are kept" \
 check "and named, once" \
   test "$(grep -o 'settings.local.json' "$stub_home/shown.err" | wc -l)" -eq 1
 
+# Deactivation keeps local settings that held {} before activation, and removes
+# ones activation created, even after a re-activation in a repo that ignores
+# them.
+empty_clone=$(stub_clone empty-clone)
+stub_init "$empty_clone" 2>/dev/null
+stub_deactivate "$empty_clone" 2>/dev/null
+check "deactivate keeps local settings that held {} before activation" \
+  test "$(jq -c . "$empty_clone/.claude/settings.local.json")" = '{}'
+rm -f "$empty_clone/.claude/settings.local.json"
+stub_init "$empty_clone" 2>/dev/null
+stub_init "$empty_clone" 2>/dev/null
+jq -e '.hooks.SessionStart | length > 0' \
+  "$empty_clone/.claude/settings.local.json" >/dev/null 2>&1
+created_hooks=$?
+stub_deactivate "$empty_clone" 2>/dev/null
+check "and removes ones activation created, after a re-activation too" \
+  test "$created_hooks" -eq 0 \
+  -a ! -e "$empty_clone/.claude/settings.local.json"
+# A record from before the root created op still removes them, from the files
+# list, in a repo that shows them.
+rm -f "$shown_clone/.claude/settings.local.json"
+stub_init "$shown_clone" 2>/dev/null
+old_record="$shown_clone/.git/liza/activation.json"
+jq '.settings -= [{op: "created", path: []}]' "$old_record" \
+  >"$stub_home/old-record.json" \
+  && mv "$stub_home/old-record.json" "$old_record"
+jq -e 'any(.files[]; .path | endswith("/.claude/settings.local.json"))
+  and all(.settings[]; .path != [])' "$old_record" >/dev/null 2>&1
+listed=$?
+stub_deactivate "$shown_clone" 2>/dev/null
+check "and ones an older record lists" \
+  test "$listed" -eq 0 -a ! -e "$shown_clone/.claude/settings.local.json"
+
 # liza-activate without Liza installed says so.
 missing_dir="$stub_home/missing-liza"
 cp -R "$liza_dir" "$missing_dir"
