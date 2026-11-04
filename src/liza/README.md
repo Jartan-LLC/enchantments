@@ -1,7 +1,7 @@
 
 # Liza (liza)
 
-Liza, activated locally for each clone, with ripgrep, and pre-commit where you have none; all pinned and digest-checked.
+Liza, activated locally for each clone, with ripgrep; both pinned and digest-checked.
 
 ## Example Usage
 

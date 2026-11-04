@@ -9,7 +9,7 @@ Each Feature installs on its own; a few only do their full job alongside another
 | [`container-env`](features/container-env.md) | per-device environment variables, from the `container-env` volume | — |
 | [`gh-config`](features/gh-config.md) | the GitHub CLI's login, kept in the `gh-config` volume | — |
 | [`grimoire`](features/grimoire.md) | grimoire's Claude Code plugins, at local scope for each clone | `claude-code`; `node` on `PATH` |
-| [`liza`](features/liza.md) | Liza, activated locally for each clone, with ripgrep, and `pre-commit` where you have none | — (with `liza-toolchain`, context7 also needs `claude-code`) |
+| [`liza`](features/liza.md) | Liza, activated locally for each clone, with ripgrep | — (with `liza-toolchain`, context7 also needs `claude-code`) |
 | [`liza-toolchain`](features/liza-toolchain.md) | Liza's agent toolchain: code indexes, semantic search, rtk, context7 | `liza` |
 | [`stripe-cli`](features/stripe-cli.md) | the Stripe CLI, from a pinned release | — |
 
