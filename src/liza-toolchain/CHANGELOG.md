@@ -7,8 +7,7 @@
   lags in multi-agent runs, and, for Claude, how to run and wait for a long
   background command.
 - semble's install fails rather than build a package from source, as its
-  lock is compiled with `--no-build`; today's lock has wheels for every
-  package.
+  lock is compiled with `--no-build`.
 
 ### Minor
 
