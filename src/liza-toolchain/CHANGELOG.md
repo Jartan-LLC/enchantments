@@ -7,6 +7,14 @@
   lags in multi-agent runs, and, for Claude, how to run and wait for a long
   background command.
 
+### Minor
+
+- `rtk`: v1.0.1 → v1.1.0
+- `uv`: 0.13.5 → 0.13.6
+- `node`: v24.22.1 → v26.13.0
+- `semble`: hf-xet==1.7.0 → hf-xet==1.7.1
+  - hf-xet: 1.7.0 → 1.7.1
+
 ## 1.4.0
 
 - npm lock:
