@@ -12,8 +12,10 @@ Declare a Feature in either place:
 }
 ```
 
-Use exactly `ghcr.io/jartan-llc/enchantments/<id>:1`, in both places. Declared with another
-version, a digest or other options, a Feature can install twice.
+Use exactly `ghcr.io/jartan-llc/enchantments/<id>:1`, in both places. Under the same key,
+a Feature installs once, with the project's options. Declared under any other key, such as
+another version or a digest, it installs twice unless both resolve to the same release with
+the same options.
 
 ## Removing a Feature
 
