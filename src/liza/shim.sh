@@ -11,12 +11,12 @@ real_liza="$HOME/.liza/libexec/liza"
 
 # Sets the variable named $1 to the project root the arguments give, if any,
 # and fails unless they run init without --help, which writes nothing.
-# Global flags can precede the subcommand, and -C can follow it too;
-# -C/--project-root and --update-channel take a value.
 init_args() { # project-root-var args...
   local -n root=$1
   local subcommand="" help=false args=("${@:2}") i
   root=""
+  # Global flags can precede the subcommand, and -C can follow it too;
+  # -C/--project-root and --update-channel take a value.
   for ((i = 0; i < ${#args[@]}; i++)); do
     case "${args[i]}" in
       -h | --help) help=true ;;
@@ -79,12 +79,15 @@ if link=$(symlinked_claude_dir "$top"); then
     "activation can't back up or undo; make it a directory first."
 fi
 
-# The functions below read the paths set once in the main flow, the snapshot
-# it takes before init, and the run state the EXIT traps read: have_lock,
-# fp_before, held_fp, swapped, rc, released, contract_held and init_ok. The
-# traps run in the scope of the function that exits, so no function's local
-# takes one of those names. Other state is local, and a function that fills
-# a variable of the main flow takes its name.
+# The functions below share three kinds of global with the main flow: the
+# paths it sets once, the state it takes before and after init (the snapshot,
+# and liza_fp), and the run state the EXIT traps read: have_lock, fp_before,
+# held_fp, swapped, rc, released, contract_held and init_ok. A trap runs in
+# the scope of the function that exits and reads globals of each kind, so no
+# function's local takes the name of one of these globals.
+# A function fills the run state, and liza_fp, which as_liza_wrote reads,
+# directly; for any other variable of the main flow it fills, it takes
+# the variable's name. All other state is local.
 
 unlock() {
   if $have_lock; then rmdir "$lock"; fi
@@ -162,10 +165,6 @@ users_own() { # path
 # refuses when the contract has nowhere to go.
 contract_needs_holding() {
   local aside
-  if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
-    refuse "$held_contract exists from an interrupted init; move it back to" \
-      "$contract first."
-  fi
   users_own "$contract" || return 1
   if users_own "$fallback_contract"; then
     # Moving a committed file aside would change the project's tree.
@@ -450,18 +449,16 @@ liza_wrote_held() { # name
     = "$(fp_hash "${held_fp[$1]}")" ]
 }
 
-# Merges the clone's edits into the files named $2... that init replaced, and
-# fills the map named $1 with the fingerprint of Liza's output for each file
-# merged, by path.
+# Merges the clone's edits into the named files init replaced, and fills
+# liza_fp, which as_liza_wrote reads, with the fingerprint of Liza's output for
+# each file merged, by path.
 # Where init's output differs from the clone's file, it becomes the next merge
 # base, so a conflict is reported once. Where the two are equal, the file keeps
 # its base: init may not have written it, and the clone's file as a base would
 # later merge Liza's template over the clone's content.
-# shellcheck disable=SC2034 # a nameref, which sets the caller's variable
-merge_clone_versions() { # map names...
-  local -n output_fp=$1
+merge_clone_versions() { # names...
   local name path held liza_output keep_held=false
-  for name in "${@:2}"; do
+  for name in "$@"; do
     path=$top/$name held=$clone_versions/$name liza_output=$path
     if [ -L "$path" ] || [ ! -f "$path" ]; then
       # Init removed the file or put something else there: the held copy is
@@ -486,7 +483,7 @@ merge_clone_versions() { # map names...
         continue
       fi
       liza_output=$held.liza
-      output_fp["$path"]=$(fp_hash "$(fingerprint "$liza_output")")
+      liza_fp["$path"]=$(fp_hash "$(fingerprint "$liza_output")")
     fi
     { mkdir -p "$liza_versions" \
       && put_copy "$liza_output" "$liza_versions/$name"; } \
@@ -579,15 +576,17 @@ link_contract() {
   fi
 }
 
+# Links each of Liza's skills into .claude/skills/, leaving a directory or file
+# of the user's at that name alone.
 link_skills() {
-  local skill_md skill_dir link
+  local skill_md skill_dir skill_link
   for skill_md in "$HOME"/.liza/skills/*/SKILL.md; do
     [ -e "$skill_md" ] || continue
     skill_dir=${skill_md%/SKILL.md}
-    link="$claude_dir/skills/${skill_dir##*/}"
-    if [ -L "$link" ] || [ ! -e "$link" ]; then
+    skill_link="$claude_dir/skills/${skill_dir##*/}"
+    if [ -L "$skill_link" ] || [ ! -e "$skill_link" ]; then
       mkdir -p "$claude_dir/skills"
-      ln -sfn "$skill_dir" "$link"
+      ln -sfn "$skill_dir" "$skill_link"
     fi
   done
 }
@@ -749,6 +748,10 @@ pre_settings=$(cat "$local_settings" 2>/dev/null || echo null)
 contract="$top/${contract_places[0]}"
 fallback_contract="$top/${contract_places[1]}"
 held_contract="$record_dir/$held_contract_name"
+if [ -e "$held_contract" ] || [ -L "$held_contract" ]; then
+  refuse "$held_contract exists from an interrupted init; move it back to" \
+    "$contract first."
+fi
 will_hold_contract=false
 contract_needs_holding && will_hold_contract=true
 
@@ -821,7 +824,7 @@ fi
 
 # --- Merge the clone's edits into the files init replaced ---
 declare -A liza_fp=()
-merge_clone_versions liza_fp "${merging[@]}"
+merge_clone_versions "${merging[@]}"
 
 # --- Finish activation locally ---
 restore_default_mode "$pre_settings"
