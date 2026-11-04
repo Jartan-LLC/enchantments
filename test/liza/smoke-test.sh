@@ -1446,6 +1446,26 @@ check "init refuses a .claude symlinked into the clone" \
   -a ! -L "$linked/CLAUDE.local.md"
 check "and names it" grep -qF "$linked/.claude is a symlink" \
   "$stub_home/linked.refusal"
+# deactivate refuses the same way once .claude becomes a symlink after
+# activation, here to a folder outside the clone holding what was moved.
+moved=$(stub_clone moved-claude)
+stub_init "$moved" 2>/dev/null
+moved_out="$stub_home/moved-out"
+mv "$moved/.claude" "$moved_out"
+ln -s "$moved_out" "$moved/.claude"
+cp -a "$moved_out" "$stub_home/moved-snapshot"
+stub_deactivate "$moved" 2>"$stub_home/moved.err"
+moved_rc=$?
+check "deactivate refuses a symlinked .claude" test "$moved_rc" -eq 1
+check "and names it" grep -qF "$moved/.claude is a symlink" \
+  "$stub_home/moved.err"
+check "and writes nothing where it points" \
+  diff -r --no-dereference "$stub_home/moved-snapshot" "$moved_out"
+rm -- "$moved/.claude"
+mv "$moved_out" "$moved/.claude"
+stub_deactivate "$moved" 2>/dev/null
+check "and undoes activation once it's a directory again" \
+  test ! -e "$moved/.claude/hooks/liza.sh" -a ! -L "$moved/CLAUDE.local.md"
 rm -r -- "$stub_home/.liza/skills"
 
 # Activation keeps the exclude file's last line whole, and records a file it
