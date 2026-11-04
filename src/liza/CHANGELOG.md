@@ -60,6 +60,7 @@
   `.claude/`: activation backs up your files there as it does in
   `.claude/`, and `liza-deactivate` puts them back and removes the files
   init created.
+- No change in behavior: activation's code is reorganized.
 
 ### Minor
 
