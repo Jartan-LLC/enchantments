@@ -84,6 +84,7 @@ drop_lines=()     # exclude lines to remove
 recorded_paths=() # the files activation created
 kept=()           # what is left for the user to check
 accounted=()      # originals the record lists
+settings_created=false
 if ! jq -e . "$record" >/dev/null 2>&1; then
   # No readable record: only the contract link, a held CLAUDE.local.md and any
   # saved originals can be undone.
@@ -121,6 +122,12 @@ else
   # A file activation created goes, unless it was edited since.
   mapfile -t recorded < <(record_query file_entries "$record")
   mapfile -t recorded_paths < <(record_query recorded_paths "$record")
+  # Older records don't note a missing settings file, but list it when git
+  # showed it.
+  if record_jq created_settings_file -e "$record" >/dev/null \
+    || in_list "$local_settings" "${recorded_paths[@]}"; then
+    settings_created=true
+  fi
   for entry in "${recorded[@]}"; do
     path=${entry% *}
     # The settings revert above owns the local settings.
@@ -142,9 +149,9 @@ else
     path="$top/$rel"
     in_list "$path" "${recorded_paths[@]}" && continue
     in_list "$path" "${preexisting[@]}" && continue
-    # The shim only saw the top level and .claude/ before init: elsewhere, the
-    # file may be the user's.
-    if [[ "$rel" == */* && "$rel" != .claude/* ]]; then
+    # The shim saw only its listed area before init: elsewhere, the file may
+    # be the user's.
+    if ! in_listed_area "$rel"; then
       { [ -f "$path" ] || [ -L "$path" ]; } && kept+=("$path")
       continue
     fi
@@ -178,7 +185,9 @@ done
 
 # --- Clean up: the contract link, emptied settings and dirs, then what is
 # left for the user ---
-if [ -f "$local_settings" ] \
+# Emptied settings go only when the record says activation created them: a
+# file that held {} before is the user's.
+if $settings_created && [ -f "$local_settings" ] \
   && [ "$(jq -c . "$local_settings" 2>/dev/null)" = "{}" ]; then
   rm -f "$local_settings"
 fi
@@ -192,8 +201,10 @@ rmdir .claude/hooks .claude/skills 2>/dev/null
 if [ ${#failed[@]} -eq 0 ] && [ -f "$exclude_file" ] \
   && [ ${#drop_lines[@]} -gt 0 ]; then
   # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-  grep -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") "$exclude_file" \
-    >"$exclude_file.tmp"
+  # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+  # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+  LC_ALL=C grep -a -v -x -F -f <(printf '%s\n' "${drop_lines[@]}") \
+    "$exclude_file" >"$exclude_file.tmp"
   if [ $? -le 1 ] && mv "$exclude_file.tmp" "$exclude_file"; then
     :
   else

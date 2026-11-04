@@ -112,12 +112,13 @@ had_global_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
 fi
-# Untracked paths at the top level and in .claude/, the area activation
-# watches, minus the two settings files activation manages itself.
+# Untracked paths in the area the shim lists, the top level (':(glob)*') and
+# listed_dirs, minus the two settings files activation manages itself.
+# The pathspec must agree with in_listed_area.
 # grep runs under LC_ALL=C here to match bytes: in a UTF-8 locale it would
 # drop a name that isn't valid UTF-8, with a warning.
 init_area_untracked() { # ls-files-options...
-  git -C "$top" ls-files -z --others "$@" -- .claude ':(glob)*' \
+  git -C "$top" ls-files -z --others "$@" -- "${listed_dirs[@]}" ':(glob)*' \
     | LC_ALL=C grep -z -v -x -F -e .claude/settings.local.json \
       -e .claude/settings.json
 }
@@ -157,7 +158,8 @@ recorded_files=()
 recorded_before=$(fingerprint "${recorded_files[@]}")
 git_before=$(fingerprint "$git_dir"/liza* "$hooks_dir"/*)
 exclude_before=$(cat "$exclude_file" 2>/dev/null)
-pre_settings=$(cat "$local_settings" 2>/dev/null || echo '{}')
+# null when there's none, so the record shows activation created the file.
+pre_settings=$(cat "$local_settings" 2>/dev/null || echo null)
 
 # --- Find the contract's place ---
 # A CLAUDE.local.md of the user's sends the contract to .claude/CLAUDE.md.
@@ -361,7 +363,9 @@ forget_contract_place() { # name
     || grep -qxF "$line" <<<"$recorded"; } \
     && grep -qxF "$line" "$exclude_file" 2>/dev/null; then
     # grep exits 1 when no line is left, and 2 when it couldn't read the file.
-    grep -vxF "$line" "$exclude_file" >"$exclude_file.tmp"
+    # -a and LC_ALL=C keep every line: grep otherwise drops binary-looking
+    # output, such as a NUL byte or, in a UTF-8 locale, invalid UTF-8.
+    LC_ALL=C grep -avxF "$line" "$exclude_file" >"$exclude_file.tmp"
     if [ $? -gt 1 ] || ! mv -- "$exclude_file.tmp" "$exclude_file"; then
       rm -f -- "$exclude_file.tmp"
       echo "liza shim: could not drop $line from $exclude_file, where it" \
@@ -668,7 +672,7 @@ while IFS= read -r line; do
   # Only in the area the shim lists: deactivate.sh names a file elsewhere as
   # one the shim couldn't see.
   [ -n "$line" ] && rel=$(exclude_line_path "$line") \
-    && [[ "$rel" != */* || "$rel" == .claude/* ]] \
+    && in_listed_area "$rel" \
     && [ -n "${was_untracked["$top/$rel"]+set}" ] \
     && preexisting+=("$top/$rel")
 done <<<"$exclude_added"

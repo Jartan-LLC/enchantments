@@ -5,7 +5,8 @@
 #   {op: "add-elem", path, value}    an array element activation added
 #   {op: "rem-elem", path, value}    an array element activation replaced
 #   {op: "set", path, before, after} a value activation set or removed; null when absent
-#   {op: "created", path}            a container that didn't exist before activation
+#   {op: "created", path}            a container that didn't exist before activation; path
+#                                    [] when the file itself didn't
 # files holds {path, fp} for each file activation created, fp from activation-lib.sh's
 # fingerprint, so a file edited since can be kept. For a file shim.sh merged with the
 # clone's edits, fp is that of Liza's output, not of the merged file, so deactivation
@@ -95,3 +96,5 @@ def overwritten_paths: (.overwritten // [])[].path;
 def overwritten_entries: (.overwritten // [])[] | "\(.path) \(.fp)";
 def added_exclude_lines: .exclude_lines[];
 def preexisting_paths: (.preexisting // [])[];
+# true or false, for record_jq -e.
+def created_settings_file: any(.settings[]; . == {op: "created", path: []});
