@@ -71,8 +71,8 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
     "run liza init from the clone you mean instead."
 fi
 # Activation finds the files to back up and record by path, and git doesn't
-# look through a symlink: what init and the skill links write through one, even
-# into the clone, can escape both.
+# list files through a symlink: what init and the skill links write through
+# one, even into the clone, escapes the backup and the record.
 for dir in "$claude_dir" "$claude_dir/hooks" "$claude_dir/skills"; do
   if [ -L "$dir" ]; then
     refuse "$dir is a symlink, so Liza would write through it to files" \
