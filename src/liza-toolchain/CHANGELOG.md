@@ -6,6 +6,8 @@
   paths from SessionStart context count in any mode, how far each index
   lags in multi-agent runs, and, for Claude, how to run and wait for a long
   background command.
+- semble's install takes only the lock's hashed wheels and never builds a
+  package from source, as the lock is compiled with `--no-build`.
 
 ### Minor
 
