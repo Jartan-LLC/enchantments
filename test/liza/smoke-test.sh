@@ -1580,6 +1580,21 @@ check "init --claude alone ignores a symlinked .github" \
 stub_deactivate "$flagged" 2>/dev/null
 check "and so does deactivate when activation wrote nothing there" \
   test $? -eq 0 -a ! -L "$flagged/CLAUDE.local.md"
+# With no provider flag and no goal, init asks which providers to set up.
+while read -ra args; do
+  (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" "${args[@]}" \
+    </dev/null >/dev/null 2>&1)
+  check "${args[*]} refuses a symlinked .github" test $? -eq 75
+done <<'EOF'
+init
+init --yes
+-v init --auto-resume
+init -C .
+EOF
+(cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" init "a goal" \
+  </dev/null >/dev/null 2>&1)
+check "init with a goal and no provider flag ignores it" test $? -eq 0
+stub_deactivate "$flagged" 2>/dev/null
 rm -- "$flagged/.github"
 # deactivate refuses a symlink at a folder holding a file the record lists.
 INIT_PATHS=.codex/hooks/liza.sh stub_init "$flagged" --codex 2>/dev/null
@@ -1596,6 +1611,23 @@ mv "$stub_home/codex-out" "$flagged/.codex"
 stub_deactivate "$flagged" 2>/dev/null
 check "and undoes activation once it's a directory again" \
   test ! -e "$flagged/.codex/hooks/liza.sh" -a ! -L "$flagged/CLAUDE.local.md"
+# Likewise for a folder known only from a user file init overwrote.
+mkdir -p "$flagged/.github/hooks"
+echo "user file" >"$flagged/.github/hooks/liza.json"
+INIT_PATHS=.github/hooks/liza.json stub_init "$flagged" --copilot 2>/dev/null
+mv "$flagged/.github" "$stub_home/github-out"
+ln -s "$stub_home/github-out" "$flagged/.github"
+stub_deactivate "$flagged" 2>/dev/null
+github_rc=$?
+check "deactivate refuses a symlinked .github holding a file init overwrote" \
+  test "$github_rc" -eq 1 -a "$(cat "$stub_home/github-out/hooks/liza.json")" \
+  = liza
+rm -- "$flagged/.github"
+mv "$stub_home/github-out" "$flagged/.github"
+stub_deactivate "$flagged" 2>/dev/null
+check "and restores the file once it's a directory again" \
+  test "$(cat "$flagged/.github/hooks/liza.json")" = "user file"
+rm -r -- "$flagged/.github"
 rm -r -- "$stub_home/.liza/skills"
 
 # Activation keeps the exclude file's last line whole, and records a file it

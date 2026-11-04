@@ -125,7 +125,8 @@ exclude_line_path() { # line
 # The folders where liza init writes, which with the clone's top level make
 # up the area the shim lists before init. init_write_ignored in shim.sh names
 # the paths init writes in each, and write_dirs below the folders: a folder
-# added here needs its paths there, or its ignored files get no backup.
+# added here needs its paths there, or its ignored files get no backup, and
+# its provider flags in init_areas, or a symlink at it is never refused.
 listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
 # Each of listed_dirs and the folders in it that liza init, or the shim's
 # skill links, write in.
@@ -144,12 +145,12 @@ in_listed_area() { # relative-path
   return 1
 }
 
-# Prints the first of write_dirs in listed folders $2... of the clone at $1
-# that is a symlink, dangling or not, and fails when none is. Activation and
-# deactivation find the files they back up, record and undo by path, and git
-# doesn't list files through a symlink: what they write through one, even into
-# the clone, escapes the backup and the record.
-symlinked_write_dir() { # top listed-dir...
+# Prints the first of write_dirs under areas $2..., top-level names in the
+# clone at $1, that is a symlink, dangling or not, and fails when none is.
+# Activation and deactivation find the files they back up, record and undo
+# by path, and git doesn't list files through a symlink: what they write
+# through one, even into the clone, escapes the backup and the record.
+symlinked_write_dir() { # top area...
   local dir
   for dir in "${write_dirs[@]}"; do
     in_list "${dir%%/*}" "${@:2}" || continue
@@ -160,25 +161,39 @@ symlinked_write_dir() { # top listed-dir...
   return 1
 }
 
-# Prints the listed_dirs that liza init, given arguments $@, writes in, as
-# Liza v0.10.0 does: .claude, where the shim links skills whatever the flags,
-# and each provider flag's folders. A refusal over a folder the run never
-# writes in, such as a symlinked .github with --claude alone, would block an
-# activation that is safe.
-init_areas() { # init-args...
-  local id
+# Prints the listed_dirs that liza init, given the shim's arguments $@, init
+# among them, writes in, as Liza v0.10.0 does: .claude, where the shim links
+# skills whatever the flags, and each provider flag's folders. With no
+# provider flag and no goal, init asks which providers to set up, so it may
+# write in any of them. A refusal over a folder the run never writes in, such
+# as a symlinked .github with --claude alone, would block an activation that
+# is safe.
+init_areas() { # shim-args...
+  local id chosen=false words=0
   echo .claude
   while [ $# -gt 0 ]; do
     case $1 in
       --provider)
-        id=${2:-}
+        id=${2:-} chosen=true
         shift
         ;;
-      --provider=*) id=${1#*=} ;;
+      --provider=*) id=${1#*=} chosen=true ;;
+      -C | --project-root | --update-channel)
+        id=''
+        shift
+        ;;
       --*) id=${1#--} id=${id%%=*} ;;
-      *) id='' ;;
+      -*) id='' ;;
+      # The value of an init flag, such as --branch's, counts as a goal too:
+      # init then refuses for want of a goal or provider, writing nothing.
+      *) id='' words=$((words + 1)) ;;
     esac
     shift
+    case $id in
+      claude | codex | cursor | opencode | gemini | mistral | pi | copilot)
+        chosen=true
+        ;;
+    esac
     case $id in
       codex | codex-acp) echo .codex ;;
       cursor) printf '%s\n' .codex .cursor ;;
@@ -187,10 +202,13 @@ init_areas() { # init-args...
       copilot) printf '%s\n' .copilot .github ;;
     esac
   done
+  # The first word is the subcommand, init.
+  if ! $chosen && [ "$words" -le 1 ]; then printf '%s\n' "${listed_dirs[@]}"; fi
 }
 
-# Prints the top-level folder of each path the activation record of the clone
-# at $1 lists and of each copy in its originals/: where deactivation writes.
+# Prints the area, the top-level name, of each path the activation record of
+# the clone at $1 lists and of each copy in its originals/: where deactivation
+# writes.
 recorded_areas() { # top
   local dir path
   dir=$(record_dir_of "$1") || return 1
