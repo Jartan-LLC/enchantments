@@ -306,7 +306,7 @@ restore_from() { # path copy-dir
 # candidate it changed goes back from originals/, and each held file from
 # clone-versions/. What it replaces could be init's write or the user's own
 # edit made during init, which can't be told apart, so that is set aside in
-# replaced/.
+# replaced/. Init's contract links go too, where nothing was before init.
 restore_after_failure() {
   local path name replaced=false kept=() keep_held=false
   for path in "${!fp_before[@]}"; do

@@ -150,8 +150,8 @@ rm -f .claude/hooks/user.sh && rmdir .claude/hooks
 check "git status clean after the failures" test -z "$(git status --porcelain)"
 
 # Liza's init links the contract at ~/.claude/CLAUDE.md, or at the repo-root
-# CLAUDE.md when that one is taken, before a settings merge that can fail. The
-# stub places both.
+# CLAUDE.md when ~/.claude/CLAUDE.md is taken, before a settings merge that can
+# fail. The stub places both.
 links_clone=$(stub_clone failed-links)
 rm "$links_clone/CLAUDE.md"
 # shellcheck disable=SC2016 # expanded by the stub
