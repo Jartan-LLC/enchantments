@@ -31,6 +31,7 @@ fingerprint() {
     fi
   done
 }
+
 # activation-record.jq's _entries splits the same lines, and file_entries and
 # overwritten_entries print them: a format change goes there too.
 fp_path() { # line
