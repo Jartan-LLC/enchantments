@@ -86,11 +86,15 @@ pre_commit_pins="$PRE_COMMIT_UV_TAG $PRE_COMMIT_PYTHON_VERSION $lock_sum $arch"
 install_pre_commit() {
   local tmp rc asset sha256=PRE_COMMIT_UV_SHA256_$arch
   local tag=$PRE_COMMIT_UV_TAG old=$pre_commit.old
+  # A run cut short mid-build left the working install aside: put it back.
+  # A build that got as far as its pins finished, so what it left is stale.
+  [ ! -e "$old" ] || [ -e "$pre_commit/pins" ] \
+    || { rm -rf "$pre_commit" && mv "$old" "$pre_commit"; } || return 1
+  rm -rf "$old"
   asset=$(asset_name PRE_COMMIT_UV)
   tmp=$(mktemp -d) || return 1
   # No uv.toml or pyproject.toml of the workspace may steer this install.
   local -x UV_NO_CONFIG=1 UV_CACHE_DIR=$tmp/cache
-  rm -rf "$old"
   install_asset \
     "https://github.com/astral-sh/uv/releases/download/$tag/$asset" \
     "${!sha256}" "${asset%.tar.gz}/uv" "$tmp/uv" \

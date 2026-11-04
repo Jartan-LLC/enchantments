@@ -72,6 +72,24 @@ check "and nothing is reported" \
   test ! -e "$rebuild/.cache/enchantments/liza.failures"
 rm -rf "$rebuild"
 
+# A failed rebuild puts the old install back, even one a run cut short left
+# aside: here a run stopped mid-build, and its retry's hashes don't match.
+broken=$(mktemp -d)
+cp -R /usr/local/share/enchantments/liza "$broken/hooks"
+sed -i "s/sha256:[0-9a-f]\{64\}/sha256:$(printf '%064d' 0)/" \
+  "$broken/hooks/pre-commit-requirements.txt"
+mv "$pre_commit" "$pre_commit.old"
+mkdir -p "$pre_commit/venv"
+HOME=$broken bash "$broken/hooks/onCreate.sh" 2>/dev/null
+check "a failed rebuild is reported" \
+  grep -q "install of pre-commit failed" \
+  "$broken/.cache/enchantments/liza.failures"
+check "and puts the old pre-commit back" \
+  test "$(cat "$pre_commit/pins")" = "$pins"
+check "which runs" "$pre_commit/bin/pre-commit" --version
+check "with nothing left aside" test ! -e "$pre_commit.old"
+rm -rf "$broken"
+
 # A ~/.liza of your own is reported, never replaced.
 own_home=$(mktemp -d)
 mkdir -p "$own_home/.liza/mine"
