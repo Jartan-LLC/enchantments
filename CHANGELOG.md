@@ -9,8 +9,6 @@ Sections are months, newest first.
 
 ## 2026-11
 
-- `liza`: before a multi-agent `liza init`, put `pre-commit` on `PATH`; Liza
-  v0.10.0 refuses that init without it.
 - `liza`: run `liza-activate` in a repo's main checkout; a linked worktree
   isn't activated, and `liza-deactivate` no longer needs to run before
   `git worktree remove`.

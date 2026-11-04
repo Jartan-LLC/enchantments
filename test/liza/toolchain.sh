@@ -27,7 +27,7 @@ hook() { # command-substring
     .claude/settings.local.json
 }
 check "liza runs from PATH" liza version
-for tool in rg rtk; do
+for tool in rg rtk pre-commit; do
   check "$tool runs from PATH" "$tool" --version
 done
 check "Liza is activated for the clone" activated

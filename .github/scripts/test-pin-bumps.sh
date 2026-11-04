@@ -26,7 +26,7 @@ export COOLDOWN_DAYS=7
 
 # Succeeds when each pin has the values its lookup reads, each well formed.
 pins_well_formed() { # file
-  local file=$1 kind tool prefix name value
+  local file=$1 kind tool prefix uv name value
   while read -r kind tool; do
     case $kind in
       asset)
@@ -49,6 +49,13 @@ pins_well_formed() { # file
         valid commit "$(pin_get "$file" "${prefix}_REVISION")" || return 1
         ;;
       node | go)
+        prefix=$(pin_prefix "$file" "$tool" _VERSION)
+        valid version "$(pin_get "$file" "${prefix}_VERSION")" || return 1
+        ;;
+      uv-python)
+        uv=$(pin_attr "$file" "$tool" uv) || return 1
+        prefix=$(pin_prefix "$file" "$uv" _TAG)
+        valid version "$(pin_get "$file" "${prefix}_TAG")" || return 1
         prefix=$(pin_prefix "$file" "$tool" _VERSION)
         valid version "$(pin_get "$file" "${prefix}_VERSION")" || return 1
         ;;
@@ -692,6 +699,70 @@ echo 'Server: x' \
 expect "a download with no Last-Modified fails" 1 "Last-Modified" go_lookup
 echo '[]' | serve 'https://go.dev/dl/?mode=json&include=all'
 expect "an empty release list fails" 1 "can't read go.dev" go_lookup
+
+# uv-python: the newest patch of the pinned minor that the pinned uv
+# downloads for both arches.
+pypins=$root/python.sh
+{
+  echo '# pin asset uv repo=example/uv'
+  echo "UV_TAG='0.9.0'"
+  echo "UV_ASSET_X86_64='uv.tar.gz'"
+  echo
+  echo '# pin uv-python python uv=uv'
+  echo "PYTHON_VERSION='3.12.1'"
+} >"$pypins"
+py_list=https://raw.githubusercontent.com/example/uv/0.9.0
+py_list+=/crates/uv-python-managed/download-metadata.json
+# Prints one entry of uv's download list, edited by a jq filter.
+py_build() { # patch family [filter]
+  jq -n --argjson patch "$1" --arg family "$2" --arg sum "$ones" \
+    '{name: "cpython", os: "linux", libc: "gnu", variant: null,
+      prerelease: "", major: 3, minor: 12, patch: $patch,
+      arch: {family: $family, variant: null}, sha256: $sum}'" | ${3:-.}"
+}
+# Serves the entries on stdin as uv's list, an object keyed by build.
+py_serve() {
+  jq -s 'to_entries | map({key: "b\(.key)", value}) | from_entries' \
+    | serve "$py_list"
+}
+{
+  py_build 2 x86_64
+  py_build 2 aarch64
+  py_build 3 x86_64
+  py_build 4 x86_64 '.prerelease = "rc1"'
+  py_build 4 aarch64 '.prerelease = "rc1"'
+  py_build 0 x86_64 '.minor = 13'
+  py_build 0 aarch64 '.minor = 13'
+  py_build 5 x86_64 '.variant = "freethreaded"'
+  py_build 5 aarch64 '.variant = "freethreaded"'
+  py_build 6 x86_64 '.libc = "musl"'
+  py_build 6 aarch64 '.libc = "musl"'
+  py_build 7 x86_64 '.arch.variant = "v3"'
+  py_build 7 aarch64
+  py_build 8 x86_64 '.sha256 = null'
+  py_build 8 aarch64 '.sha256 = null'
+} | py_serve
+python_lookup() { lookup_uv_python "$pypins" python; }
+expect "uv-python offers the newest release uv downloads for both arches" 0 \
+  "candidate 3.12.2" python_lookup
+expect "and sets the pin's version" 0 "set PYTHON_VERSION 3.12.2" \
+  python_lookup
+cp "$pypins" "$root/python-current.sh"
+pin_set "$root/python-current.sh" PYTHON_VERSION 3.12.2
+expect_not "a Python already at it stays quiet" candidate \
+  lookup_uv_python "$root/python-current.sh" python
+py_build 3 x86_64 | py_serve
+expect "a minor uv downloads for one arch only fails" 1 \
+  "uv 0.9.0 downloads no Python 3.12 for both arches" python_lookup
+echo '<html>' | serve "$py_list"
+expect "a list that isn't JSON fails" 1 "can't read the Pythons uv 0.9.0" \
+  python_lookup
+sed 's/ uv=uv//' "$pypins" >"$root/python-bare.sh"
+expect "a Python pin without uv= fails" 1 "its header has no uv=" \
+  lookup_uv_python "$root/python-bare.sh" python
+sed 's/ repo=example\/uv//' "$pypins" >"$root/python-no-repo.sh"
+expect "a uv pin without repo= fails" 1 "uv's header has no repo=" \
+  lookup_uv_python "$root/python-no-repo.sh" python
 
 # uv-lock: kept only when something moved up and nothing moved down.
 lockdir=$root/src/demo

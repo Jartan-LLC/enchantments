@@ -71,6 +71,15 @@ if [ -n "$project_root" ] && ! [ "$(git -C "$project_root" rev-parse \
   refuse "-C names $project_root, which isn't in $top, where init runs;" \
     "run liza init from the clone you mean instead."
 fi
+# Activation finds the files to back up and record by path, and git doesn't
+# list files through a symlink: what init and the skill links write through
+# one, even into the clone, escapes the backup and the record.
+for dir in "$claude_dir" "$claude_dir/hooks" "$claude_dir/skills"; do
+  if [ -L "$dir" ]; then
+    refuse "$dir is a symlink, so Liza would write through it to files" \
+      "activation can't back up or undo; make it a directory first."
+  fi
+done
 
 # --- Lock the clone for this init ---
 # mkdir is atomic: a second concurrent init would otherwise swap the
@@ -99,6 +108,10 @@ if [ -d "$liza_toolchain" ] && [ -f "$HOME/.liza/toolchain/env.sh" ]; then
   # shellcheck source=/dev/null
   source "$HOME/.liza/toolchain/env.sh"
 fi
+# Liza's multi-agent init refuses without pre-commit, and a login shell on an
+# image whose /etc/profile resets PATH has dropped the Feature's.
+command -v pre-commit >/dev/null \
+  || PATH=$PATH:$HOME/.liza/lib/pre-commit/bin
 # Refused up front, naming the hook, rather than left to fail inside init.
 own_hook=$(own_index_hook "$top")
 case $? in

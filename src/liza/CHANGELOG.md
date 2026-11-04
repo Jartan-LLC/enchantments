@@ -64,6 +64,10 @@
 ### Minor
 
 - `liza`: v0.9.1 → v0.10.0
+- Installs a pinned, digest-checked `pre-commit` when none is on `PATH`,
+  since Liza v0.10.0's multi-agent `liza init` refuses without one. A
+  `pre-commit` of yours on `PATH`, even one installed later, is used
+  instead.
 - When `CLAUDE.local.md` is your own file or symlink, activation links the
   contract at `.claude/CLAUDE.md` instead and leaves yours as it is. A file
   used to leave the contract unloaded, with a warning; a symlink was
@@ -73,6 +77,14 @@
   `liza-activate`; a clone whose symlink an earlier activation replaced
   keeps it there. Claude doesn't load `.claude/CLAUDE.md` in a worktree
   inside the clone, such as a multi-agent task's.
+- With `.claude/skills` a symlink, activation wrote Liza's skill links in
+  the folder it points to, replacing a link of yours there of the same name
+  with no copy, and `liza-deactivate` left them; `liza init` wrote its hook
+  scripts through a symlinked `.claude/hooks` the same way. Activation now
+  refuses when `.claude`, `.claude/hooks` or `.claude/skills` is a symlink,
+  until you make it a directory. If one of them was a symlink when you
+  activated, remove Liza's skill links and hook scripts from the folder it
+  points to.
 
 ## 1.2.0
 

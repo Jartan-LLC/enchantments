@@ -14,7 +14,7 @@
 # A lookup that can't tell whether a newer pin exists prints its reason on
 # stderr and returns 1, so an outage never reads as "nothing newer". Every
 # candidate is at least COOLDOWN_DAYS old by the date its upstream reports:
-# a server's timestamp, except hf-model's and node's (see those
+# a server's timestamp, except hf-model's, node's and uv-python's (see those
 # lookups). The caller sets CUTOFF (epoch seconds), and calls each
 # lookup where set -e is off, checking its status itself. DRY_RUN=1
 # downloads no release asset or model file. Needs pins_lib.sh.
@@ -539,6 +539,59 @@ lookup_go() { # file tool
     printf '%s' "$sets"
     return 0
   done < <(sort -rV <<<"$versions")
+}
+
+# Offers the newest CPython release of the pinned minor that the pinned uv
+# (the header's uv=, an asset pin in the same file) can download for both
+# arches: uv checks a download against the sha256 its own list holds. uv
+# lists only builds older than its release, which the uv pin's cooldown ages.
+lookup_uv_python() { # file tool
+  local file=$1 tool=$2 uv prefix version uv_prefix tag repo url list cand
+  uv=$(pin_attr "$file" "$tool" uv) \
+    || {
+      fail_lookup "its header has no uv="
+      return 1
+    }
+  prefix=$(pin_prefix "$file" "$tool" _VERSION)
+  version=$(pin_get "$file" "${prefix}_VERSION")
+  need "${tool}'s version" "$version" || return 1
+  uv_prefix=$(pin_prefix "$file" "$uv" _TAG)
+  tag=$(pin_get "$file" "${uv_prefix}_TAG")
+  need "${uv}'s tag" "$tag" || return 1
+  repo=$(pin_attr "$file" "$uv" repo) \
+    || {
+      fail_lookup "${uv}'s header has no repo="
+      return 1
+    }
+  echo "current $version"
+  url=https://raw.githubusercontent.com/$repo/$tag
+  url+=/crates/uv-python-managed/download-metadata.json
+  # shellcheck disable=SC2016 # a jq program
+  {
+    list=$(fetch "$url") \
+      && cand=$(jq -r --arg minor "${version%.*}" '[.[]
+        | select(.name == "cpython" and .os == "linux" and .libc == "gnu"
+          and .variant == null and .prerelease == ""
+          and .arch.variant == null
+          and (.arch.family == "x86_64" or .arch.family == "aarch64")
+          and .sha256 != null and "\(.major).\(.minor)" == $minor)]
+        | group_by(.patch)
+        | map(select(map(.arch.family) | unique | length == 2))
+        | last // empty | .[0] | "\(.major).\(.minor).\(.patch)"' \
+        <<<"$list")
+  } || {
+    fail_lookup "can't read the Pythons uv $tag downloads"
+    return 1
+  }
+  valid version "$cand" \
+    || {
+      fail_lookup "uv $tag downloads no Python ${version%.*} for both arches"
+      return 1
+    }
+  version_gt "$cand" "$version" || return 0
+  echo "candidate $cand"
+  echo "key $tool@$cand"
+  echo "set ${prefix}_VERSION $cand"
 }
 
 # Prints "name versions" for each requirement in a requirements file, the

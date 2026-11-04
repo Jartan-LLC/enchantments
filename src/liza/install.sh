@@ -26,7 +26,8 @@ done
 here=$(dirname "$0")
 rm -rf "$dest"
 if ! { mkdir -p "$dest" && cp "$here"/*.sh "$here"/*.jq \
-  "$here/AGENT_TOOLS.minimal.md" "$dest"/ && rm "$dest/install.sh"; }; then
+  "$here/AGENT_TOOLS.minimal.md" "$here/pre-commit-requirements.txt" \
+  "$dest"/ && rm "$dest/install.sh"; }; then
   echo "Warning: $id could not stage its hooks; nothing installed" >&2
   rm -rf "$dest"
 fi

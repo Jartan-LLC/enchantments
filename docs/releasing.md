@@ -197,14 +197,15 @@ To update one by hand, pick a release at least 7 days old, then list the change 
 
 | Pin | Where | To update |
 |---|---|---|
-| `asset`: liza, ripgrep, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv, direnv, stripe-cli | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
+| `asset`: liza, ripgrep, pre-commit-uv, codebase-memory-mcp, ast-grep, yq, rtk, mdq, uv, direnv, stripe-cli | the tag, and each arch's asset name and sha256 | set the tag; check the asset names, which are templates (`{tag}`, and `{version}`, the tag without its `v`); hash each arch's asset |
 | `tag-commit`: scip-search | the tag and its commit | set both; the commit is what the tag resolves to |
 | `branch-commit`: stacklit, functional-clusters, mdtoc, bash-policy | the commit | a commit on the default branch |
 | `hf-model`: semble's model | the revision and each file's sha256 | the model's revision, and every file's sha256 at it |
 | `node` | the version and each arch's sha256 | the newest LTS, with digests from its `SHASUMS256.txt`, signed by one of Node's release keys |
 | Node's release keys | `NODE_KEYS_COMMIT` and `NODE_KEYS_SUM` in `.github/scripts/pin_lookups.sh` | the steps below; no Feature version |
 | `go` | the version and each arch's sha256 | a stable release, from `go.dev/dl/?mode=json` |
-| `uv-lock`: semble | `semble-requirements.txt`, from `semble.in` | run the command in its header, then restore the header lines uv replaces |
+| `uv-python`: pre-commit-python | the version | a CPython release of the same minor that the pinned uv (the header's `uv=`) lists for both arches in its `crates/uv-python-managed/download-metadata.json`, which holds the sha256 uv checks |
+| `uv-lock`: semble, pre-commit | `semble-requirements.txt` from `semble.in`, `pre-commit-requirements.txt` from `pre-commit.in` | run the command in its header, then restore the header lines uv replaces |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
 | Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
