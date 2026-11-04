@@ -86,8 +86,9 @@ fi
 # the scope of the function that exits and reads globals of each kind, so no
 # function's local takes the name of one of these globals.
 # A function fills the run state, and liza_fp, which as_liza_wrote reads,
-# directly; for any other variable of the main flow it fills, it takes
-# the variable's name. All other state is local.
+# directly; for any other variable of the main flow it fills, the caller
+# passes the variable's name and the function fills it through a nameref
+# (local -n). All other state is local.
 
 unlock() {
   if $have_lock; then rmdir "$lock"; fi

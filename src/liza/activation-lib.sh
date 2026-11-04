@@ -32,8 +32,10 @@ fingerprint() {
   done
 }
 
-# activation-record.jq's _entries splits the same lines, and file_entries and
-# overwritten_entries print them: a format change goes there too.
+# Lines in this format are also built by shim.sh's as_liza_wrote and
+# find_overwritten ("<path> absent"), split by activation-record.jq's
+# _entries and printed by its file_entries and overwritten_entries: a format
+# change goes to each.
 fp_path() { # line
   printf '%s\n' "${1% *}"
 }
