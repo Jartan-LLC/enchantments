@@ -42,6 +42,16 @@
   `settings.json.liza-shim-held`, with or without your `settings.local.json`
   in its place, and the next activation refused until you moved them back.
   It now puts them back.
+- With `~/.claude/CLAUDE.md` a file of your own, `liza init` links the
+  repo-root `CLAUDE.md` to the contract when the clone has none, and
+  activation also linked `CLAUDE.local.md` (or `.claude/CLAUDE.md`), so
+  Claude loaded the contract twice. Activation now removes init's
+  `CLAUDE.md` link, and activating again removes one an earlier version
+  kept.
+- A `liza init` that fails, such as on settings it can't merge, no longer
+  leaves the contract linked at `~/.claude/CLAUDE.md` or the repo-root
+  `CLAUDE.md`, where the next activation took the link for yours and kept
+  it.
 
 ### Minor
 

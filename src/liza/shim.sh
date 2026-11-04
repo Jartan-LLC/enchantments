@@ -40,6 +40,7 @@ local_settings="$claude_dir/settings.local.json"
 held_settings="$claude_dir/settings.json.liza-shim-held"
 backup_settings="$claude_dir/settings.local.json.liza-shim-backup"
 global_contract="$HOME/.claude/CLAUDE.md"
+root_contract="$top/CLAUDE.md"
 
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
@@ -108,9 +109,12 @@ case $? in
 esac
 
 # --- Snapshot the state before init ---
-had_global_contract=false
+had_global_contract=false had_root_contract=false
 if [ -e "$global_contract" ] || [ -L "$global_contract" ]; then
   had_global_contract=true
+fi
+if [ -e "$root_contract" ] || [ -L "$root_contract" ]; then
+  had_root_contract=true
 fi
 # Untracked paths in the area the shim lists, the top level (':(glob)*') and
 # listed_dirs, minus the two settings files activation manages itself.
@@ -304,7 +308,7 @@ restore_from() { # path copy-dir
 # candidate it changed goes back from originals/, and each held file from
 # clone-versions/. What it replaces could be init's write or the user's own
 # edit made during init, which can't be told apart, so that is set aside in
-# replaced/.
+# replaced/. Init's contract links go too, where nothing was before init.
 restore_after_failure() {
   local path name replaced=false kept=() keep_held=false
   for path in "${!fp_before[@]}"; do
@@ -320,6 +324,14 @@ restore_after_failure() {
     "what it replaced is in $record_dir/replaced." >&2
   prune_originals "${kept[@]}"
   $keep_held || drop_held
+  # Init links the contract before its settings merge, which can fail. Left
+  # in place, the link would count as the user's from the next activation on.
+  if ! $had_global_contract && contract_link "$global_contract"; then
+    rm -f -- "$global_contract"
+  fi
+  if ! $had_root_contract && contract_link "$root_contract"; then
+    rm -f -- "$root_contract"
+  fi
 }
 
 # --- Swap the local settings in for init to merge into ---
@@ -350,8 +362,8 @@ put_back_held() {
     "$held_contract." >&2
   return 1
 }
-# Forgets activation's link at the contract place named, which this activation
-# doesn't link. The link's exclude line, which Liza's init also adds for the
+# Forgets activation's link at $top/<name>, which this activation doesn't
+# keep. The link's exclude line, which Liza's init also adds for the
 # CLAUDE.local.md it places, would hide a file of the user's there, so it goes,
 # unless it was there before init and no activation recorded it: the user's.
 # The record drops the line, so one the user adds later counts as theirs, and
@@ -597,9 +609,15 @@ fi
 # `--claude` points ~/.claude/CLAUDE.md at the contract when that path is free,
 # which loads the contract in every project sharing ~/.claude. Keep it in this
 # clone instead.
-if ! $had_global_contract \
-  && [ "$(readlink "$global_contract")" = "$liza_contract" ]; then
+if ! $had_global_contract && contract_link "$global_contract"; then
   rm -- "$global_contract"
+fi
+# When ~/.claude/CLAUDE.md is taken, init links the repo-root CLAUDE.md
+# instead, which would load the contract a second time beside the link below.
+# One an earlier activation recorded goes too, with the exclude line it added.
+if ! $had_root_contract || in_list "$root_contract" "${recorded_files[@]}"; then
+  contract_link "$root_contract" && rm -- "$root_contract" \
+    && forget_contract_place CLAUDE.md
 fi
 # A symlink, not an @import: imports outside the project are skipped in `claude
 # -p` sessions, and a worktree session skips an ancestor CLAUDE.local.md's
