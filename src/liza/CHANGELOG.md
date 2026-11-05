@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0
 
 - Liza is activated only in a repo's main checkout. From a linked worktree,
   `liza init` wrote to the main checkout, its committed
@@ -74,9 +74,6 @@
   `main`, so what the pinned Liza did could change with it. They now fetch
   it at the pinned release's commit, unless you set
   `LIZA_PROVIDER_CATALOG_URL`.
-
-### Minor
-
 - `liza`: v0.9.1 → v0.10.0
 - Installs a pinned, digest-checked `pre-commit` when none is on `PATH`,
   since Liza v0.10.0's multi-agent `liza init` refuses without one. A

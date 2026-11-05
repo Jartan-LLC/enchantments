@@ -1,4 +1,4 @@
-## Unreleased
+## 1.5.0
 
 - `AGENT_TOOLS.md` follows Liza v0.10.0's: search test sources before
   renaming a symbol or rewording a message, Semble searches with
@@ -8,9 +8,6 @@
   background command.
 - semble's install fails rather than build a package from source, as its
   lock is compiled with `--no-build`.
-
-### Minor
-
 - `rtk`: v1.0.1 → v1.1.0
 - `uv`: 0.13.5 → 0.13.6
 - `node`: v24.22.1 → v26.13.0
