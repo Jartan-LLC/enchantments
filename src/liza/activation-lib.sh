@@ -140,12 +140,12 @@ exclude_line_path() { # line
 #   never refused;
 # - init_areas, under each provider that writes it, or a symlink at it isn't
 #   refused when that provider is named plainly.
-listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
+listed_dirs=(.claude .codex .cursor .opencode .copilot .github .windsurf)
 # Each of listed_dirs and the folders in it that liza init, or the shim's
 # skill links, write in.
 write_dirs=(.claude .claude/hooks .claude/skills .codex .codex/hooks .cursor
   .opencode .opencode/plugins .opencode/tools .copilot .copilot/hooks .github
-  .github/hooks)
+  .github/hooks .windsurf .windsurf/rules)
 
 # Succeeds when path $1, relative to the clone's top, is in the area the shim
 # lists: at the top level or under one of listed_dirs.
@@ -232,6 +232,7 @@ init_areas() { # shim-args...
       cursor-acp) echo .cursor ;;
       opencode | opencode-acp) echo .opencode ;;
       copilot) printf '%s\n' .copilot .github ;;
+      devin | devin-acp) echo .windsurf ;;
     esac
   done
 }
