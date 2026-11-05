@@ -1537,8 +1537,8 @@ mv "$idle/.claude" "$stub_home/idle-out"
 ln -s "$stub_home/idle-out" "$idle/.claude"
 check "deactivate in a clone that isn't activated ignores a symlinked .claude" \
   stub_deactivate "$idle"
-# So does a symlink at a folder a provider flag has init write in, for that
-# flag only.
+# init refuses a symlink at a folder a provider flag has it write in, and
+# only for that flag.
 stub_liza <<'EOF'
 settings "$hook"
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
@@ -1581,7 +1581,7 @@ stub_deactivate "$flagged" 2>/dev/null
 check "and so does deactivate when activation wrote nothing there" \
   test $? -eq 0 -a ! -L "$flagged/CLAUDE.local.md"
 # Without each provider named once, as a plain flag or a known --provider id,
-# init may ask which providers to set up.
+# init refuses a symlink at any provider's folder.
 while read -ra args; do
   (cd "$flagged" && HOME="$stub_home" INIT_PATHS='' bash "$shim" "${args[@]}" \
     </dev/null >/dev/null 2>&1)

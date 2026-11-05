@@ -134,10 +134,12 @@ exclude_line_path() { # line
 }
 
 # The folders where liza init writes, which with the clone's top level make
-# up the area the shim lists before init. A folder added here needs its paths
-# in init_write_ignored (shim.sh), or its ignored files get no backup; and it
-# and its subfolders in write_dirs, and its provider flags in init_areas, or
-# a symlink at it is never refused.
+# up the area the shim lists before init. A folder added here also goes in:
+# - init_write_ignored (shim.sh), or its ignored files get no backup;
+# - write_dirs, with the subfolders init writes in, or a symlink at them is
+#   never refused;
+# - init_areas, under each provider that writes it, or a symlink at it isn't
+#   refused when that provider is named plainly.
 listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
 # Each of listed_dirs and the folders in it that liza init, or the shim's
 # skill links, write in.
@@ -176,11 +178,13 @@ symlinked_write_dir() { # top area...
 # among them, writes in, as Liza v0.10.0 does: .claude, where the shim links
 # skills whatever the flags, and the folders of each provider named. A
 # provider counts as named only as a plain flag, such as --copilot, or a
-# known --provider id, once each. Any other spelling, such as
-# --copilot=false, or no provider at all may leave init to ask which
-# providers to set up, so it prints every one of listed_dirs. Checking only
-# the named ones lets the Feature's --claude activation pass a symlinked
-# .github, which it never writes in.
+# known --provider id, once each. For any other spelling, such as
+# --copilot=false, or no provider at all, it prints every one of listed_dirs
+# rather than copy Liza's parsing to tell which providers init sets up: an
+# allowlist fails safe, while a copy that misses a spelling lets init write
+# through a symlink unrefused. Checking only the named ones lets the
+# Feature's --claude activation pass a symlinked .github, which it never
+# writes in.
 init_areas() { # shim-args...
   local id named=() all=false
   echo .claude

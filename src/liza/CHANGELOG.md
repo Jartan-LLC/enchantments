@@ -101,9 +101,9 @@
   so does `liza-deactivate` over a symlink at a folder activation wrote in,
   until you make it a directory. A symlink at a folder the flags passed
   don't write in, such as `.github` with `--claude` alone, doesn't matter.
-  A run that names no provider, or names one other than as a plain flag or
-  a known `--provider` id given once, refuses over a symlink at any
-  provider's folder.
+  Activation refuses over a symlink at any provider's folder when the run
+  names no provider, goal or not, or names one other than as a plain flag
+  or a known `--provider` id given once.
   If you activated that way over such a symlink, remove Liza's files from
   the folder it points to.
 
