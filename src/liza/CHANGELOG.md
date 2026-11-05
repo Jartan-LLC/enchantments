@@ -65,7 +65,8 @@
   ignores it, so `liza-deactivate` left it, and didn't refuse a symlinked
   `.windsurf` or `.windsurf/rules`, which `liza init` wrote through.
   `.windsurf` now joins the area activation lists before `liza init`, and
-  the folders it refuses as symlinks for those providers.
+  with those providers activation refuses a symlinked `.windsurf` or
+  `.windsurf/rules`.
 - No change in behavior: activation's code is reorganized.
 
 ### Minor
