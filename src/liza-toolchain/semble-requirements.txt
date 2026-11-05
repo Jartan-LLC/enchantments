@@ -481,9 +481,9 @@ safetensors==0.8.0 \
     --hash=sha256:fcdd41ec4628fee5799f807c73c353629130fbd942aa23d83c623dd6c9d52d78 \
     --hash=sha256:fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774
     # via model2vec
-semble==0.7.0 \
-    --hash=sha256:06c568d5a06f3a5352f22357d5a7ab17525d4404fddde8f1ae1405e3e87ac4a7 \
-    --hash=sha256:83a2bfeea20854d1354cfa95ed83ad580fac5dcf8ccdbd4f987da216bf5f694f
+semble==0.7.1 \
+    --hash=sha256:198f4e21e02a9bef7103f73c6b075937aa1cabf47a4b69c617fc8007f529584a \
+    --hash=sha256:7f7f24e319cf9d83ed31617c07f0ce053e1ee09cf65f173202d23cd27e365f35
     # via -r src/liza-toolchain/semble.in
 semble-grammars==0.1.2 \
     --hash=sha256:078ae79ad15442a2922dae46620f778fa237b191ac06e9c29832f079915d4d39 \
