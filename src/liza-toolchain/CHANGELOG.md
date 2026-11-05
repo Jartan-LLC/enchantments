@@ -1,10 +1,7 @@
-## Unreleased
+## 1.6.0
 
 - `semble`: semble==0.7.0 → semble==0.7.1
   - semble: 0.7.0 → 0.7.1
-
-### Minor
-
 - `semble`: huggingface-hub==2.3.0 → huggingface-hub==2.4.0
   - huggingface-hub: 2.3.0 → 2.4.0
 
