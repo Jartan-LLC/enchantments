@@ -69,7 +69,10 @@ pins_well_formed() { # file
     esac
     [ -n "$prefix" ] || return 1
     while IFS='=' read -r name value; do
-      case $name in *_SHA256_*) valid sha256 "$value" || return 1 ;; esac
+      case $name in
+        *_SHA256_*) valid sha256 "$value" || return 1 ;;
+        *_COMMIT) valid commit "$value" || return 1 ;;
+      esac
     done < <(pin_vars "$file" "$tool")
   done < <(pin_list "$file")
 }
@@ -411,6 +414,22 @@ expect "an asset lookup names the exclusion key" 0 "key demo@v1.3.0" asset
 dry_asset() { DRY_RUN=1 lookup_asset "$pins" demo; }
 expect "a dry run takes GitHub's digest" 0 "set DEMO_SHA256_X86_64 $sha_a" \
   dry_asset
+
+# An asset pin with a commit, as liza's, moves it to its tag's.
+committed=$root/committed.sh
+sed "/^DEMO_TAG=/a DEMO_COMMIT='$cur'" "$pins" >"$committed"
+committed_asset() { lookup_asset "$committed" demo; }
+echo "{\"object\": {\"type\": \"tag\", \"sha\": \"$c3\"}}" \
+  | serve repos/example/demo/git/ref/tags/v1.3.0
+echo "{\"object\": {\"type\": \"commit\", \"sha\": \"$c5\"}}" \
+  | serve "repos/example/demo/git/tags/$c3"
+expect "an asset pin with a commit sets the one its tag resolves to" 0 \
+  "set DEMO_COMMIT $c5" committed_asset
+expect "and still writes the tag" 0 "set DEMO_TAG v1.3.0" committed_asset
+expect_not "an asset pin without one sets none" DEMO_COMMIT asset
+echo 'HTTP 404' | serve repos/example/demo/git/ref/tags/v1.3.0
+expect "a tag that doesn't resolve fails the lookup" 1 \
+  "can't resolve example/demo's tag v1.3.0" committed_asset
 
 printf 'tampered' | serve https://dl/v1.3.0/a
 expect "a download that doesn't match GitHub's digest fails" 1 \

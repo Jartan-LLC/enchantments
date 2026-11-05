@@ -4,7 +4,7 @@
     "gitwise@grimoire": true,
     "praxis@grimoire": true,
     "pythonica@grimoire": false,
-    "recursio@grimoire": false
+    "recursio@grimoire": true
   },
   "extraKnownMarketplaces": {
     "grimoire": {

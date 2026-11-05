@@ -69,6 +69,11 @@
   with those providers activation refuses a symlinked `.windsurf` or
   `.windsurf/rules`.
 - No change in behavior: activation's code is reorganized.
+- `liza` and activation fetched Liza's provider catalog, which decides what
+  Liza runs for each provider and where `liza init` writes, from upstream
+  `main`, so what the pinned Liza did could change with it. They now fetch
+  it at the pinned release's commit, unless you set
+  `LIZA_PROVIDER_CATALOG_URL`.
 
 ### Minor
 

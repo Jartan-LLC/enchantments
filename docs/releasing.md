@@ -208,7 +208,7 @@ To update one by hand, pick a release at least 7 days old, then list the change 
 | `uv-lock`: semble, pre-commit | `semble-requirements.txt` from `semble.in`, `pre-commit-requirements.txt` from `pre-commit.in` | run the command in its header, then restore the header lines uv replaces |
 | npm tools (scip-python, scip-typescript, context7) | `src/liza-toolchain/npm/package-lock.json` | Dependabot, as above |
 | The spec schema | the `--schemafile` URL in `.pre-commit-config.yaml` | a newer `devcontainers/spec` commit, when lint rejects a property the spec allows; no Feature version |
-| Liza | `liza` in `src/liza/pins.sh` | as an `asset`, plus the steps below |
+| Liza | `liza` in `src/liza/pins.sh` | as an `asset`, with `LIZA_COMMIT` set to the commit the tag resolves to, plus the steps below |
 
 For a Liza release, in the same PR, add lines under `## Unreleased` for `liza-toolchain`,
 and for `liza` too unless a pin-bump PR already has, and:
@@ -227,7 +227,12 @@ and for `liza` too unless a pin-bump PR already has, and:
   Keep the minimal file's graph rows as `rg`, and every rtk mention inside the
   `#### RTK` section (which ends at the next heading or `---`), except `rtk jq`: where
   rtk can't run, activation drops that section and rewrites `rtk jq` as `jq`;
-- check `src/liza-toolchain/configure.args` against `liza toolchain configure --help`.
+- check `src/liza-toolchain/configure.args` against `liza toolchain configure --help`;
+- check that the new tag still has `provider-catalog.yaml` at its root, and that Liza still
+  takes its provider catalog's URL from `LIZA_PROVIDER_CATALOG_URL` (the environment
+  variables in its `README.md`). `src/liza/provider-catalog.sh` points that variable at
+  the file at `LIZA_COMMIT`: where the file is missing, Liza falls back to the catalog
+  built into it, and where the variable is gone, it reads upstream `main`'s.
 
 Liza's own `liza toolchain install` isn't used: it fetches unpinned installers.
 

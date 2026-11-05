@@ -145,9 +145,10 @@ aged_release_tags() { # repo
   done <<<"$listing" | sort -rV
 }
 
+# A pin with a <prefix>_COMMIT also sets it to the commit its tag resolves to.
 lookup_asset() { # file tool
   local file=$1 tool=$2 repo prefix tag tags arches arch cand release
-  local template name updated digest url sum names when
+  local template name updated digest url sum names when commit sha
   local -A urls digests
   repo=$(pin_attr "$file" "$tool" repo) \
     || {
@@ -156,6 +157,7 @@ lookup_asset() { # file tool
     }
   prefix=$(pin_prefix "$file" "$tool" _TAG)
   tag=$(pin_get "$file" "${prefix}_TAG")
+  commit=$(pin_get "$file" "${prefix}_COMMIT")
   need "${tool}'s tag" "$tag" || return 1
   arches=$(pin_arches "$file" "$tool" "${prefix}_ASSET")
   need "${tool}'s asset names" "$arches" || return 1
@@ -202,6 +204,14 @@ lookup_asset() { # file tool
     echo "candidate $cand"
     echo "key $tool@$cand"
     echo "set ${prefix}_TAG $cand"
+    if [ -n "$commit" ]; then
+      { sha=$(tag_commit "$repo" "$cand") && valid commit "$sha"; } \
+        || {
+          fail_lookup "can't resolve $repo's tag $cand"
+          return 1
+        }
+      echo "set ${prefix}_COMMIT $sha"
+    fi
     for arch in $arches; do
       digest=${digests[$arch]}
       [ "$digest" != - ] || digest=''

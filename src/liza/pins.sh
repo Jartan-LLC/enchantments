@@ -6,6 +6,7 @@
 
 # pin asset liza repo=liza-mas/liza
 LIZA_TAG='v0.10.0'
+LIZA_COMMIT='5d70efca300e5c00df93063ebde849fc747b7f27'
 LIZA_ASSET_X86_64='liza-{version}-linux-amd64.tar.gz'
 LIZA_SHA256_X86_64='0b44c5a73f1b4331ce16755c72ac9328c84b21bed0f94a7a207ca746999bf5c5'
 LIZA_ASSET_AARCH64='liza-{version}-linux-arm64.tar.gz'
