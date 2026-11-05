@@ -30,6 +30,12 @@ Sections are months, newest first.
   `<name>.pre-liza` already beside the file differs from it, keep what you
   want, move the copy out of its folder, then run `liza-deactivate` again.
 
+### Maintenance
+
+- A Liza pin-bump PR also moves `LIZA_COMMIT`, the commit Liza's provider
+  catalog is fetched at, to the new tag's; a Liza release checks that the
+  catalog is still there (#145).
+
 ## 2026-10
 
 - The first Features, each declared as `ghcr.io/jartan-llc/enchantments/<id>:1`:

@@ -33,6 +33,9 @@ init_args() { # project-root-var args...
   done
   [ "$subcommand" = init ] && ! $help
 }
+here=$(dirname "$(readlink -f "$0")")
+# shellcheck source=provider-catalog.sh
+source "$here/provider-catalog.sh"
 init_args project_root "$@" || exec "$real_liza" "$@"
 
 # Liza's init takes its root from the working directory and ignores -C.
@@ -45,7 +48,6 @@ backup_settings="$claude_dir/settings.local.json.liza-shim-backup"
 global_contract="$HOME/.claude/CLAUDE.md"
 root_contract="$top/CLAUDE.md"
 
-here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=activation-lib.sh
 source "$here/activation-lib.sh"
 

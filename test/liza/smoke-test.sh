@@ -84,6 +84,22 @@ stub_deactivate() { # clone
   (cd "$1" && HOME="$stub_home" bash "$liza_dir/deactivate.sh")
 }
 
+# Liza reads its provider catalog at the pinned release's commit, unless you
+# name another.
+# shellcheck disable=SC2016 # the stub expands it
+echo 'echo "$LIZA_PROVIDER_CATALOG_URL"' | stub_liza
+pinned_catalog=https://raw.githubusercontent.com/liza-mas/liza
+pinned_catalog+=/$(sed -n "s/^LIZA_COMMIT='\(.*\)'$/\1/p" "$liza_dir/pins.sh")
+pinned_catalog+=/provider-catalog.yaml
+catalog_url() { # [url]
+  LIZA_PROVIDER_CATALOG_URL=${1:-} HOME="$stub_home" bash "$shim" \
+    providers list </dev/null
+}
+check "liza reads the pinned release's provider catalog" \
+  test "$(catalog_url)" = "$pinned_catalog"
+check "or the one you name" \
+  test "$(catalog_url https://example.com/c.yaml)" = https://example.com/c.yaml
+
 for scenario in "fails:exit 1" \
   "truncates the settings:printf '{\"hooks\":' >.claude/settings.json" \
   "empties the hooks:echo '{\"hooks\":{\"SessionStart\":[]}}' \

@@ -9,6 +9,8 @@ steps_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 . "$steps_dir/claude_ready.sh"
 # shellcheck source=activation-lib.sh
 . "$steps_dir/activation-lib.sh"
+# shellcheck source=provider-catalog.sh
+. "$steps_dir/provider-catalog.sh"
 # liza-toolchain stages configure.args, env.append and AGENT_TOOLS.md in
 # $liza_toolchain for these steps, and set_up_liza relies on AGENT_TOOLS.md's
 # "#### RTK" section ending at the next heading or "---": changing either means
