@@ -60,6 +60,12 @@
   `.claude/`: activation backs up your files there as it does in
   `.claude/`, and `liza-deactivate` puts them back and removes the files
   init created.
+- With `--provider devin` or `--provider devin-acp`, `liza init` writes
+  `.windsurf/rules/liza.md`. Activation didn't record that file where git
+  ignores it, so `liza-deactivate` left it, and didn't refuse a symlinked
+  `.windsurf` or `.windsurf/rules`, which `liza init` wrote through.
+  `.windsurf` now joins the area activation lists before `liza init`, and
+  the folders it refuses as symlinks for those providers.
 - No change in behavior: activation's code is reorganized.
 
 ### Minor
