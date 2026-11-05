@@ -210,7 +210,7 @@ printf '%s\n' /.opencode/node_modules/ /.github/workflows/ \
 init_paths=(.user-tool.yaml .claude/notes.md .claude/hooks/user.sh
   .claude/hooks/sub/x.sh .codex/hooks.json .codex/hooks/user.sh
   .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/user.sh
-  .github/hooks/liza.json)
+  .github/hooks/liza.json .windsurf/rules/liza.md)
 for rel in "${init_paths[@]}"; do
   mkdir -p "$ignored/$(dirname "$rel")"
   echo "user file" >"$ignored/$rel"
@@ -268,10 +268,10 @@ check "and the ignored skill link" \
   test "$(readlink "$ignored/.claude/skills/stub-skill")" = user-skill
 rm -r -- "$stub_home/.liza/skills"
 
-# With --codex, --cursor, --opencode or --copilot, init writes to other
-# providers' folders: a user's untracked files there are backed up, and
-# deactivation puts them back and removes a file init created where git
-# ignores it.
+# With --codex, --cursor, --opencode, --copilot or --provider devin, init
+# writes to other providers' folders: a user's untracked files there are
+# backed up, and deactivation puts them back and removes the files init
+# created where git ignores them.
 providers=$(stub_clone providers)
 provider_paths=(.codex/config.toml .codex/hooks/git-guard.sh
   .cursor/hooks.json .opencode/tools/exec.ts .copilot/hooks/git-guard.sh
@@ -280,16 +280,18 @@ for rel in "${provider_paths[@]}"; do
   mkdir -p "$providers/$(dirname "$rel")"
   echo "user file" >"$providers/$rel"
 done
-created=.opencode/plugins/liza.ts
-mkdir -p "$providers/$(dirname "$created")"
-echo /.opencode/plugins/ >>"$providers/.git/info/exclude"
+created=(.opencode/plugins/liza.ts .windsurf/rules/liza.md)
+for rel in "${created[@]}"; do
+  mkdir -p "$providers/$(dirname "$rel")"
+done
+printf '%s\n' /.opencode/plugins/ /.windsurf/ >>"$providers/.git/info/exclude"
 stub_liza <<'EOF'
 settings "$hook"
 printf '%s\n' "$INIT_PATHS" | while IFS= read -r rel; do
   echo liza >"$rel"
 done
 EOF
-INIT_PATHS=$(printf '%s\n' "${provider_paths[@]}" "$created") \
+INIT_PATHS=$(printf '%s\n' "${provider_paths[@]}" "${created[@]}") \
   stub_init "$providers" 2>/dev/null
 providers_rc=$?
 check "init over the user's provider files succeeds" \
@@ -303,8 +305,10 @@ for rel in "${provider_paths[@]}"; do
   check "deactivation puts the user's $rel back" \
     test "$(cat "$providers/$rel")" = "user file"
 done
-check "and removes the ignored $created init created" \
-  test ! -e "$providers/$created"
+for rel in "${created[@]}"; do
+  check "and removes the ignored $rel init created" \
+    test ! -e "$providers/$rel"
+done
 
 # A backup interrupted before init runs leaves no copies and no locks.
 term=$(stub_clone term)
@@ -1588,6 +1592,8 @@ done <<'EOF'
 .copilot/hooks --copilot
 .github/hooks --provider copilot
 .github --copilot
+.windsurf --provider devin
+.windsurf/rules --provider=devin-acp
 EOF
 ln -s "$flagged_out" "$flagged/.github"
 INIT_PATHS='' stub_init "$flagged" 2>/dev/null

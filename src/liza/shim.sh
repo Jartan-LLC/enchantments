@@ -130,14 +130,16 @@ init_area_untracked() { # ls-files-options...
 # - those under hooks/ in .claude/, .codex/, .copilot/ and .github/;
 # - the entries in .claude/skills/, where the shim replaces a symlink with a
 #   link to Liza's skill;
-# - those under .opencode/plugins/ and .opencode/tools/.
+# - those under .opencode/plugins/ and .opencode/tools/;
+# - those in .windsurf/rules/.
 # The rest, such as a workspace folder, would only slow the backup, which
 # fingerprints and copies each file.
 init_write_ignored() {
   init_area_untracked --ignored --exclude-standard \
     | LC_ALL=C grep -z -x -E -e '[^/]*' -e '\.(claude|codex|cursor)/[^/]*' \
       -e '\.(claude|codex|copilot|github)/hooks/.*' \
-      -e '\.claude/skills/[^/]*' -e '\.opencode/(plugins|tools)/.*'
+      -e '\.claude/skills/[^/]*' -e '\.opencode/(plugins|tools)/.*' \
+      -e '\.windsurf/rules/[^/]*'
 }
 # A file init creates counts as its own whether git shows it or an exclude line
 # hides it. Hidden ones are listed across the whole area, not only
