@@ -215,6 +215,13 @@ and for `liza` too unless a pin-bump PR already has, and:
 
 - check `liza --help`'s global flags that take a value against the `case` at the top of
   `src/liza/shim.sh`;
+- check the provider flags in `liza init --help` and the ids in `liza providers list`,
+  and the folders `liza init` writes in for each (run it under a throwaway `HOME`),
+  against the allowlist in `init_areas`, `listed_dirs` and `write_dirs` in
+  `src/liza/activation-lib.sh`, and `init_write_ignored` in `src/liza/shim.sh`. A
+  symlink at a folder missing there isn't refused, and Liza's files written through it
+  get no backup. Update the folder list in `src/liza/NOTES.md`'s Activation section to
+  match;
 - diff upstream `contracts/AGENT_TOOLS.md` between the old and new tags, and carry the
   changes into `src/liza-toolchain/AGENT_TOOLS.md` and `src/liza/AGENT_TOOLS.minimal.md`.
   Keep the minimal file's graph rows as `rg`, and every rtk mention inside the

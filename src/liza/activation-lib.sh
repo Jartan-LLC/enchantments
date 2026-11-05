@@ -134,10 +134,18 @@ exclude_line_path() { # line
 }
 
 # The folders where liza init writes, which with the clone's top level make
-# up the area the shim lists before init. init_write_ignored in shim.sh names
-# the paths init writes in each: a folder added here needs its paths there,
-# or its ignored files get no backup.
+# up the area the shim lists before init. A folder added here also goes in:
+# - init_write_ignored (shim.sh), or its ignored files get no backup;
+# - write_dirs, with the subfolders init writes in, or a symlink at them is
+#   never refused;
+# - init_areas, under each provider that writes it, or a symlink at it isn't
+#   refused when that provider is named plainly.
 listed_dirs=(.claude .codex .cursor .opencode .copilot .github)
+# Each of listed_dirs and the folders in it that liza init, or the shim's
+# skill links, write in.
+write_dirs=(.claude .claude/hooks .claude/skills .codex .codex/hooks .cursor
+  .opencode .opencode/plugins .opencode/tools .copilot .copilot/hooks .github
+  .github/hooks)
 
 # Succeeds when path $1, relative to the clone's top, is in the area the shim
 # lists: at the top level or under one of listed_dirs.
@@ -150,19 +158,95 @@ in_listed_area() { # relative-path
   return 1
 }
 
-# Prints the first of .claude, .claude/hooks and .claude/skills in the clone at
-# $1 that is a symlink, dangling or not, and fails when none is. Activation and
-# deactivation find the files they back up, record and undo by path, and git
-# doesn't list files through a symlink: what they write through one, even into
-# the clone, escapes the backup and the record.
-symlinked_claude_dir() { # top
+# Prints the first of write_dirs under areas $2..., top-level names in the
+# clone at $1, that is a symlink, dangling or not, and fails when none is.
+# Activation and deactivation find the files they back up, record and undo
+# by path, and git doesn't list files through a symlink: what they write
+# through one, even into the clone, escapes the backup and the record.
+symlinked_write_dir() { # top area...
   local dir
-  for dir in "$1/.claude" "$1/.claude/hooks" "$1/.claude/skills"; do
-    [ -L "$dir" ] || continue
-    echo "$dir"
+  for dir in "${write_dirs[@]}"; do
+    in_list "${dir%%/*}" "${@:2}" || continue
+    [ -L "$1/$dir" ] || continue
+    echo "$1/$dir"
     return 0
   done
   return 1
+}
+
+# Prints the listed_dirs that liza init, given the shim's arguments $@, init
+# among them, writes in, as Liza v0.10.0 does: .claude, where the shim links
+# skills whatever the flags, and the folders of each provider named. A
+# provider counts as named only as a plain flag, such as --copilot, or a
+# known --provider id, once each. For any other spelling, such as
+# --copilot=false, or no provider at all, it prints every one of listed_dirs
+# rather than copy Liza's parsing to tell which providers init sets up: an
+# allowlist fails safe, while a copy that misses a spelling lets init write
+# through a symlink unrefused. Checking only the named ones lets the
+# Feature's --claude activation pass a symlinked .github, which it never
+# writes in.
+init_areas() { # shim-args...
+  local id named=() all=false
+  echo .claude
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --provider) id=${2-} && shift ;;
+      --provider=*) id=${1#*=} ;;
+      --claude | --codex | --copilot | --cursor | --gemini | --mistral | \
+        --opencode | --pi)
+        id=${1#--}
+        ;;
+      --claude=* | --codex=* | --copilot=* | --cursor=* | --gemini=* | \
+        --mistral=* | --opencode=* | --pi=*)
+        id=''
+        ;;
+      # Their value names no provider, even when spelled like a flag.
+      -C | --project-root)
+        shift 2 || shift
+        continue
+        ;;
+      *)
+        shift
+        continue
+        ;;
+    esac
+    shift
+    case $id in
+      claude | codex | codex-acp | copilot | cursor | cursor-acp | devin | \
+        devin-acp | gemini | kimi | mistral | opencode | opencode-acp | pi | \
+        qwen | qwen-acp)
+        in_list "$id" "${named[@]}" && all=true
+        named+=("$id")
+        ;;
+      *) all=true ;;
+    esac
+  done
+  if $all || [ ${#named[@]} -eq 0 ]; then
+    printf '%s\n' "${listed_dirs[@]}"
+    return
+  fi
+  for id in "${named[@]}"; do
+    case $id in
+      codex | codex-acp) echo .codex ;;
+      cursor) printf '%s\n' .codex .cursor ;;
+      cursor-acp) echo .cursor ;;
+      opencode | opencode-acp) echo .opencode ;;
+      copilot) printf '%s\n' .copilot .github ;;
+    esac
+  done
+}
+
+# Prints the area, the top-level name, of each path the activation record of
+# the clone at $1 lists and of each copy in its originals/: where deactivation
+# writes.
+recorded_areas() { # top
+  local dir path
+  dir=$(record_dir_of "$1") || return 1
+  {
+    record_query 'recorded_paths, overwritten_paths' "$dir/activation.json" \
+      | while IFS= read -r path; do echo "${path#"$1"/}"; done
+    finished_copies "$dir/originals" -printf '%P\n'
+  } 2>/dev/null | cut -d/ -f1
 }
 
 # Prints the directory holding the activation record of the clone at $1.

@@ -92,6 +92,20 @@
   `.claude`, it removed that clone's Liza files and settings. It now refuses, names the
   symlink and changes nothing; make it a directory, then run
   `liza-deactivate` again.
+- With `--codex`, `--cursor`, `--opencode` or `--copilot`, or with no
+  provider flag and no goal, where it asks which providers to set up,
+  `liza init` wrote through a symlink at a folder it writes in for that
+  provider, such as `.github` or `.codex/hooks`, replacing a file of yours
+  where it points with no copy, and `liza-deactivate` left Liza's files
+  there. Activation now refuses, names the symlink and changes nothing, and
+  so does `liza-deactivate` over a symlink at a folder activation wrote in,
+  until you make it a directory. A symlink at a folder the flags passed
+  don't write in, such as `.github` with `--claude` alone, doesn't matter.
+  Activation refuses over a symlink at any provider's folder when the run
+  names no provider, goal or not, or names one other than as a plain flag
+  or a known `--provider` id given once.
+  If you activated that way over such a symlink, remove Liza's files from
+  the folder it points to.
 
 ## 1.2.0
 
