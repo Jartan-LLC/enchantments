@@ -62,8 +62,9 @@
   init created.
 - With `--provider devin` or `--provider devin-acp`, `liza init` writes
   `.windsurf/rules/liza.md`. Activation didn't record that file where git
-  ignores it, so `liza-deactivate` left it, and didn't refuse a symlinked
-  `.windsurf` or `.windsurf/rules`, which `liza init` wrote through.
+  ignores it, so `liza-deactivate` left it. Nor did activation refuse a
+  symlinked `.windsurf` or `.windsurf/rules`, which `liza init` wrote
+  through.
   `.windsurf` now joins the area activation lists before `liza init`, and
   with those providers activation refuses a symlinked `.windsurf` or
   `.windsurf/rules`.
