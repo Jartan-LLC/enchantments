@@ -3,6 +3,11 @@
 - `semble`: semble==0.7.0 → semble==0.7.1
   - semble: 0.7.0 → 0.7.1
 
+### Minor
+
+- `semble`: huggingface-hub==2.3.0 → huggingface-hub==2.4.0
+  - huggingface-hub: 2.3.0 → 2.4.0
+
 ## 1.5.0
 
 - `AGENT_TOOLS.md` follows Liza v0.10.0's: search test sources before
