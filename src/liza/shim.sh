@@ -33,6 +33,7 @@ init_args() { # project-root-var args...
   done
   [ "$subcommand" = init ] && ! $help
 }
+
 here=$(dirname "$(readlink -f "$0")")
 # shellcheck source=provider-catalog.sh
 source "$here/provider-catalog.sh"
