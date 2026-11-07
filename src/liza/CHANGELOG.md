@@ -1,3 +1,13 @@
+## Unreleased
+
+### Minor
+
+- `pre-commit`: filelock==4.2.4, nodeenv==1.11.0, python-discovery==1.6.7, virtualenv==21.15.1 → filelock==4.2.5, nodeenv==1.11.1, python-discovery==1.9.0, virtualenv==21.15.2
+  - filelock: 4.2.4 → 4.2.5
+  - nodeenv: 1.11.0 → 1.11.1
+  - python-discovery: 1.6.7 → 1.9.0
+  - virtualenv: 21.15.1 → 21.15.2
+
 ## 1.3.0
 
 - Liza is activated only in a repo's main checkout. From a linked worktree,
