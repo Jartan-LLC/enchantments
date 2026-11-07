@@ -1,3 +1,11 @@
+## Unreleased
+
+### Minor
+
+- `semble`: filelock==4.2.4, hf-xet==1.7.1 → filelock==4.2.5, hf-xet==1.8.0
+  - filelock: 4.2.4 → 4.2.5
+  - hf-xet: 1.7.1 → 1.8.0
+
 ## 1.6.0
 
 - `semble`: semble==0.7.0 → semble==0.7.1
