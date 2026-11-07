@@ -1,6 +1,4 @@
-## Unreleased
-
-### Minor
+## 1.4.0
 
 - `pre-commit`: filelock==4.2.4, nodeenv==1.11.0, python-discovery==1.6.7, virtualenv==21.15.1 → filelock==4.2.5, nodeenv==1.11.1, python-discovery==1.9.0, virtualenv==21.15.2
   - filelock: 4.2.4 → 4.2.5
