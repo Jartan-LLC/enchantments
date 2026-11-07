@@ -216,12 +216,19 @@ check "an empty list reports nothing" \
   test -z "$(ls -A "$fake/.cache/enchantments" 2>/dev/null)"
 
 # A list with node off PATH, as when grimoire's own install failed at build.
+# The PATH holds what postStart runs, sed and mv for the report included.
 nonode=$(mktemp -d)
 cp /usr/local/share/enchantments/grimoire/*.sh "$nonode"/ \
   && echo "plugins='gitwise'" >"$nonode/options.sh"
+nonode_path=$(mktemp -d)
+for tool in readlink dirname mkdir sed mv; do
+  ln -s "$(command -v "$tool")" "$nonode_path/$tool"
+done
 rm -rf "$fake/.cache"
-(cd "$repo/sub" && HOME=$fake PATH=$nojq /bin/bash "$nonode/postStart.sh") \
-  2>/dev/null
+(
+  cd "$repo/sub" \
+    && HOME=$fake PATH=$nonode_path /bin/bash "$nonode/postStart.sh"
+) 2>/dev/null
 check "without node, the missing node is reported" \
   grep -q "need node on PATH" \
   "$fake/.cache/enchantments/grimoire.failures.reported"
