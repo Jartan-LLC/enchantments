@@ -34,5 +34,14 @@
       "claude-code": {},
       "grimoire": {}
     }
+  },
+  "nvm-without-node": {
+    "image": "mcr.microsoft.com/devcontainers/python:3-3.10",
+    "features": {
+      "claude-code": {},
+      "grimoire": {
+        "plugins": "gitwise"
+      }
+    }
   }
 }

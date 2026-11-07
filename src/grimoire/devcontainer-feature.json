@@ -12,6 +12,12 @@
       "description": "Grimoire plugins to install, comma-separated with no spaces; empty installs none. A plugin the repo's or the clone's Claude settings set to false is skipped."
     }
   },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/node"
+  ],
+  "containerEnv": {
+    "PATH": "${PATH}:/usr/local/share/enchantments/grimoire/bin"
+  },
   "updateContentCommand": "f=/usr/local/share/enchantments/grimoire/updateContent.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0",
   "postStartCommand": "f=/usr/local/share/enchantments/grimoire/postStart.sh; [ -f \"$f\" ] && command -v bash >/dev/null && bash \"$f\"; exit 0"
 }
