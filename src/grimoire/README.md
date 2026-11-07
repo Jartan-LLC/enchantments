@@ -34,8 +34,8 @@ Decline a plugin's dependents with it: praxis requires gitwise.
 
 ## Image requirements
 
-- Debian-based, with `jq`, and with `curl` unless `node` is already on `PATH`.
-- On architectures other than x86_64 and aarch64, `node` on `PATH`, from a Feature or a system install.
+- Debian-based, with `jq`. When `plugins` lists any, also `curl`, unless `node` is already on `PATH`.
+- When `plugins` lists any, on architectures other than x86_64 and aarch64: `node` on `PATH`, from a Feature or a system install.
 
 ## When something fails
 

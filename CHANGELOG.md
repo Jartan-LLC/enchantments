@@ -9,8 +9,8 @@ Sections are months, newest first.
 
 ## 2026-11
 
-- `grimoire`: Node no longer has to be on `PATH` for the plugins' hooks;
-  grimoire installs a pinned one when the image has none.
+- `grimoire`: on x86_64 and aarch64, Node no longer has to be on `PATH` for
+  the plugins' hooks; grimoire installs a pinned one when the image has none.
 - `liza`: run `liza-activate` in a repo's main checkout; a linked worktree
   isn't activated, and `liza-deactivate` no longer needs to run before
   `git worktree remove`.

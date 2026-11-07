@@ -556,7 +556,8 @@ fi
 # --- grimoire's install_node.sh, against a stub curl and stub pins ---
 
 # postStart checks only that node is on PATH, so a failed install must leave
-# no bin. The stub curl serves $NODE_TARBALL, whose node runs $NODE_EXIT.
+# no bin. The stub curl serves $NODE_TARBALL, whose node runs $NODE_EXIT; its
+# bin also holds an npm, which must not be extracted.
 nodes=$(mktemp -d "$root/node.XXXX")
 cp "$repo/src/grimoire/install_node.sh" "$repo/src/grimoire/fetch_verified.sh" \
   "$nodes"/
@@ -576,25 +577,37 @@ for arch in x64 arm64; do
 exit "$NODE_EXIT"
 EOF
   chmod +x "$nodes/tree/node-v0-linux-$arch/bin/node"
+  : >"$nodes/tree/node-v0-linux-$arch/bin/npm"
 done
+mkdir "$nodes/riscv64"
+printf '#!/bin/sh\necho riscv64\n' >"$nodes/riscv64/uname"
+chmod +x "$nodes/riscv64/uname"
 tar -czf "$nodes/node.tar.gz" -C "$nodes/tree" node-v0-linux-x64 \
   node-v0-linux-arm64
 digest=$(sha256sum "$nodes/node.tar.gz" | cut -d' ' -f1)
-install_node() { # node-exit tarball
+# Prints the exit status and bin's files, or bin=none when there's no bin.
+install_node() { # node-exit tarball [stub-dir]
+  local rc bin=none
   rm -rf "$nodes/dest"
-  NODE_EXIT=$1 NODE_TARBALL=$2 PATH=$nodes:$PATH \
+  NODE_EXIT=$1 NODE_TARBALL=$2 PATH=${3:+$3:}$nodes:$PATH \
     bash "$nodes/install_node.sh" "$nodes/dest" >/dev/null 2>&1
-  echo "rc=$? bin=$([ -e "$nodes/dest/bin" ] && echo yes || echo no)"
+  rc=$?
+  [ ! -e "$nodes/dest/bin" ] \
+    || bin=[$(find "$nodes/dest/bin" -mindepth 1 -printf '%f\n' | sort \
+      | paste -sd,)]
+  echo "rc=$rc bin=$bin"
 }
 printf 'NODE_VERSION=v0\nNODE_SHA256_X86_64=%s\nNODE_SHA256_AARCH64=%s\n' \
   "$digest" "$digest" >"$nodes/pins.sh"
-expect "install_node.sh installs a node that runs" 0 "rc=0 bin=yes" \
+expect "install_node.sh installs only a node that runs" 0 "rc=0 bin=[node]" \
   install_node 0 "$nodes/node.tar.gz"
 expect "install_node.sh leaves no bin when its node can't run" 0 \
-  "rc=1 bin=no" install_node 1 "$nodes/node.tar.gz"
+  "rc=1 bin=none" install_node 1 "$nodes/node.tar.gz"
 echo wrong >"$nodes/wrong.tar.gz"
 expect "install_node.sh leaves no bin when the digest doesn't match" 0 \
-  "rc=1 bin=no" install_node 0 "$nodes/wrong.tar.gz"
+  "rc=1 bin=none" install_node 0 "$nodes/wrong.tar.gz"
+expect "install_node.sh leaves no bin on an unsupported architecture" 0 \
+  "rc=1 bin=none" install_node 0 "$nodes/node.tar.gz" "$nodes/riscv64"
 
 # --- check-pending.sh and check-visibility.sh, against a stub CLI ---
 
