@@ -2,10 +2,10 @@
 
 ### Minor
 
-- When `plugins` lists any and no `node` is on `PATH` at build, a pinned,
-  digest-checked Node is installed for the plugins' hooks. Only `node` goes on
-  `PATH`, and last, so a Node from the image or a Feature is used instead. The
-  install needs `curl` in the image.
+- On x86_64 and aarch64, when `plugins` lists any and no `node` is on `PATH`
+  at build, a pinned, digest-checked Node is installed for the plugins' hooks.
+  Only `node` goes on `PATH`, and last, so a Node from the image or a Feature
+  is used instead. The install needs `curl` in the image.
 
 ## 1.0.2
 
