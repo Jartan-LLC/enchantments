@@ -2,7 +2,7 @@
 
 - **When the image is built,** if `plugins` lists any and no `node` is on `PATH`, a pinned Node is installed for the plugins' hooks, which run it. Only `node` goes on `PATH`, and last, so a Node from the image or a Feature is used instead.
 - **Once the container is created, in the workspace,** the grimoire marketplace is added and the plugins in the `plugins` option are installed for this clone. If the repo's `.claude/settings.json` pins the `Jartan-LLC/grimoire` marketplace to a `ref`, that ref is used. If your user settings declare grimoire, Claude adds it only from that entry's source. A github source there is used instead of the repo's, with a warning when the two differ. With another source type there, adding the marketplace fails. `.claude/settings.local.json` is added to the clone's `.git/info/exclude`, so `git status` stays clean. Installing plugins needs the `claude-code` Feature. With an empty `plugins` list, nothing is installed.
-- **Each time the container starts,** when `plugins` lists any, you're warned if `node` isn't on `PATH`.
+- **Each time the container starts,** when `plugins` lists any, you're warned if `node` isn't on `PATH`. A Node that only your shell's startup files add, such as nvm's, isn't seen there; ignore the warning then.
 
 To declare it for every container you open, see `https://github.com/Jartan-LLC/enchantments#declaring-a-feature`.
 

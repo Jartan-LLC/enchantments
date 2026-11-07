@@ -1,9 +1,9 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# Tests the CI scripts in .github/scripts, and lib/fetch_verified.sh, against
-# throwaway git repos built from this checkout, with stub devcontainer,
-# docker and curl CLIs. Prints one line per case and exits non-zero if any
-# fails.
+# Tests the CI scripts in .github/scripts, lib/fetch_verified.sh and grimoire's
+# install_node.sh against throwaway git repos built from this checkout, with
+# stub devcontainer, docker and curl CLIs. Prints one line per case and exits
+# non-zero if any fails.
 set -uo pipefail
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 root=$(mktemp -d)
@@ -552,6 +552,49 @@ if [ "$(retry_flags '')" = 1 ] && [ "$(retry_flags old)" = 0 ] \
 else
   fail "fetch_verified's retries" "$(cat "$STUB_LOG")"
 fi
+
+# --- grimoire's install_node.sh, against a stub curl and stub pins ---
+
+# postStart checks only that node is on PATH, so a failed install must leave
+# no bin. The stub curl serves $NODE_TARBALL, whose node runs $NODE_EXIT.
+nodes=$(mktemp -d "$root/node.XXXX")
+cp "$repo/src/grimoire/install_node.sh" "$repo/src/grimoire/fetch_verified.sh" \
+  "$nodes"/
+cat >"$nodes/curl" <<'EOF'
+#!/bin/bash
+[ "$2" != --version ] || exit 0
+while [ $# -gt 1 ]; do
+  [ "$1" != -o ] || cp "$NODE_TARBALL" "$2"
+  shift
+done
+EOF
+chmod +x "$nodes/curl"
+for arch in x64 arm64; do
+  mkdir -p "$nodes/tree/node-v0-linux-$arch/bin"
+  cat >"$nodes/tree/node-v0-linux-$arch/bin/node" <<'EOF'
+#!/bin/sh
+exit "$NODE_EXIT"
+EOF
+  chmod +x "$nodes/tree/node-v0-linux-$arch/bin/node"
+done
+tar -czf "$nodes/node.tar.gz" -C "$nodes/tree" node-v0-linux-x64 \
+  node-v0-linux-arm64
+digest=$(sha256sum "$nodes/node.tar.gz" | cut -d' ' -f1)
+install_node() { # node-exit tarball
+  rm -rf "$nodes/dest"
+  NODE_EXIT=$1 NODE_TARBALL=$2 PATH=$nodes:$PATH \
+    bash "$nodes/install_node.sh" "$nodes/dest" >/dev/null 2>&1
+  echo "rc=$? bin=$([ -e "$nodes/dest/bin" ] && echo yes || echo no)"
+}
+printf 'NODE_VERSION=v0\nNODE_SHA256_X86_64=%s\nNODE_SHA256_AARCH64=%s\n' \
+  "$digest" "$digest" >"$nodes/pins.sh"
+expect "install_node.sh installs a node that runs" 0 "rc=0 bin=yes" \
+  install_node 0 "$nodes/node.tar.gz"
+expect "install_node.sh leaves no bin when its node can't run" 0 \
+  "rc=1 bin=no" install_node 1 "$nodes/node.tar.gz"
+echo wrong >"$nodes/wrong.tar.gz"
+expect "install_node.sh leaves no bin when the digest doesn't match" 0 \
+  "rc=1 bin=no" install_node 0 "$nodes/wrong.tar.gz"
 
 # --- check-pending.sh and check-visibility.sh, against a stub CLI ---
 
