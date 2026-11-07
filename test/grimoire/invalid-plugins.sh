@@ -10,7 +10,7 @@ check "options.sh holds only the invalid flag" \
   test "$(cat /usr/local/share/enchantments/grimoire/options.sh)" \
   = plugins_invalid=1
 check "no node warning, since no plugin was asked for" \
-  bash -c "! grep -q 'need node on PATH' '$reported'"
+  bash -c "! grep -q \"node isn't on PATH\" '$reported'"
 check "no node installed, since no plugin was asked for" \
   test ! -e /usr/local/share/enchantments/grimoire/bin
 check "no plugin is installed" \

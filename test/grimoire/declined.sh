@@ -37,7 +37,8 @@ check "node is grimoire's" \
   test "$(command -v node)" = /usr/local/share/enchantments/grimoire/bin/node
 check "grimoire's node runs" node --version
 check "no missing node is reported" \
-  bash -c "! grep -qs 'need node on PATH' '$reports/grimoire.failures.reported'"
+  bash -c "! grep -qs \"node isn't on PATH\" \
+    '$reports/grimoire.failures.reported'"
 check "nothing left unreported" \
   test -z "$(ls "$reports"/*.failures 2>/dev/null)"
 
@@ -230,7 +231,7 @@ rm -rf "$fake/.cache"
     && HOME=$fake PATH=$nonode_path /bin/bash "$nonode/postStart.sh"
 ) 2>/dev/null
 check "without node, the missing node is reported" \
-  grep -q "need node on PATH" \
+  grep -q "node isn't on PATH" \
   "$fake/.cache/enchantments/grimoire.failures.reported"
 
 reportResults
