@@ -14,6 +14,10 @@ check "exactly the plugins option's list is installed" \
   test "$(local_plugins)" = '["gitwise@grimoire"]'
 check "no failures recorded" \
   test -z "$(ls "$HOME"/.cache/enchantments/*.failures* 2>/dev/null)"
+check "grimoire installs no node beside the node Feature's" \
+  test ! -e /usr/local/share/enchantments/grimoire/bin
+check "node is the node Feature's" \
+  test "$(command -v node)" = /usr/local/share/nvm/current/bin/node
 # VS Code runs the hook with a terminal on stdin: script gives it one. script
 # itself reads /dev/null, since a terminal there would stop it under timeout.
 # A rerun with one still finishes and records no failure.

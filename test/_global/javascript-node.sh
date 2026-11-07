@@ -39,6 +39,8 @@ check "the claude on PATH is in this home" \
 check "the volumes are linked into this home" links
 check "the grimoire plugins install at local scope" \
   test "$(local_plugins | jq length)" = 5
+check "grimoire installs no node, since the image has one" \
+  test ! -e /usr/local/share/enchantments/grimoire/bin
 check "codebase-memory-mcp is registered" \
   bash -c 'claude mcp get codebase-memory-mcp | grep -q "Local config"'
 check "codebase-memory-mcp runs from PATH" codebase-memory-mcp --version

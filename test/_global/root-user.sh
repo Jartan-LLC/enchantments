@@ -69,11 +69,11 @@ keeps_owner() { # mount
 check "claude-data keeps its owner" keeps_owner /mnt/enchantments/claude-data
 check "gh-config keeps its owner" keeps_owner /mnt/enchantments/gh-config
 
-# base:trixie has no node, so grimoire's warning is the only one.
-reports=~/.cache/enchantments
-check "grimoire reports the missing node" \
-  grep -q "need node on PATH" "$reports/grimoire.failures.reported"
-check "nothing else recorded" \
-  test "$(cd "$reports" && ls)" = grimoire.failures.reported
+# base:trixie has no node, so grimoire installed its own.
+check "node is grimoire's" \
+  test "$(command -v node)" = /usr/local/share/enchantments/grimoire/bin/node
+check "grimoire's node runs" node --version
+check "no failures recorded" \
+  test -z "$(ls -A ~/.cache/enchantments 2>/dev/null)"
 
 reportResults

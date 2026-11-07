@@ -11,6 +11,8 @@ check "options.sh holds only the invalid flag" \
   = plugins_invalid=1
 check "no node warning, since no plugin was asked for" \
   bash -c "! grep -q 'need node on PATH' '$reported'"
+check "no node installed, since no plugin was asked for" \
+  test ! -e /usr/local/share/enchantments/grimoire/bin
 check "no plugin is installed" \
   test "$(claude plugins list --json \
     | jq '[.[] | select(.id | endswith("@grimoire"))] | length')" = 0

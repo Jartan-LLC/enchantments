@@ -32,8 +32,12 @@ check "the local settings file is excluded" \
   grep -qxF .claude/settings.local.json .git/info/exclude
 check "git status is clean" test -z "$(git status --porcelain)"
 check "nothing grimoire at user scope" no_user_scope_grimoire
-check "the missing node is reported" \
-  grep -q "need node on PATH" "$reports/grimoire.failures.reported"
+# base:trixie has no node, so grimoire installed its own.
+check "node is grimoire's" \
+  test "$(command -v node)" = /usr/local/share/enchantments/grimoire/bin/node
+check "grimoire's node runs" node --version
+check "no missing node is reported" \
+  bash -c "! grep -qs 'need node on PATH' '$reports/grimoire.failures.reported'"
 check "nothing left unreported" \
   test -z "$(ls "$reports"/*.failures 2>/dev/null)"
 
@@ -195,8 +199,8 @@ check "without jq, nothing installs" test ! -s "$fake/calls"
 check "without jq, the failure is recorded" \
   grep -q "jq isn't installed" "$fake/.cache/enchantments/grimoire.failures"
 
-# An empty plugins list: no claude calls and nothing reported, though this image
-# has no node. jq is off PATH too, so the empty-list exit must come before the
+# An empty plugins list: no claude calls and nothing reported, though node is
+# off PATH. jq is off PATH too, so the empty-list exit must come before the
 # readiness checks.
 empty=$(mktemp -d)
 cp /usr/local/share/enchantments/grimoire/*.sh "$empty"/ \
@@ -210,5 +214,16 @@ cp /usr/local/share/enchantments/grimoire/*.sh "$empty"/ \
 check "an empty list makes no claude call" test ! -s "$fake/calls"
 check "an empty list reports nothing" \
   test -z "$(ls -A "$fake/.cache/enchantments" 2>/dev/null)"
+
+# A list with node off PATH, as when grimoire's own install failed at build.
+nonode=$(mktemp -d)
+cp /usr/local/share/enchantments/grimoire/*.sh "$nonode"/ \
+  && echo "plugins='gitwise'" >"$nonode/options.sh"
+rm -rf "$fake/.cache"
+(cd "$repo/sub" && HOME=$fake PATH=$nojq /bin/bash "$nonode/postStart.sh") \
+  2>/dev/null
+check "without node, the missing node is reported" \
+  grep -q "need node on PATH" \
+  "$fake/.cache/enchantments/grimoire.failures.reported"
 
 reportResults

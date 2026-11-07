@@ -14,6 +14,8 @@ plugins=''
 id=grimoire
 
 if [ -n "$plugins" ] && ! command -v node >/dev/null; then
-  record_failure "$id" "grimoire's plugin hooks need node on PATH"
+  record_failure "$id" "grimoire's plugin hooks need node on PATH, and" \
+    "grimoire couldn't install its own when the image was built (see the" \
+    "build log); rebuild, or add Node to the image"
 fi
 report_failures "$id"
