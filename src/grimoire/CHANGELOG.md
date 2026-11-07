@@ -1,6 +1,4 @@
-## Unreleased
-
-### Minor
+## 1.1.0
 
 - On x86_64 and aarch64, when `plugins` lists any and no `node` is on `PATH`
   at build, a pinned, digest-checked Node is installed for the plugins' hooks.
