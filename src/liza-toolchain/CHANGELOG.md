@@ -1,3 +1,51 @@
+## Unreleased
+
+### Minor
+
+- `@sourcegraph/scip-typescript`: 0.5.2 → 0.6.0
+- npm lock:
+  - @jridgewell/gen-mapping: added 0.3.13
+  - @jridgewell/remapping: added 2.3.5
+  - @jridgewell/trace-mapping: 0.3.9 → 0.3.9/0.3.31
+  - @sveltejs/acorn-typescript: added 1.0.13
+  - @types/estree: added 1.0.10
+  - @typescript/typescript-aix-ppc64: removed
+  - @typescript/typescript-darwin-arm64: removed
+  - @typescript/typescript-darwin-x64: removed
+  - @typescript/typescript-freebsd-arm64: removed
+  - @typescript/typescript-freebsd-x64: removed
+  - @typescript/typescript-linux-arm: removed
+  - @typescript/typescript-linux-arm64: removed
+  - @typescript/typescript-linux-loong64: removed
+  - @typescript/typescript-linux-mips64el: removed
+  - @typescript/typescript-linux-ppc64: removed
+  - @typescript/typescript-linux-riscv64: removed
+  - @typescript/typescript-linux-s390x: removed
+  - @typescript/typescript-linux-x64: removed
+  - @typescript/typescript-netbsd-arm64: removed
+  - @typescript/typescript-netbsd-x64: removed
+  - @typescript/typescript-openbsd-arm64: removed
+  - @typescript/typescript-openbsd-x64: removed
+  - @typescript/typescript-sunos-x64: removed
+  - @typescript/typescript-win32-arm64: removed
+  - @typescript/typescript-win32-x64: removed
+  - aria-query: added 5.3.1
+  - axobject-query: added 4.1.0
+  - clsx: added 2.1.1
+  - commander: 9.5.0/13.1.0/14.0.3 → 9.5.0/13.1.0/15.0.0
+  - dedent-js: added 1.0.1
+  - devalue: added 5.9.4
+  - esm-env: added 1.2.2
+  - esrap: added 2.4.0
+  - is-reference: added 3.0.3
+  - locate-character: added 3.0.0
+  - magic-string: added 0.30.21
+  - scule: added 1.3.0
+  - svelte: added 5.57.3
+  - svelte2tsx: added 0.7.63
+  - typescript: 6.0.3/7.0.2 → 6.0.3
+  - zimmerframe: added 1.1.5
+
 ## 1.7.0
 
 - `semble`: filelock==4.2.4, hf-xet==1.7.1 → filelock==4.2.5, hf-xet==1.8.0
