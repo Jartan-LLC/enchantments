@@ -1,3 +1,7 @@
+## Unreleased
+
+- `stripe-cli`: v1.55.6 → v1.55.8
+
 ## 1.1.2
 
 - `stripe-cli`: v1.55.3 → v1.55.6
