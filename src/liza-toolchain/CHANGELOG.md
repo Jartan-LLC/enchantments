@@ -1,3 +1,8 @@
+## Unreleased
+
+- npm lock:
+  - hono: 4.13.13 → 4.13.18
+
 ## 1.7.0
 
 - `semble`: filelock==4.2.4, hf-xet==1.7.1 → filelock==4.2.5, hf-xet==1.8.0
