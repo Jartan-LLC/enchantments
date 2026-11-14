@@ -1,3 +1,16 @@
+## Unreleased
+
+### Minor
+
+- `ast-grep`: 0.51.0 → 0.51.1
+- `yq`: v4.54.1 → v4.54.2
+- `uv`: 0.13.6 → 0.13.7
+- `semble`: anyio==4.15.1, click==8.5.0, filelock==4.2.5, semble==0.7.1 → anyio==4.16.0, click==8.5.1, filelock==4.2.9, semble==0.7.2
+  - anyio: 4.15.1 → 4.16.0
+  - click: 8.5.0 → 8.5.1
+  - filelock: 4.2.5 → 4.2.9
+  - semble: 0.7.1 → 0.7.2
+
 ## 1.7.0
 
 - `semble`: filelock==4.2.4, hf-xet==1.7.1 → filelock==4.2.5, hf-xet==1.8.0
