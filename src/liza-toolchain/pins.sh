@@ -5,18 +5,18 @@
 # updates.
 
 # pin asset ast-grep repo=ast-grep/ast-grep
-AST_GREP_TAG='0.51.0'
+AST_GREP_TAG='0.51.1'
 AST_GREP_ASSET_X86_64='app-x86_64-unknown-linux-gnu.zip'
-AST_GREP_SHA256_X86_64='a7eead5552d3a8daad70f5d50d935da44bd0c138e946b5b0a96b1d38169fa639'
+AST_GREP_SHA256_X86_64='42514f77ae0c8a25d7d32154d31d3e7e16f3ab894f8ce76ce417de234ee49157'
 AST_GREP_ASSET_AARCH64='app-aarch64-unknown-linux-gnu.zip'
-AST_GREP_SHA256_AARCH64='73af0ebe5958acee012754a5b2826a186580ef83333092408a7a01096fc30b8b'
+AST_GREP_SHA256_AARCH64='db02fae2d8eace5fc40c55242068882452dd03eab38a1d950d5fd981cf112926'
 
 # pin asset yq repo=mikefarah/yq
-YQ_TAG='v4.54.1'
+YQ_TAG='v4.54.2'
 YQ_ASSET_X86_64='yq_linux_amd64'
-YQ_SHA256_X86_64='8e34fc298390875de416e6a4afcb8cabeceb25d9aa8506c1a2f9353cf702ea5f'
+YQ_SHA256_X86_64='44c7759059b4910827a0059a2757b22001e59360cdecdb2ef8dedc4b6c7e9f32'
 YQ_ASSET_AARCH64='yq_linux_arm64'
-YQ_SHA256_AARCH64='189088da0c6429ec5178dfaab1a114805f6cab0b61b165ab236efedf1d57a71b'
+YQ_SHA256_AARCH64='bd44211dcd29a5f0eb701d4b7eb5ccd0cfff3bd3966cb4f7f9bd5b13701d997e'
 
 # pin asset rtk repo=rtk-ai/rtk
 RTK_TAG='v1.1.0'
@@ -31,11 +31,11 @@ MDQ_ASSET_X86_64='mdq-linux-x64-musl.tar.gz'
 MDQ_SHA256_X86_64='673ed676382f54a21e4381d845236c776b2b71ed8dc1cc3e92cf6d66a39edb07'
 
 # pin asset uv repo=astral-sh/uv
-UV_TAG='0.13.6'
+UV_TAG='0.13.7'
 UV_ASSET_X86_64='uv-x86_64-unknown-linux-musl.tar.gz'
-UV_SHA256_X86_64='5d61f26b6c7213779eda90edc6971ea6b0b796bfb8d49a574c8ad69b59838548'
+UV_SHA256_X86_64='287491da03f2a785c70fa75b13e1f849918c2f2b5415fe84876b8214eeb792f9'
 UV_ASSET_AARCH64='uv-aarch64-unknown-linux-musl.tar.gz'
-UV_SHA256_AARCH64='819692e404d23e5aae6bc44c0e260f1f5492fd1910ab4693b2c650f926dbe800'
+UV_SHA256_AARCH64='2d3ec076a0c4c0e8250bb6418c44080828b544f1a3be0b6e46adf9fb6923de45'
 
 # pin tag-commit scip-search repo=liza-mas/scip-search
 SCIP_SEARCH_TAG='v0.3.0'
