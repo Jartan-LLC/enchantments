@@ -20,11 +20,11 @@ RG_ASSET_AARCH64='ripgrep-{version}-aarch64-unknown-linux-musl.tar.gz'
 RG_SHA256_AARCH64='800b1e7206afe799dfb5a6901f23147cfaabe0e52210538100f61e86e1740915'
 
 # pin asset pre-commit-uv repo=astral-sh/uv
-PRE_COMMIT_UV_TAG='0.13.6'
+PRE_COMMIT_UV_TAG='0.13.8'
 PRE_COMMIT_UV_ASSET_X86_64='uv-x86_64-unknown-linux-musl.tar.gz'
-PRE_COMMIT_UV_SHA256_X86_64='5d61f26b6c7213779eda90edc6971ea6b0b796bfb8d49a574c8ad69b59838548'
+PRE_COMMIT_UV_SHA256_X86_64='61fb26dabc4f0cf1d050fc6c67d40e43e4fae2994af21ebc1e050b233bf2b5ed'
 PRE_COMMIT_UV_ASSET_AARCH64='uv-aarch64-unknown-linux-musl.tar.gz'
-PRE_COMMIT_UV_SHA256_AARCH64='819692e404d23e5aae6bc44c0e260f1f5492fd1910ab4693b2c650f926dbe800'
+PRE_COMMIT_UV_SHA256_AARCH64='0c6f8593fcf1eadfc60e663b685c408267559d7c5d61c689bbb9f3a7e369ba32'
 
 # pin uv-python pre-commit-python uv=pre-commit-uv
 PRE_COMMIT_PYTHON_VERSION='3.12.16'
