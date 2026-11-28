@@ -1,3 +1,16 @@
+## Unreleased
+
+### Minor
+
+- `pre-commit-uv`: 0.13.6 → 0.13.9
+- `pre-commit`: filelock==4.2.5, nodeenv==1.11.1, platformdirs==4.14.0, python-discovery==1.9.0, pyyaml==6.0.3, virtualenv==21.15.2 → filelock==4.2.12, nodeenv==1.12.0, platformdirs==4.14.8, python-discovery==1.9.6, pyyaml==6.0.4, virtualenv==21.15.11
+  - filelock: 4.2.5 → 4.2.12
+  - nodeenv: 1.11.1 → 1.12.0
+  - platformdirs: 4.14.0 → 4.14.8
+  - python-discovery: 1.9.0 → 1.9.6
+  - pyyaml: 6.0.3 → 6.0.4
+  - virtualenv: 21.15.2 → 21.15.11
+
 ## 1.4.0
 
 - `pre-commit`: filelock==4.2.4, nodeenv==1.11.0, python-discovery==1.6.7, virtualenv==21.15.1 → filelock==4.2.5, nodeenv==1.11.1, python-discovery==1.9.0, virtualenv==21.15.2
