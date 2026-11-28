@@ -1,3 +1,25 @@
+## Unreleased
+
+### Minor
+
+- `ast-grep`: 0.51.0 → 0.51.3
+- `yq`: v4.54.1 → v4.54.3
+- `rtk`: v1.1.0 → v1.2.1
+- `uv`: 0.13.6 → 0.13.9
+- `node`: v26.13.0 → v26.13.1
+- `go`: 1.27.3 → 1.27.4
+- `semble`: anyio==4.15.1, click==8.5.0, cloudpickle==3.1.2, filelock==4.2.5, httpcore2==2.16.0, httpx2==2.16.0, numpy==2.5.4, pyyaml==6.0.3, semble==0.7.1, tree-sitter==0.26.0 → anyio==4.16.0, click==8.5.1, cloudpickle==3.1.3, filelock==4.2.12, httpcore2==2.16.2, httpx2==2.16.2, numpy==2.5.5, pyyaml==6.0.4, semble==0.7.3, tree-sitter==0.26.1
+  - anyio: 4.15.1 → 4.16.0
+  - click: 8.5.0 → 8.5.1
+  - cloudpickle: 3.1.2 → 3.1.3
+  - filelock: 4.2.5 → 4.2.12
+  - httpcore2: 2.16.0 → 2.16.2
+  - httpx2: 2.16.0 → 2.16.2
+  - numpy: 2.5.4 → 2.5.5
+  - pyyaml: 6.0.3 → 6.0.4
+  - semble: 0.7.1 → 0.7.3
+  - tree-sitter: 0.26.0 → 0.26.1
+
 ## 1.7.0
 
 - `semble`: filelock==4.2.4, hf-xet==1.7.1 → filelock==4.2.5, hf-xet==1.8.0
